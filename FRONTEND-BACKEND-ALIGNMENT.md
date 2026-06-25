@@ -3,6 +3,59 @@
 > 维护者：小后（后端）+ 小前（前端）
 > 最后更新：2026-06-25
 > 状态：待双方确认后并行开发
+> GitHub：https://github.com/zichengtang5-ux/are-you-ok-today-
+
+---
+
+## 零、项目仓库 & 协作流程
+
+### 仓库地址
+
+```
+https://github.com/zichengtang5-ux/are-you-ok-today-
+```
+
+### 首次拉取
+
+```bash
+git clone https://github.com/zichengtang5-ux/are-you-ok-today-.git
+cd are-you-ok-today-
+```
+
+目录结构：
+
+```
+are-you-ok-today-/
+├── app/                  # 前端 Expo React Native
+├── server/               # 后端 NestJS
+├── 独居提醒-PRD-*.md      # 产品需求文档
+├── FRONTEND-BACKEND-ALIGNMENT.md  # 本文档（前后端对齐）
+└── ...
+```
+
+### 分支策略
+
+| 分支 | 用途 | 命名示例 |
+|------|------|---------|
+| `main` | 主干，始终保持可部署 | — |
+| `feat/xxx` | 功能开发 | `feat/s3-reminder-cron`、`feat/login-page` |
+| `fix/xxx` | Bug 修复 | `fix/contact-validation` |
+
+### 开发流程
+
+1. **从 main 拉取最新代码**：`git pull origin main`
+2. **创建功能分支**：`git checkout -b feat/你的功能名`
+3. **在功能分支上开发**，提交 commit
+4. **推送到远程**：`git push -u origin feat/你的功能名`
+5. **在 GitHub 上创建 Pull Request**，目标分支选 `main`
+6. **互相 Code Review** 后合并
+
+### 注意事项
+
+- **不要直接在 main 分支上开发**，所有改动走 PR 流程
+- 前端的 PR 加标签 `frontend`，后端的加 `backend`
+- 合并后删除功能分支
+- 本文档（FRONTEND-BACKEND-ALIGNMENT.md）的修改也需要走 PR
 
 ---
 
@@ -711,3 +764,5 @@ DELETE /api/user/account
 - [ ] 小后：已阅读并确认全部 API 契约
 - [ ] 双方确认深链接 scheme: `todayok://`
 - [ ] 双方确认推送文案内容
+- [ ] 小前：已获取 GitHub 仓库访问权限，能正常 clone 和提交 PR
+- [ ] 小后：已获取 GitHub 仓库访问权限，能正常 clone 和提交 PR
