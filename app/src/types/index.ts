@@ -43,13 +43,18 @@ export interface DailyRecord {
 /* ──────────────── Alert ──────────────── */
 export type AlertStatus = 'active' | 'confirmed' | 'help_needed' | 'resolved';
 
+export interface AlertContactNotified {
+  id: string;
+  name: string;
+  phone: string;
+}
+
 export interface AlertEvent {
   id: string;
-  userId: string;
   triggeredAt: string;
   status: AlertStatus;
   lastReplyAt?: string;
-  contactsNotified: string[];
+  contactsNotified: AlertContactNotified[];
   smsRounds: number;
   timeline: AlertTimelineItem[];
 }

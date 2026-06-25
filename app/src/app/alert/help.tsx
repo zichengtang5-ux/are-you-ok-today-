@@ -1,8 +1,22 @@
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Linking, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Card, Button } from '@/components/ui';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Card, Button, LoadingState, ErrorState } from '@/components/ui';
+import { alertApi, type AlertHelpResponse, type SuggestedAction } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+
+const ACTION_EMOJI: Record<string, string> = {
+  call_user: '📞',
+  call_120: '🚑',
+  call_contact: '👥',
+};
+
+const ACTION_BUTTON_LABEL: Record<string, string> = {
+  call_user: '拨号 →',
+  call_120: '拨号 →',
+  call_contact: '查看 →',
+};
 
 interface ActionItemProps {
   emoji: string;
@@ -35,8 +49,90 @@ function ActionItem({ emoji, label, detail, actionLabel, actionColor = Colors.pr
   );
 }
 
+function maskPhone(phone: string): string {
+  if (phone.length >= 7) {
+    return phone.slice(0, 3) + '****' + phone.slice(-4);
+  }
+  return phone;
+}
+
+function renderAction(action: SuggestedAction): ActionItemProps | null {
+  switch (action.type) {
+    case 'call_user':
+      return {
+        emoji: ACTION_EMOJI.call_user,
+        label: action.label,
+        detail: action.phone ? maskPhone(action.phone) : undefined,
+        actionLabel: ACTION_BUTTON_LABEL.call_user,
+        onPress: () => {
+          if (action.phone) Linking.openURL(`tel:${action.phone}`);
+        },
+      };
+
+    case 'call_120':
+      return {
+        emoji: ACTION_EMOJI.call_120,
+        label: action.label,
+        detail: action.address ?? undefined,
+        actionLabel: ACTION_BUTTON_LABEL.call_120,
+        actionColor: Colors.danger,
+        onPress: () => Linking.openURL('tel:120'),
+      };
+
+    case 'call_contact':
+      return {
+        emoji: ACTION_EMOJI.call_contact,
+        label: action.label,
+        detail: action.contacts?.map((c) => `${c.name} ${maskPhone(c.phone)}`).join('、'),
+        actionLabel: ACTION_BUTTON_LABEL.call_contact,
+        onPress: () => {
+          const first = action.contacts?.[0];
+          if (first?.phone) Linking.openURL(`tel:${first.phone}`);
+        },
+      };
+
+    default:
+      return null;
+  }
+}
+
 export default function AlertHelpScreen() {
   const router = useRouter();
+  const { alertId, contactId } = useLocalSearchParams<{ alertId?: string; contactId?: string }>();
+
+  const [helpData, setHelpData] = useState<AlertHelpResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!alertId || !contactId) {
+      setError('缺少告警信息');
+      setLoading(false);
+      return;
+    }
+
+    alertApi.needHelp(alertId, contactId)
+      .then((data) => setHelpData(data))
+      .catch((err: any) => {
+        const message = err.response?.data?.message || '获取帮助信息失败';
+        setError(message);
+      })
+      .finally(() => setLoading(false));
+  }, [alertId, contactId]);
+
+  if (loading) {
+    return <LoadingState message="获取帮助信息..." />;
+  }
+
+  if (error && !helpData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ErrorState message={error} onRetry={() => router.back()} />
+      </SafeAreaView>
+    );
+  }
+
+  const actions = helpData?.suggestedActions ?? [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -52,46 +148,35 @@ export default function AlertHelpScreen() {
         {/* Danger banner */}
         <Card variant="danger" style={styles.banner}>
           <Text style={styles.bannerText}>
-            🚨 联系不上小李，请按照以下建议行动
+            🚨 联系不上对方，请按照以下建议行动
           </Text>
         </Card>
 
-        {/* Action list */}
-        <Card style={styles.actionCard}>
-          <ActionItem
-            emoji="📞"
-            label="拨打小李电话"
-            detail="138****5678"
-            actionLabel="拨号 →"
-            onPress={() => Linking.openURL('tel:13800005678')}
-          />
-
-          <ActionItem
-            emoji="🚑"
-            label="拨打 120 急救"
-            detail="小李地址：XX市XX区XX路XX号"
-            actionLabel="拨号 →"
-            actionColor={Colors.danger}
-            onPress={() => Linking.openURL('tel:120')}
-          />
-
-          <ActionItem
-            emoji="👥"
-            label="联系其他联系人"
-            detail="免费版仅支持 1 位联系人"
-            actionLabel="升级 →"
-            actionColor={Colors.warm}
-            onPress={() => {}}
-          />
-
-          <ActionItem
-            emoji="🏠"
-            label="查看小李最近地址"
-            detail="如已获取位置信息"
-            actionLabel="查看 →"
-            onPress={() => {}}
-          />
-        </Card>
+        {/* Dynamic action list */}
+        {actions.length > 0 ? (
+          <Card style={styles.actionCard}>
+            {actions.map((action, index) => {
+              const props = renderAction(action);
+              if (!props) return null;
+              return (
+                <ActionItem
+                  key={`${action.type}-${index}`}
+                  {...props}
+                />
+              );
+            })}
+          </Card>
+        ) : (
+          <Card style={styles.actionCard}>
+            <ActionItem
+              emoji="📞"
+              label="拨打 120 急救"
+              actionLabel="拨号 →"
+              actionColor={Colors.danger}
+              onPress={() => Linking.openURL('tel:120')}
+            />
+          </Card>
+        )}
 
         {/* Disclaimer */}
         <Text style={styles.disclaimer}>

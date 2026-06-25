@@ -40,11 +40,10 @@ export const mockGuardians: Guardian[] = [
 /* ──────────────── Mock Alert ──────────────── */
 export const mockAlert: AlertEvent = {
   id: 'a1',
-  userId: 'u1',
   triggeredAt: '2026-06-24T23:02:00Z',
   status: 'active',
   lastReplyAt: '2026-06-23T20:15:00Z',
-  contactsNotified: ['妈妈'],
+  contactsNotified: [{ id: 'c1', name: '妈妈', phone: '13811112222' }],
   smsRounds: 1,
   timeline: [
     { time: '22:32', action: '系统检测到超时' },

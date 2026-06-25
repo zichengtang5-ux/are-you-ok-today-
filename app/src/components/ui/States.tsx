@@ -20,11 +20,11 @@ export function EmptyState({ message = '暂无数据' }: { message?: string }) {
   );
 }
 
-export function ErrorState({ onRetry }: { onRetry: () => void }) {
+export function ErrorState({ message = '加载失败', onRetry }: { message?: string; onRetry: () => void }) {
   return (
     <View style={styles.container}>
       <Text style={styles.emptyIcon}>😵</Text>
-      <Text style={styles.text}>加载失败</Text>
+      <Text style={styles.text}>{message}</Text>
       <Text style={styles.subtext}>请检查网络连接后重试</Text>
     </View>
   );

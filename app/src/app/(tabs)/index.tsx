@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Button, Card, StreakBadge, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
-import { replyApi } from '@/services/api.types';
+import { replyApi, alertApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { ReplyStatus } from '@/types';
 
@@ -50,7 +50,7 @@ function getGreeting(): string {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { todayStatus, streak, reminder, activeAlert, reply, undoReply, setTodayStatus, setReminder, setStreak } = useStore();
+  const { todayStatus, streak, reminder, activeAlert, reply, undoReply, setTodayStatus, setReminder, setStreak, setActiveAlert } = useStore();
   const config = statusConfig[todayStatus];
 
   const [showUndoDialog, setShowUndoDialog] = useState(false);
@@ -76,9 +76,26 @@ export default function HomeScreen() {
         if (data.monthlyStats) {
           setStreak(data.monthlyStats.repliedDays);
         }
+        if (data.status === 'alert') {
+          alertApi.getActive().then((alertData) => {
+            if (!cancelled && alertData) {
+              setActiveAlert({
+                id: alertData.id,
+                triggeredAt: alertData.triggeredAt,
+                status: 'active',
+                lastReplyAt: alertData.lastReplyAt,
+                contactsNotified: alertData.contactsNotified,
+                smsRounds: alertData.smsRounds,
+                timeline: alertData.timeline,
+              });
+            }
+          }).catch(() => {});
+        } else {
+          setActiveAlert(null);
+        }
       }).catch(() => {});
       return () => { cancelled = true; };
-    }, [setTodayStatus, setReminder, setStreak]),
+    }, [setTodayStatus, setReminder, setStreak, setActiveAlert]),
   );
 
   // Undo countdown effect
@@ -180,9 +197,13 @@ export default function HomeScreen() {
         {/* Alert status */}
         {todayStatus === 'alert' && activeAlert && (
           <Card variant="danger" style={styles.alertCard}>
-            <Text style={styles.alertText}>最后回复时间：昨天 20:15</Text>
+            <Text style={styles.alertText}>
+              {activeAlert.lastReplyAt
+                ? `最后回复：${new Date(activeAlert.lastReplyAt).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                : '今天尚未回复'}
+            </Text>
             <Text style={styles.alertContacts}>
-              已通知：{activeAlert.contactsNotified.join('、')}
+              已通知：{activeAlert.contactsNotified.map((c) => c.name).join('、')}
             </Text>
           </Card>
         )}

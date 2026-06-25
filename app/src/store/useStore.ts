@@ -48,6 +48,7 @@ interface AppState {
   reply: () => void;
   undoReply: () => void;
   triggerAlert: (alert: AlertEvent) => void;
+  setActiveAlert: (alert: AlertEvent | null) => void;
   resolveAlert: () => void;
   setGuardians: (guardians: Guardian[]) => void;
   setNotificationAuthorized: (v: boolean) => void;
@@ -93,6 +94,7 @@ export const useStore = create<AppState>()(
           streak: Math.max(0, s.streak - 1),
         })),
       triggerAlert: (alert) => set({ activeAlert: alert, todayStatus: 'alert' }),
+      setActiveAlert: (alert) => set({ activeAlert: alert }),
       resolveAlert: () => set({ activeAlert: null, todayStatus: 'replied' }),
       setGuardians: (guardians) => set({ guardians }),
       setNotificationAuthorized: (v) => set({ notificationAuthorized: v }),
