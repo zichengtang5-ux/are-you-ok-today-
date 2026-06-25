@@ -30,7 +30,7 @@ export function parseDeepLink(url: string): DeepLinkRoute | null {
 
   if (segments[0] === 'invite' && segments[1]) {
     return {
-      path: '/(tabs)' as Href,
+      path: '/guardian/invite' as Href,
       params: { inviteCode: segments[1] },
     };
   }
@@ -56,7 +56,11 @@ export function navigateDeepLink(url: string, router: Router): boolean {
   const route = parseDeepLink(url);
   if (!route) return false;
 
-  router.push(route.path);
+  if (route.params) {
+    router.push({ pathname: route.path, params: route.params } as Href);
+  } else {
+    router.push(route.path);
+  }
   return true;
 }
 
