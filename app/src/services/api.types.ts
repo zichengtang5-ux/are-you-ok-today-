@@ -79,6 +79,9 @@ export const userApi = {
 
   updateOnboarding: (data: UpdateOnboardingRequest) =>
     api.patch('/user/onboarding', data),
+
+  deleteAccount: (confirmation: string) =>
+    api.delete<{ message: string }>('/user/account', { data: { confirmation } }),
 };
 
 /* ──────────────── Contacts ──────────────── */
@@ -185,7 +188,22 @@ export const replyApi = {
     api.get<{ streak: number }>('/reply/streak'),
 };
 
-/* ──────────────── Alert ──────────────── */
+/* ──────────────── Device (S3) ──────────────── */
+export interface RegisterDeviceRequest {
+  token: string;
+  platform: 'ios' | 'android';
+}
+
+export interface RegisterDeviceResponse {
+  message: string;
+}
+
+export const deviceApi = {
+  register: (data: RegisterDeviceRequest) =>
+    api.post<RegisterDeviceResponse>('/device/register', data),
+};
+
+/* ──────────────── Alert (S4) ──────────────── */
 export type AlertStatus = 'active' | 'confirmed' | 'help_needed' | 'resolved';
 
 export interface AlertTimelineItem {
@@ -194,62 +212,225 @@ export interface AlertTimelineItem {
   isCurrent?: boolean;
 }
 
-export interface AlertResponse {
+export interface AlertContactNotified {
   id: string;
-  userId: string;
+  name: string;
+  phone: string;
+}
+
+export interface ActiveAlertResponse {
+  id: string;
   triggeredAt: string;
-  status: AlertStatus;
-  lastReplyAt?: string;
-  contactsNotified: string[];
+  lastReplyAt: string;
+  contactsNotified: AlertContactNotified[];
   smsRounds: number;
   timeline: AlertTimelineItem[];
 }
 
+export interface AlertConfirmResponse {
+  message: string;
+  alert: {
+    id: string;
+    status: 'confirmed';
+    resolvedAt: string;
+  };
+}
+
+export interface SuggestedAction {
+  type: 'call_user' | 'call_120' | 'call_contact';
+  label: string;
+  phone?: string;
+  address?: string;
+  contacts?: AlertContactNotified[];
+}
+
+export interface AlertHelpResponse {
+  message: string;
+  alert: {
+    id: string;
+    status: 'help_needed';
+  };
+  suggestedActions: SuggestedAction[];
+}
+
 export const alertApi = {
   getActive: () =>
-    api.get<AlertResponse | null>('/alert/active'),
+    api.get<ActiveAlertResponse | null>('/alert/active'),
 
-  confirm: (alertId: string) =>
-    api.post<AlertResponse>(`/alert/${alertId}/confirm`),
+  confirm: (alertId: string, contactId: string) =>
+    api.post<AlertConfirmResponse>(`/alert/${alertId}/confirm`, { contactId }),
 
-  needHelp: (alertId: string) =>
-    api.post<AlertResponse>(`/alert/${alertId}/help`),
+  needHelp: (alertId: string, contactId: string) =>
+    api.post<AlertHelpResponse>(`/alert/${alertId}/help`, { contactId }),
 };
 
-/* ──────────────── Guardian ──────────────── */
+/* ──────────────── Help (S5) ──────────────── */
+export interface EmergencyHelpRequest {
+  latitude?: number;
+  longitude?: number;
+  addressText?: string;
+}
+
+export interface EmergencyHelpResponse {
+  id: string;
+  createdAt: string;
+  address: string;
+  contactsNotified: AlertContactNotified[];
+  message: string;
+}
+
+export interface HelpAddressResponse {
+  address: string;
+  source: 'gps' | 'user_preset';
+}
+
+export const helpApi = {
+  emergency: (data: EmergencyHelpRequest) =>
+    api.post<EmergencyHelpResponse>('/help/emergency', data),
+
+  getAddress: () =>
+    api.get<HelpAddressResponse>('/help/address'),
+};
+
+/* ──────────────── Guardian (S5) ──────────────── */
 export interface CreateGuardianRequest {
   wardName: string;
   wardPhone: string;
   relation: string;
-  reminderStartTime?: string;
-  reminderEndTime?: string;
 }
 
-export interface GuardianResponse {
+export interface CreateGuardianResponse {
+  id: string;
+  inviteCode: string;
+  inviteLink: string;
+  isBound: boolean;
+  wardName: string;
+  wardPhone: string;
+}
+
+export interface AcceptInviteResponse {
+  message: string;
+  guardian: {
+    id: string;
+    guardianName: string;
+  };
+}
+
+export interface GuardianWardResponse {
   id: string;
   wardName: string;
   wardPhone: string;
   relation: string;
+  isBound: boolean;
   status: ReplyStatus;
   lastReplyAt?: string;
-  streak: number;
-  isBound: boolean;
   reminderConfig: ReminderConfigResponse;
+}
+
+export interface WardDashboardResponse {
+  wardName: string;
+  status: ReplyStatus;
+  lastReplyAt: string;
+  recentDays: { date: string; replied: boolean }[] | null;
+  monthlyStats: {
+    repliedDays: number;
+    totalDays: number;
+    display: string;
+  } | null;
+  history: { date: string; event: string }[] | null;
+}
+
+export interface ProxyReplyResponse {
+  message: string;
+  guardStatus: string;
 }
 
 export const guardianApi = {
   create: (data: CreateGuardianRequest) =>
-    api.post<GuardianResponse>('/guardian', data),
+    api.post<CreateGuardianResponse>('/guardian/create', data),
 
-  list: () =>
-    api.get<GuardianResponse[]>('/guardian'),
+  acceptInvite: (inviteCode: string) =>
+    api.post<AcceptInviteResponse>('/guardian/accept-invite', { inviteCode }),
 
-  getDashboard: (guardianId: string) =>
-    api.get<any>(`/guardian/${guardianId}/dashboard`),
+  listWards: () =>
+    api.get<GuardianWardResponse[]>('/guardian/wards'),
 
-  proxyConfirm: (guardianId: string) =>
-    api.post<GuardianResponse>(`/guardian/${guardianId}/proxy-confirm`),
+  getDashboard: (wardId: string) =>
+    api.get<WardDashboardResponse>(`/guardian/wards/${wardId}/dashboard`),
 
-  generateInvite: (guardianId: string) =>
-    api.post<{ inviteUrl: string }>(`/guardian/${guardianId}/invite`),
+  proxyReply: (wardId: string) =>
+    api.post<ProxyReplyResponse>(`/guardian/wards/${wardId}/proxy-reply`),
+};
+
+/* ──────────────── Subscription (S6) ──────────────── */
+export type SubscriptionPlan = 'monthly' | 'yearly';
+
+export interface SubscriptionVerifyRequest {
+  transactionId: string;
+  plan: SubscriptionPlan;
+}
+
+export interface SubscriptionResponse {
+  subscription: {
+    plan: SubscriptionPlan;
+    status: 'active' | 'expired' | 'cancelled';
+    currentPeriodEnd: string;
+  };
+}
+
+export interface ProxySubscribeRequest {
+  wardId: string;
+  transactionId: string;
+  plan: SubscriptionPlan;
+}
+
+export interface ProxySubscribeResponse {
+  message: string;
+  subscription: {
+    plan: SubscriptionPlan;
+    status: string;
+  };
+}
+
+export const subscriptionApi = {
+  verify: (data: SubscriptionVerifyRequest) =>
+    api.post<SubscriptionResponse>('/subscription/verify', data),
+
+  proxySubscribe: (data: ProxySubscribeRequest) =>
+    api.post<ProxySubscribeResponse>('/subscription/proxy-subscribe', data),
+};
+
+/* ──────────────── Pause (S7) ──────────────── */
+export interface PauseRequest {
+  days: number;
+  reason?: string;
+}
+
+export interface PauseResponse {
+  message: string;
+  pauseEndAt: string;
+  days: number;
+}
+
+export interface PauseStatusResponse {
+  isPaused: boolean;
+  pauseEndAt?: string;
+  daysRemaining?: number;
+  reason?: string;
+}
+
+export interface ResumeResponse {
+  message: string;
+  guardStatus: string;
+}
+
+export const pauseApi = {
+  pause: (data: PauseRequest) =>
+    api.post<PauseResponse>('/pause', data),
+
+  resume: () =>
+    api.post<ResumeResponse>('/pause/resume'),
+
+  getStatus: () =>
+    api.get<PauseStatusResponse>('/pause/status'),
 };

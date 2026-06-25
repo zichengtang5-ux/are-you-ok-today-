@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Button, Card, Banner, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
-import { requestNotificationPermission, scheduleDailyReminder, getNotificationStatus } from '@/services/notifications';
+import { requestNotificationPermission, scheduleDailyReminder, getNotificationStatus, registerDeviceToken } from '@/services/notifications';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function NotificationAuthScreen() {
@@ -28,6 +28,9 @@ export default function NotificationAuthScreen() {
 
         // Schedule daily reminder
         await scheduleDailyReminder(reminder.startTime, reminder.endTime);
+
+        // Register APNs device token (non-blocking)
+        registerDeviceToken().catch(() => {});
 
         await userApi.updateOnboarding({
           step: 'complete',
