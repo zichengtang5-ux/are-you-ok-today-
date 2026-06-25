@@ -15,6 +15,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { SmsModule } from './sms/sms.module';
 import { PushModule } from './push/push.module';
 import { DeviceModule } from './device/device.module';
+import { HelpModule } from './help/help.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
@@ -34,6 +35,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     ReminderModule,
     AlertModule,
     DeviceModule,
+    HelpModule,
     GuardianModule,
     SubscriptionModule,
   ],

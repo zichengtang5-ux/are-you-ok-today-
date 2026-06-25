@@ -5,5 +5,6 @@ import { ReplyService } from './reply.service';
 @Module({
   controllers: [ReplyController],
   providers: [ReplyService],
+  exports: [ReplyService],
 })
 export class AlertModule {}
