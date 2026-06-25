@@ -33,6 +33,8 @@ model User {
   guardianOf      GuardianRelation[] @relation("guardian")
   // 子女端：作为被守护者
   wardOf          GuardianRelation[] @relation("ward")
+
+  devices         Device[]
 }
 
 // ─── 紧急联系人 ───
@@ -215,4 +217,18 @@ model VerificationCode {
   createdAt DateTime @default(now())
 
   @@index([phone])
+}
+
+// ─── 设备推送 Token ───
+model Device {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String
+  platform  String   @default("ios") // ios | android
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, token])
+  @@index([userId])
 }
