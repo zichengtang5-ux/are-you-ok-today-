@@ -1,19 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { useStore } from '@/store/useStore';
-import { authApi } from '@/services/api.types';
+import { authApi, replyApi } from '@/services/api.types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoadingState } from '@/components/ui/States';
+import {
+  initializeNotifications,
+  registerNotificationResponseHandler,
+  isReplyOkAction,
+} from '@/services/notifications';
+import {
+  getInitialURL,
+  addDeepLinkListener,
+  navigateDeepLink,
+} from '@/services/deepLink';
 
 export default function RootLayout() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const isReady = useRef(false);
 
   const setUser = useStore((s) => s.setUser);
   const setOnboardingStep = useStore((s) => s.setOnboardingStep);
+  const setTodayStatus = useStore((s) => s.setTodayStatus);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const init = async () => {
+      await initializeNotifications();
+
       try {
         const accessToken = await AsyncStorage.getItem('access_token');
 
@@ -21,6 +35,7 @@ export default function RootLayout() {
           const userData = await authApi.getMe();
           setUser(userData);
           setOnboardingStep(userData.onboardingStep as any);
+          isReady.current = true;
 
           if (userData.isOnboarded) {
             router.replace('/(tabs)');
@@ -30,15 +45,44 @@ export default function RootLayout() {
         } else {
           router.replace('/onboarding/login');
         }
-      } catch (error) {
+      } catch {
         router.replace('/onboarding/login');
       } finally {
         setIsLoading(false);
       }
+
+      const initialUrl = await getInitialURL();
+      if (initialUrl) {
+        navigateDeepLink(initialUrl, router);
+      }
     };
 
-    checkAuth();
+    init();
   }, []);
+
+  useEffect(() => {
+    const unsubscribeNotification = registerNotificationResponseHandler(
+      async (actionId) => {
+        if (isReplyOkAction(actionId)) {
+          try {
+            const result = await replyApi.reply();
+            setTodayStatus(result.guardStatus as any);
+          } catch {
+            // silently fail — user can retry in app
+          }
+        }
+      },
+    );
+
+    const unsubscribeDeepLink = addDeepLinkListener((url) => {
+      navigateDeepLink(url, router);
+    });
+
+    return () => {
+      unsubscribeNotification();
+      unsubscribeDeepLink();
+    };
+  }, [router, setTodayStatus]);
 
   if (isLoading) {
     return <LoadingState message="正在加载..." />;
