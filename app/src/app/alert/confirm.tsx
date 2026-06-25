@@ -1,31 +1,66 @@
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Card, Button, Timeline } from '@/components/ui';
-import { useStore } from '@/store/useStore';
-import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Card, Button, Timeline, LoadingState } from '@/components/ui';
+import { alertApi, type ActiveAlertResponse } from '@/services/api.types';
+import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { AlertTimelineItem } from '@/types';
 
-const resolvedTimeline: AlertTimelineItem[] = [
-  { time: '22:00', action: '系统检测到超时' },
-  { time: '22:00', action: '发送关心式提醒给小李' },
-  { time: '22:30', action: '小李未回复，触发告警' },
-  { time: '22:30', action: '通知联系人（妈妈）' },
-  { time: '22:35', action: '妈妈确认：已联系，TA没事' },
-];
+function formatDateTime(isoString: string): { date: string; time: string } {
+  try {
+    const date = new Date(isoString);
+    return {
+      date: date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }),
+      time: date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    };
+  } catch {
+    return { date: '', time: isoString };
+  }
+}
 
 export default function AlertConfirmScreen() {
   const router = useRouter();
+  const { alertId, resolvedAt } = useLocalSearchParams<{ alertId?: string; resolvedAt?: string }>();
+
+  const [timeline, setTimeline] = useState<AlertTimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    alertApi.getActive()
+      .then((data) => {
+        if (data?.timeline) {
+          const resolved: AlertTimelineItem = {
+            time: resolvedAt ? formatDateTime(resolvedAt).time : '',
+            action: '联系人确认：已联系，TA没事',
+          };
+          setTimeline([...data.timeline, resolved]);
+        }
+      })
+      .catch(() => {
+        if (resolvedAt) {
+          setTimeline([
+            { time: formatDateTime(resolvedAt).time, action: '告警已解除' },
+          ]);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [alertId, resolvedAt]);
 
   const handleDone = () => {
-    useStore.getState().resolveAlert();
-    router.back();
+    router.replace('/(tabs)');
   };
+
+  if (loading) {
+    return <LoadingState message="加载处理记录..." />;
+  }
+
+  const resolved = resolvedAt ? formatDateTime(resolvedAt) : { date: '今天', time: '' };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Back header */}
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>确认安全</Text>
         </View>
@@ -34,16 +69,20 @@ export default function AlertConfirmScreen() {
         <View style={styles.successSection}>
           <Text style={styles.successEmoji}>✅</Text>
           <Text style={styles.successTitle}>告警已解除</Text>
-          <Text style={styles.eventDate}>6月24日告警 · 已解除</Text>
-          <Text style={styles.resolveDetail}>
-            你已确认小李安全 · 处理时间：22:35
-          </Text>
+          <Text style={styles.eventDate}>{resolved.date}告警 · 已解除</Text>
+          {resolved.time && (
+            <Text style={styles.resolveDetail}>
+              你已确认对方安全 · 处理时间：{resolved.time}
+            </Text>
+          )}
         </View>
 
         {/* Timeline */}
-        <Card title="处理记录" style={styles.timelineCard}>
-          <Timeline items={resolvedTimeline} />
-        </Card>
+        {timeline.length > 0 && (
+          <Card title="处理记录" style={styles.timelineCard}>
+            <Timeline items={timeline} />
+          </Card>
+        )}
 
         {/* Done button */}
         <Button variant="primary" size="lg" onPress={handleDone} style={styles.doneButton}>

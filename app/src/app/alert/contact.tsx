@@ -1,90 +1,198 @@
-import { View, Text, ScrollView, StyleSheet, Linking } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Button, Card, Banner } from '@/components/ui';
-import { useStore } from '@/store/useStore';
-import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { Button, Card, Banner, LoadingState, ErrorState } from '@/components/ui';
+import { alertApi, type ActiveAlertResponse, type AlertConfirmResponse } from '@/services/api.types';
+import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
+
+function maskPhone(phone: string): string {
+  if (phone.length >= 7) {
+    return phone.slice(0, 3) + '****' + phone.slice(-4);
+  }
+  return phone;
+}
+
+function formatTime(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return isoString;
+  }
+}
+
+function formatDate(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
 
 export default function AlertContactScreen() {
   const router = useRouter();
-  const { activeAlert } = useStore();
+  const { alertId, contactId } = useLocalSearchParams<{ alertId?: string; contactId?: string }>();
 
-  if (!activeAlert) {
-    return null;
-  }
+  const [alert, setAlert] = useState<ActiveAlertResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmResult, setConfirmResult] = useState<AlertConfirmResponse | null>(null);
 
-  const handleConfirmSafe = () => {
-    useStore.getState().resolveAlert();
-    router.push('/alert/confirm');
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+      setError('');
+
+      alertApi.getActive()
+        .then((data) => {
+          if (!cancelled) {
+            setAlert(data);
+            if (!data) {
+              setError('当前没有活跃告警');
+            }
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setError('获取告警信息失败');
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      return () => { cancelled = true; };
+    }, []),
+  );
+
+  const handleConfirmSafe = async () => {
+    if (!alert || !contactId) return;
+
+    setConfirming(true);
+    try {
+      const result = await alertApi.confirm(alert.id, contactId);
+      setConfirmResult(result);
+      router.push({
+        pathname: '/alert/confirm',
+        params: {
+          alertId: alert.id,
+          resolvedAt: result.alert.resolvedAt,
+        },
+      });
+    } catch (err: any) {
+      const message = err.response?.data?.message || '确认失败，请重试';
+      setError(message);
+    } finally {
+      setConfirming(false);
+    }
   };
 
   const handleNeedHelp = () => {
-    router.push('/alert/help');
+    if (!alert) return;
+    router.push({
+      pathname: '/alert/help',
+      params: { alertId: alert.id, contactId: contactId ?? '' },
+    });
   };
+
+  if (loading) {
+    return <LoadingState message="获取告警信息..." />;
+  }
+
+  if (error && !alert) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ErrorState message={error} onRetry={() => router.back()} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!alert) return null;
+
+  const lastReplyDate = formatDate(alert.lastReplyAt);
+  const lastReplyTime = formatTime(alert.lastReplyAt);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.contextLabel}>联系人视角 · 妈妈收到通知</Text>
+          <Text style={styles.contextLabel}>联系人视角 · 安全确认</Text>
         </View>
 
         {/* Notification card */}
         <Card variant="danger" style={styles.notificationCard}>
           <Text style={styles.appName}>今天还好 · 安全提醒</Text>
-          <Text style={styles.alertMessage}>小李今天没有回复平安</Text>
-          <Text style={styles.alertDetail}>最后回复时间：昨天 20:15</Text>
+          <Text style={styles.alertMessage}>对方今天没有回复平安</Text>
+          <Text style={styles.alertDetail}>
+            最后回复时间：{lastReplyDate} {lastReplyTime}
+          </Text>
         </Card>
 
         {/* Alert status banner */}
         <Banner variant="danger">
-          告警状态 · 等待联系人确认
+          {`告警状态 · 已通知 ${alert.contactsNotified.length} 位联系人`}
         </Banner>
 
-        {/* Timeline */}
-        <Card title="告警时间线" style={styles.timelineCard}>
-          <View style={styles.timeline}>
-            <View style={styles.timelineItem}>
-              <View style={styles.dot} />
-              <Text style={styles.timelineTime}>22:32</Text>
-              <Text style={styles.timelineAction}>系统检测到超时</Text>
+        {/* Notified contacts */}
+        <Card style={styles.contactsCard}>
+          {alert.contactsNotified.map((contact) => (
+            <View key={contact.id} style={styles.contactRow}>
+              <Text style={styles.contactName}>{contact.name}</Text>
+              <Text style={styles.contactPhone}>{maskPhone(contact.phone)}</Text>
             </View>
-            <View style={styles.timelineItem}>
-              <View style={styles.dot} />
-              <Text style={styles.timelineTime}>22:32</Text>
-              <Text style={styles.timelineAction}>发送关心式提醒给小李</Text>
-            </View>
-            <View style={styles.timelineItem}>
-              <View style={styles.dot} />
-              <Text style={styles.timelineTime}>23:02</Text>
-              <Text style={styles.timelineAction}>小李未回复，触发告警</Text>
-            </View>
-            <View style={styles.timelineItem}>
-              <View style={[styles.dot, styles.dotCurrent]} />
-              <Text style={styles.timelineTime}>23:02</Text>
-              <Text style={[styles.timelineAction, styles.timelineCurrent]}>通知联系人（妈妈）</Text>
-            </View>
-            <View style={styles.timelineItem}>
-              <View style={[styles.dot, styles.dotCurrent]} />
-              <Text style={styles.timelineTime}>等待中</Text>
-              <Text style={[styles.timelineAction, styles.timelineCurrent]}>等待确认中...</Text>
-            </View>
-          </View>
+          ))}
         </Card>
 
-        {/* Next round countdown */}
-        <Card variant="warm" style={styles.countdownCard}>
-          <Text style={styles.countdownLabel}>距第二轮通知还有</Text>
-          <Text style={styles.countdownTimer}>08:42</Text>
-        </Card>
+        {/* Timeline */}
+        {alert.timeline.length > 0 && (
+          <Card title="告警时间线" style={styles.timelineCard}>
+            <View style={styles.timeline}>
+              {alert.timeline.map((item, index) => (
+                <View key={index} style={styles.timelineItem}>
+                  <View style={[styles.dot, item.isCurrent && styles.dotCurrent]} />
+                  <Text style={styles.timelineTime}>{item.time}</Text>
+                  <Text style={[styles.timelineAction, item.isCurrent && styles.timelineCurrent]}>
+                    {item.action}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
+
+        {/* SMS rounds info */}
+        {alert.smsRounds > 0 && (
+          <Card variant="warm" style={styles.countdownCard}>
+            <Text style={styles.countdownLabel}>已发送 {alert.smsRounds} 轮通知</Text>
+            <Text style={styles.countdownHint}>请尽快确认对方安全</Text>
+          </Card>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <Banner variant="danger">{error}</Banner>
+        )}
 
         {/* Action buttons */}
         <View style={styles.actions}>
-          <Button variant="primary" size="lg" onPress={handleConfirmSafe}>
+          <Button
+            variant="primary"
+            size="lg"
+            onPress={handleConfirmSafe}
+            loading={confirming}
+            disabled={!contactId}
+          >
             已联系，TA没事 ✓
           </Button>
-          <Button variant="outline" size="lg" onPress={handleNeedHelp}>
+          <Button
+            variant="outline"
+            size="lg"
+            onPress={handleNeedHelp}
+            disabled={!contactId}
+          >
             联系不上，需要帮助
           </Button>
         </View>
@@ -130,6 +238,24 @@ const styles = StyleSheet.create({
   alertDetail: {
     fontSize: FontSizes.base,
     color: Colors.gray600,
+  },
+  contactsCard: {
+    gap: Spacing.sm,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  contactName: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.semibold,
+    color: Colors.gray900,
+  },
+  contactPhone: {
+    fontSize: FontSizes.sm,
+    color: Colors.gray500,
   },
   timelineCard: {
     gap: Spacing.sm,
@@ -180,9 +306,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.semibold,
     marginBottom: Spacing.xs,
   },
-  countdownTimer: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: FontWeights.bold,
+  countdownHint: {
+    fontSize: FontSizes.sm,
     color: Colors.warmDark,
   },
   actions: {
