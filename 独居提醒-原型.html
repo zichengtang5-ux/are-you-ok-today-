@@ -1,0 +1,2003 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=375, initial-scale=1, maximum-scale=1">
+<title>今天还好 — 原型设计 v3 (iOS App)</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #4CAF50;
+  --primary-light: #E8F5E9;
+  --primary-dark: #388E3C;
+  --warm: #FF9800;
+  --warm-light: #FFF3E0;
+  --danger: #F44336;
+  --danger-light: #FFEBEE;
+  --gray-50: #FAFAFA;
+  --gray-100: #F5F5F5;
+  --gray-200: #EEEEEE;
+  --gray-300: #E0E0E0;
+  --gray-500: #9E9E9E;
+  --gray-700: #616161;
+  --gray-900: #212121;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+body {
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  background: #EDEDED;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px 0;
+}
+
+.screen { display: none; }
+.screen:target { display: block; }
+#home { display: block; }
+.screen:target ~ #home { display: none; }
+
+.phone {
+  width: 375px;
+  min-height: 680px;
+  background: #fff;
+  border-radius: 32px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+  position: relative;
+}
+
+.status-bar {
+  height: 44px;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+.status-bar.white { background: #fff; color: var(--gray-900); }
+.status-bar.danger { background: var(--danger); }
+.status-bar .back {
+  position: absolute;
+  left: 16px;
+  font-size: 20px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.logo-hero {
+  position: relative;
+  display: inline-block;
+  margin: 24px auto;
+}
+.logo-hero .logo-ring {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 2px solid var(--primary-light);
+  animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 0; }
+}
+
+.app-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gray-900);
+  letter-spacing: 2px;
+}
+
+.mascot {
+  display: block;
+  margin: 0 auto;
+}
+.mascot.lg { width: 120px; height: 120px; }
+.mascot.md { width: 48px; height: 48px; }
+.mascot.sm { width: 28px; height: 28px; }
+@keyframes mascotBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.logo-hero .mascot { animation: mascotBounce 3s ease-in-out infinite; }
+
+.content {
+  padding: 20px;
+  min-height: 536px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Prototype navigation */
+.nav-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 375px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+.nav-bar a {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--gray-700);
+  text-decoration: none;
+  border: 1px solid var(--gray-300);
+}
+.nav-bar a:hover { background: var(--primary-light); border-color: var(--primary); }
+.nav-bar .section-label {
+  width: 100%;
+  font-size: 10px;
+  color: var(--gray-500);
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+
+/* Buttons */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:active { background: #2E7D32; }
+.btn-primary.disabled { background: var(--gray-300); color: var(--gray-500); pointer-events: none; }
+.btn-outline { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
+.btn-outline:active { background: var(--primary-light); }
+.btn-warm { background: var(--warm); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:active { background: #D32F2F; }
+.btn-ghost { background: transparent; color: var(--gray-500); }
+.btn-ghost:active { background: var(--gray-100); }
+.btn-sm { padding: 10px 16px; font-size: 14px; width: auto; }
+
+/* Confirm button (big circle) */
+.confirm-btn {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 4px 20px rgba(76,175,80,0.3);
+  transition: all 0.3s;
+  text-decoration: none;
+  line-height: 1.3;
+}
+.confirm-btn:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(76,175,80,0.4); }
+.confirm-btn:active { transform: scale(0.93); background: var(--primary-dark); box-shadow: 0 2px 12px rgba(76,175,80,0.3); }
+.confirm-btn.loading { opacity: 0.7; pointer-events: none; }
+.confirm-btn.disabled { background: var(--gray-300); box-shadow: none; pointer-events: none; color: var(--gray-500); }
+.confirm-btn.warn-btn { background: var(--warm); box-shadow: 0 4px 20px rgba(255,152,0,0.3); }
+.confirm-btn.warn-btn:hover { box-shadow: 0 6px 28px rgba(255,152,0,0.4); }
+
+/* Cards */
+.card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.card-gray { background: var(--gray-50); }
+.card-danger { background: var(--danger-light); border-left: 4px solid var(--danger); }
+.card-warn { background: var(--warm-light); border-left: 4px solid var(--warm); }
+
+/* Form elements */
+.input-group { margin-bottom: 16px; }
+.input-group label {
+  display: block;
+  font-size: 13px;
+  color: var(--gray-700);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.input-group input, .input-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-group input:focus, .input-group select:focus { border-color: var(--primary); }
+.input-hint { font-size: 11px; color: var(--danger); margin-top: 4px; display: none; }
+.input-hint.show { display: block; }
+
+/* Tags */
+.tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tag-ok { background: var(--primary-light); color: var(--primary-dark); }
+.tag-warn { background: var(--warm-light); color: var(--warm); }
+.tag-danger { background: var(--danger-light); color: var(--danger); }
+
+/* Step indicator */
+.step-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--gray-300);
+}
+.step-dot.active { background: var(--primary); width: 24px; border-radius: 4px; }
+.step-dot.done { background: var(--primary); }
+
+/* Divider */
+.divider { height: 1px; background: var(--gray-200); margin: 16px 0; }
+
+/* Flex utilities */
+.flex-row { display: flex; gap: 12px; align-items: center; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.text-center { text-align: center; }
+.mt-auto { margin-top: auto; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+
+/* Typography */
+h1 { font-size: 22px; color: var(--gray-900); margin-bottom: 8px; }
+h2 { font-size: 18px; color: var(--gray-900); margin-bottom: 6px; }
+.subtitle { font-size: 14px; color: var(--gray-500); margin-bottom: 20px; }
+
+/* Illustrations */
+.illustration { font-size: 64px; text-align: center; margin: 24px 0; line-height: 1; }
+.illustration-sm { font-size: 40px; }
+
+/* Streak badge */
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Calendar */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin: 8px 0;
+}
+.cal-day {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+}
+.cal-ok { background: var(--primary-light); color: var(--primary-dark); }
+.cal-miss { background: var(--danger-light); color: var(--danger); }
+.cal-today { border: 2px solid var(--primary); }
+.cal-empty { background: var(--gray-100); color: var(--gray-300); }
+.cal-header {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-weight: 600;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* Checkbox row */
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: var(--gray-50);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.checkbox-row:hover { background: var(--gray-200); }
+.checkbox-row input { margin-top: 3px; }
+.checkbox-row .label { font-size: 13px; color: var(--gray-700); line-height: 1.5; }
+.checkbox-row .label strong { color: var(--danger); }
+
+/* Contact item */
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--gray-50);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.contact-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+.contact-info { flex: 1; }
+.contact-name { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+.contact-detail { font-size: 12px; color: var(--gray-500); }
+
+/* Alert banner */
+.alert-banner {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.alert-banner.danger { background: var(--danger-light); color: var(--danger); }
+.alert-banner.warn { background: var(--warm-light); color: var(--warm); }
+.alert-banner.ok { background: var(--primary-light); color: var(--primary-dark); }
+
+/* Timeline */
+.timeline { padding-left: 16px; border-left: 2px solid var(--gray-200); }
+.timeline-item {
+  position: relative;
+  padding: 8px 0 8px 16px;
+  font-size: 12px;
+  color: var(--gray-500);
+  line-height: 1.6;
+}
+.timeline-item::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--gray-300);
+  position: absolute;
+  left: -5px;
+  top: 12px;
+}
+.timeline-item.active { color: var(--danger); font-weight: 600; }
+.timeline-item.active::before { background: var(--danger); }
+.timeline-item.done::before { background: var(--primary); }
+.timeline-item .tl-time { color: var(--gray-500); font-weight: 400; }
+
+/* Action item */
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--gray-50);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  text-decoration: none;
+  color: var(--gray-900);
+  transition: background 0.2s;
+}
+.action-item:hover { background: var(--gray-200); }
+.action-icon { font-size: 24px; }
+.action-text { flex: 1; }
+.action-title { font-size: 14px; font-weight: 600; }
+.action-desc { font-size: 12px; color: var(--gray-500); }
+
+/* Pricing */
+.price-card {
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 12px;
+  position: relative;
+}
+.price-card.featured { border-color: var(--primary); }
+.price-card .badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 12px;
+  border-radius: 10px;
+}
+.price { font-size: 32px; font-weight: 700; color: var(--primary); }
+.price span { font-size: 14px; font-weight: 400; color: var(--gray-500); }
+.feature-list { text-align: left; margin-top: 12px; font-size: 13px; }
+.feature-list li { padding: 4px 0; list-style: none; }
+.feature-list li::before { content: "✓ "; color: var(--primary); font-weight: 700; }
+.feature-list li.disabled { color: var(--gray-500); }
+.feature-list li.disabled::before { content: "✗ "; color: var(--gray-300); }
+
+/* Modal overlay */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  justify-content: center;
+  align-items: flex-end;
+}
+.modal-overlay:target { display: flex; }
+.modal-sheet {
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  width: 375px;
+  max-height: 80vh;
+  padding: 20px;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--gray-300);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+/* Countdown timer */
+.countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.countdown.danger { color: var(--danger); }
+.countdown.warn { color: var(--warm); }
+
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-circle { border-radius: 50%; }
+.skeleton-text { height: 14px; margin-bottom: 8px; }
+.skeleton-title { height: 22px; width: 60%; margin-bottom: 12px; }
+.skeleton-btn { height: 48px; border-radius: var(--radius); }
+
+/* Waiting binding steps */
+.bind-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 13px;
+}
+.bind-step .step-icon {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.bind-step .step-icon.done { background: var(--primary); color: #fff; }
+.bind-step .step-icon.pending { background: var(--gray-200); color: var(--gray-500); }
+.bind-step .step-label { color: var(--gray-700); }
+.bind-step .step-label.done { color: var(--primary-dark); font-weight: 600; }
+.bind-step .step-label.pending { color: var(--gray-500); }
+
+
+/* Managed guardian row */
+.guardian-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+.guardian-row .guardian-info { flex: 1; }
+.guardian-row .guardian-name { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+.guardian-row .guardian-status { font-size: 12px; color: var(--gray-500); }
+</style>
+</head>
+<body>
+
+<!-- Prototype Navigation -->
+<div class="nav-bar">
+  <div class="section-label">引导流程</div>
+  <a href="#onboarding-1">1.登录</a>
+  <a href="#onboarding-2">2.协议</a>
+  <a href="#onboarding-3">3.基本信息</a>
+  <a href="#onboarding-4">4.联系人</a>
+  <a href="#contact-form">4a.添加联系人</a>
+  <a href="#onboarding-5">5.提醒时间</a>
+  <a href="#onboarding-6">6.授权</a>
+  <a href="#auth-denied">6a.拒绝确认</a>
+  <a href="#onboarding-7">7.完成</a>
+  <a href="#onboarding-7-noauth">7b.完成(未授权)</a>
+  <div class="section-label">核心流程</div>
+  <a href="#home">首页(等待)</a>
+  <a href="#home-done">首页(已回复)</a>
+  <a href="#home-grace">首页(宽限)</a>
+  <a href="#home-alert">首页(告警)</a>
+  <a href="#home-idle">首页(非时段)</a>
+  <a href="#reminder">提醒</a>
+  <a href="#confirmed">已回复</a>
+  <div class="section-label">告警流程</div>
+  <a href="#alert-contact">联系人通知</a>
+  <a href="#alert-confirm">确认安全</a>
+  <a href="#alert-help">需要帮助</a>
+  <a href="#alert-resolved-user">用户侧解除</a>
+  <div class="section-label">子女端</div>
+  <a href="#child-setup">为父母开通</a>
+  <a href="#child-invite">发送邀请</a>
+  <a href="#child-waiting">等待绑定</a>
+  <a href="#child-dashboard">关怀看板</a>
+  <a href="#child-dashboard-free">看板(免费版)</a>
+  <div class="section-label">其他</div>
+  <a href="#payment">付费</a>
+  <a href="#settings">设置</a>
+  <a href="#pause">暂停守护</a>
+  <a href="#home-paused">首页(暂停)</a>
+  <a href="#emergency">紧急求助</a>
+  <a href="#loading-demo">加载态</a>
+  <a href="#error-demo">错误态</a>
+</div>
+
+<div class="phone">
+<svg style="position:absolute;width:0;height:0;overflow:hidden;">
+<defs>
+<linearGradient id="mascotGrad" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#A5D6A7"/>
+<stop offset="50%" stop-color="#66BB6A"/>
+<stop offset="100%" stop-color="#2E7D32"/>
+</linearGradient>
+<linearGradient id="eyeGrad" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="#66BB6A"/>
+<stop offset="100%" stop-color="#1B5E20"/>
+</linearGradient>
+</defs>
+</svg>
+
+
+<!-- ==================== ONBOARDING 1: Login ==================== -->
+<div class="screen" id="onboarding-1">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <!-- 无步骤指示器 — 登录页是入口，不计入引导进度 -->
+    <!-- Mascot -->
+    <div class="logo-hero">
+      <div class="logo-ring"></div>
+      <svg class="mascot lg" viewBox="0 0 100 100" fill="none">
+          <circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="8" fill="none"/>
+          <circle cx="50" cy="50" r="40" fill="white"/>
+          <rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+          <path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+    </div>
+    <div class="app-name">今天还好</div>
+    <p class="subtitle">每天一句平安，守护独居的你</p>
+    <p style="color: var(--gray-500); font-size: 13px; margin-bottom: 40px;">
+      一次点击报平安<br>没回应时，自动通知你的紧急联系人
+    </p>
+    <div class="mt-auto">
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <input type="tel" placeholder="请输入手机号" style="flex:1; padding:12px 16px; border:1px solid var(--gray-300); border-radius:var(--radius); font-size:15px; outline:none;">
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" placeholder="验证码" style="flex:1; padding:12px 16px; border:1px solid var(--gray-300); border-radius:var(--radius); font-size:15px; outline:none;">
+          <a class="btn btn-outline" style="white-space:nowrap; padding:12px 16px; font-size:13px;">获取验证码</a>
+        </div>
+      </div>
+      <a href="#onboarding-2" class="btn btn-primary">登录</a>
+      <p style="font-size: 11px; color: var(--gray-500); margin-top: 12px;">
+        登录即表示同意用户协议和隐私政策
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ONBOARDING 2: Agreement ==================== -->
+<div class="screen" id="onboarding-2">
+  <div class="status-bar white">
+    <a href="#onboarding-1" class="back">&larr;</a>
+    服务协议
+  </div>
+  <div class="content">
+    <div class="step-indicator">
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <h2>请阅读并同意</h2>
+    <p class="subtitle">这些条款保护你和我们的权益</p>
+
+    <div class="alert-banner warn" style="font-size:13px;">
+      请特别注意以下条款：
+    </div>
+
+    <div class="checkbox-row" onclick="this.querySelector('input').click(); toggleAgreement()">
+      <input type="checkbox" onchange="toggleAgreement()">
+      <div class="label">
+        <strong>本产品为辅助守护工具，不替代专业医疗/急救服务</strong>
+      </div>
+    </div>
+    <div class="checkbox-row" onclick="this.querySelector('input').click(); toggleAgreement()">
+      <input type="checkbox" onchange="toggleAgreement()">
+      <div class="label">
+        <strong>本产品不保证在所有情况下都能成功通知联系人</strong>
+      </div>
+    </div>
+    <div class="checkbox-row" onclick="this.querySelector('input').click(); toggleAgreement()">
+      <input type="checkbox" onchange="toggleAgreement()">
+      <div class="label">
+        <strong>因网络、设备、系统故障导致的延迟或失败，产品不承担责任</strong>
+      </div>
+    </div>
+    <div class="checkbox-row" onclick="this.querySelector('input').click(); toggleAgreement()">
+      <input type="checkbox" onchange="toggleAgreement()">
+      <div class="label">
+        我已阅读并同意完整的<a style="color:var(--primary)">《用户协议》</a>和<a style="color:var(--primary)">《隐私政策》</a>
+      </div>
+    </div>
+
+    <div class="mt-auto">
+      <a href="#onboarding-3" class="btn btn-primary disabled" id="agree-btn">同意并继续</a>
+      <p style="font-size: 11px; color: var(--gray-500); margin-top: 8px; text-align: center;" id="agree-hint">
+        请勾选以上全部条款后继续
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ONBOARDING 3: Basic Info ==================== -->
+<div class="screen" id="onboarding-3">
+  <div class="status-bar white">
+    <a href="#onboarding-2" class="back">&larr;</a>
+    基本信息
+  </div>
+  <div class="content">
+    <div class="step-indicator">
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <h2>你的安全信息</h2>
+    <p class="subtitle">紧急时刻，让联系人和 120 快速找到你</p>
+
+    <div class="input-group">
+      <label>昵称</label>
+      <input type="text" placeholder="朋友们怎么叫你" value="小李">
+    </div>
+    <div class="input-group">
+      <label>手机号</label>
+      <input type="tel" placeholder="用于紧急联系时识别身份" value="138****5678">
+      <p class="input-hint">请输入 11 位手机号</p>
+    </div>
+    <div class="input-group">
+      <label>当前住址 <span style="color:var(--gray-500); font-weight:normal; font-size:12px;">（紧急定位用）</span></label>
+      <input type="text" placeholder="例如：北京市朝阳区XX小区3号楼502">
+      <p class="input-hint">发生紧急情况时，联系人和 120 将依据此地址快速定位</p>
+    </div>
+
+    <div class="mt-auto">
+      <a href="#onboarding-4" class="btn btn-primary">下一步</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ONBOARDING 4: Emergency Contact ==================== -->
+<div class="screen" id="onboarding-4">
+  <div class="status-bar white">
+    <a href="#onboarding-3" class="back">&larr;</a>
+    紧急联系人
+  </div>
+  <div class="content">
+    <div class="step-indicator">
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <h2>出事了通知谁？</h2>
+    <p class="subtitle">至少设置一位紧急联系人</p>
+
+    <div class="alert-banner ok" style="font-size:12px; padding:8px 12px;">
+      &#x2705; 联系人已添加，验证短信已发送
+    </div>
+
+    <div class="contact-item">
+      <div class="contact-avatar">👩</div>
+      <div class="contact-info">
+        <div class="contact-name">妈妈</div>
+        <div class="contact-detail">139****1234 &middot; 母亲</div>
+      </div>
+      <span class="tag tag-ok">已验证</span>
+    </div>
+
+    <a href="#contact-form" style="display:flex; align-items:center; gap:8px; padding:12px; color:var(--primary); font-size:14px; font-weight:500; cursor:pointer; text-decoration:none;">
+      ＋ 添加更多联系人
+    </a>
+    <p style="font-size:12px; color:var(--gray-500); margin-top:4px; padding-left:4px;">
+      免费版支持 1 位联系人，升级可添加最多 5 位
+    </p>
+
+    <div class="mt-auto">
+      <a href="#onboarding-5" class="btn btn-primary">下一步</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONTACT FORM MODAL ==================== -->
+<div class="screen" id="contact-form">
+  <div class="status-bar white">
+    <a href="#onboarding-4" class="back">&larr;</a>
+    添加紧急联系人
+  </div>
+  <div class="content">
+    <h2>添加联系人</h2>
+    <p class="subtitle">填写姓名和手机号即可</p>
+
+    <div class="input-group">
+      <label>联系人姓名</label>
+      <input type="text" placeholder="如：李妈妈">
+    </div>
+    <div class="input-group">
+      <label>手机号</label>
+      <input type="tel" placeholder="联系人手机号">
+    </div>
+    <div class="input-group">
+      <label style="color:var(--gray-500); font-weight:400;">与你的关系 <span style="color:var(--gray-300);">（选填）</span></label>
+      <select>
+        <option selected>家人</option>
+        <option>母亲</option>
+        <option>父亲</option>
+        <option>配偶/伴侣</option>
+        <option>兄弟姐妹</option>
+        <option>朋友</option>
+        <option>邻居</option>
+        <option>其他</option>
+      </select>
+    </div>
+
+    <div class="card card-gray" style="font-size:13px; color:var(--gray-700); margin-bottom:16px;">
+      &#x1F4F1; 保存后，我们会通过短信向联系人发送验证码，对方确认即完成绑定
+    </div>
+
+    <div class="mt-auto">
+      <a href="#onboarding-4" class="btn btn-primary">保存联系人</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ONBOARDING 5: Reminder Time ==================== -->
+<div class="screen" id="onboarding-5">
+  <div class="status-bar white">
+    <a href="#onboarding-4" class="back">&larr;</a>
+    提醒时间
+  </div>
+  <div class="content">
+    <div class="step-indicator">
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+    </div>
+    <h2>每天什么时候问你？</h2>
+    <p class="subtitle">选一个你通常方便看手机的时间段</p>
+
+    <div class="card" style="text-align:center;">
+      <p style="font-size:13px; color:var(--gray-500); margin-bottom:8px;">提醒时间窗口</p>
+      <div class="flex-row" style="justify-content:center; gap:8px;">
+        <select style="padding:10px 16px; border-radius:8px; border:1px solid var(--gray-300); font-size:18px; font-weight:600;">
+          <option>晚上 8:00</option>
+          <option>晚上 7:00</option>
+          <option>晚上 9:00</option>
+        </select>
+        <span style="font-size:16px; color:var(--gray-500);">至</span>
+        <select style="padding:10px 16px; border-radius:8px; border:1px solid var(--gray-300); font-size:18px; font-weight:600;">
+          <option>晚上 10:00</option>
+          <option>晚上 9:00</option>
+          <option>晚上 11:00</option>
+        </select>
+      </div>
+      <p style="font-size:12px; color:var(--gray-500); margin-top:8px;">
+        默认窗口 2 小时，超时从窗口结束时算起
+      </p>
+    </div>
+
+    <div class="card card-gray" style="font-size:13px; color:var(--gray-700);">
+      <p>&#x1F4A1; 如果 10:00 前没回复，我们会先温和提醒你；再过 30 分钟还没回复，才会通知你的联系人</p>
+    </div>
+
+    <div class="mt-auto">
+      <a href="#onboarding-6" class="btn btn-primary">下一步</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ONBOARDING 6: iOS Notification Permission ==================== -->
+<div class="screen" id="onboarding-6">
+  <div class="status-bar white">
+    <a href="#onboarding-5" class="back">&larr;</a>
+    通知权限
+  </div>
+  <div class="content text-center">
+    <div class="step-indicator">
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+    </div>
+
+    <!-- iOS notification mockup -->
+    <div style="background:var(--gray-100); border-radius:16px; padding:20px; margin:16px 0; text-align:left;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span style="font-size:24px;">&#x1F514;</span>
+        <span style="font-size:13px; font-weight:600;">"今天还好"想要向您发送通知</span>
+      </div>
+      <div style="background:#fff; border-radius:12px; padding:12px; margin-bottom:8px;">
+        <p style="font-size:12px; font-weight:600; color:var(--gray-900);">今天还好吗？</p>
+        <p style="font-size:11px; color:var(--gray-500);">每天晚上提醒你报平安，一次点击即可回复</p>
+      </div>
+      <div style="background:#fff; border-radius:12px; padding:12px;">
+        <p style="font-size:12px; font-weight:600; color:var(--gray-900);">关心式提醒</p>
+        <p style="font-size:11px; color:var(--gray-500);">超时未回复时温和提醒，避免忘记</p>
+      </div>
+    </div>
+
+    <p style="color:var(--gray-500); font-size:14px; margin:8px 0 24px; line-height:1.6;">
+      通知是守护的核心功能<br>
+      <strong style="color:var(--danger);">不授权将无法收到每日平安提醒</strong>
+    </p>
+
+    <a href="#onboarding-7" class="btn btn-primary mb-8">允许通知</a>
+    <a href="#auth-denied" class="btn btn-ghost">暂不允许</a>
+  </div>
+</div>
+
+<!-- ==================== AUTH DENIED CONFIRM DIALOG ==================== -->
+<div class="screen" id="auth-denied">
+  <div class="status-bar white">
+    <a href="#onboarding-6" class="back">&larr;</a>
+    消息授权
+  </div>
+  <div class="content" style="justify-content:center;">
+    <div style="text-align:center; padding:20px;">
+      <div style="font-size:48px; margin-bottom:16px;">&#x26A0;&#xFE0F;</div>
+      <h2>确定不授权吗？</h2>
+      <p style="color:var(--gray-500); font-size:14px; margin:12px 0 8px; line-height:1.6;">
+        不授权将无法收到每日<br>"今天还好吗？"提醒，<br>守护功能将无法正常工作。
+      </p>
+    </div>
+    <div style="margin-top:20px;">
+      <a href="#onboarding-6" class="btn btn-primary mb-8">去授权</a>
+      <a href="#onboarding-7-noauth" class="btn btn-ghost">仍然不授权</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ONBOARDING 7: Complete (Authorized) ==================== -->
+<div class="screen" id="onboarding-7">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <!-- 无步骤指示器 — 完成页是出口 -->
+    <div class="logo-hero" style="margin:16px auto;"><svg class="mascot md" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="8" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></div>
+    <h1>守护已开启</h1>
+    <p style="color:var(--gray-500); font-size:15px; margin:8px 0 24px; line-height:1.6;">
+      今晚 8 点，你会收到第一条<br>"今天还好吗？"
+    </p>
+
+    <div class="card" style="text-align:left;">
+      <div class="flex-between mb-8">
+        <span style="font-size:13px; color:var(--gray-500);">提醒时间</span>
+        <span style="font-size:14px; font-weight:600;">20:00 - 22:00</span>
+      </div>
+      <div class="divider"></div>
+      <div class="flex-between">
+        <span style="font-size:13px; color:var(--gray-500);">紧急联系人</span>
+        <span style="font-size:14px; font-weight:600;">妈妈 &middot; 139****1234</span>
+      </div>
+    </div>
+
+    <div class="alert-banner ok" style="font-size:13px;">
+      &#x1F514; 消息推送已授权，每天会准时收到提醒
+    </div>
+
+    <div class="mt-auto">
+      <a href="#home" class="btn btn-primary">进入首页</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ONBOARDING 7b: Complete (No Auth) ==================== -->
+<div class="screen" id="onboarding-7-noauth">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <div class="logo-hero" style="margin:16px auto;"><svg class="mascot md" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="8" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></div>
+    <h1>守护已开启</h1>
+    <p style="color:var(--gray-500); font-size:15px; margin:8px 0 24px; line-height:1.6;">
+      设置已保存完成
+    </p>
+
+    <div class="card" style="text-align:left;">
+      <div class="flex-between mb-8">
+        <span style="font-size:13px; color:var(--gray-500);">提醒时间</span>
+        <span style="font-size:14px; font-weight:600;">20:00 - 22:00</span>
+      </div>
+      <div class="divider"></div>
+      <div class="flex-between">
+        <span style="font-size:13px; color:var(--gray-500);">紧急联系人</span>
+        <span style="font-size:14px; font-weight:600;">妈妈 &middot; 139****1234</span>
+      </div>
+    </div>
+
+    <!-- 未授权警告卡片 -->
+    <div class="alert-banner warn" style="font-size:13px;">
+      &#x26A0;&#xFE0F; 你尚未授权消息推送，请在设置中开启，否则无法收到每日提醒
+    </div>
+
+    <div class="mt-auto">
+      <a href="#home-idle" class="btn btn-primary">进入首页</a>
+      <a href="#onboarding-6" class="btn btn-ghost" style="margin-top:8px;">返回授权</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== HOME (State A: Waiting) ==================== -->
+<div class="screen" id="home">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:4px;">2026年6月22日 &middot; 晚上好，小李</p>
+
+    <div class="illustration">&#x1F319;</div>
+
+    <h2 style="margin-bottom:4px;">今天还好吗？</h2>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:32px;">
+      提醒时间：20:00 - 22:00
+    </p>
+
+    <a href="#confirmed" class="confirm-btn">
+      今天还好 &#x2713;
+    </a>
+
+    <div class="mt-auto" style="margin-top:32px;">
+      <div class="streak-badge mb-16">&#x1F4C5; 本月平安 18/22 天</div>
+      <div style="display:flex; justify-content:center; gap:16px; align-items:center;">
+        <a href="#settings" style="font-size:12px; color:var(--gray-500); text-decoration:none; opacity:0.7;">设置</a>
+        <span style="color:var(--gray-300);">|</span>
+        <a href="#emergency" style="font-size:12px; color:var(--danger); text-decoration:none; opacity:0.8;">&#x1F6A8; 紧急求助</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== HOME (State B: Confirmed Today) ==================== -->
+<div class="screen" id="home-done">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:4px;">2026年6月22日 &middot; 晚上好，小李</p>
+
+    <div style="font-size:72px; margin:32px 0 16px;">&#x263A;&#xFE0F;</div>
+
+    <h2 style="color:var(--primary); margin-bottom:4px;">今天已回复</h2>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:24px;">
+      已收到你的平安
+    </p>
+
+    <div class="streak-badge" style="font-size:15px; padding:8px 20px; margin-bottom:24px;">
+      &#x1F4C5; 本月平安 19/22 天
+    </div>
+
+    <div class="card">
+      <p style="font-size:13px; color:var(--gray-500);">明天晚上 8 点再见 &#x1F319;</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== HOME (State C: Grace Period) ==================== -->
+<div class="screen" id="home-grace">
+  <div class="status-bar" style="background:var(--warm);">今天还好</div>
+  <div class="content text-center">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:4px;">2026年6月22日 &middot; 晚上好，小李</p>
+
+    <div class="illustration">&#x1F4AD;</div>
+
+    <h2 style="margin-bottom:4px;">还没回复，有点担心...</h2>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:16px;">
+      看到消息回一下？
+    </p>
+
+    <div class="card card-warn" style="text-align:center; margin-bottom:24px;">
+      <p style="font-size:13px; color:var(--warm); margin-bottom:4px;">距离通知联系人还有</p>
+      <div class="countdown warn" style="font-size:28px; justify-content:center;">
+        28:42
+      </div>
+    </div>
+
+    <a href="#confirmed" class="confirm-btn warn-btn">
+      今天还好 &#x2713;
+    </a>
+
+    <p style="font-size:12px; color:var(--gray-500); margin-top:16px;">
+      回复后不会通知联系人
+    </p>
+  </div>
+</div>
+
+<!-- ==================== HOME (State D: Alert Active) ==================== -->
+<div class="screen" id="home-alert">
+  <div class="status-bar danger">今天还好</div>
+  <div class="content text-center">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:4px;">2026年6月22日 &middot; 晚上好，小李</p>
+
+    <div class="alert-banner danger" style="margin-top:8px;">
+      &#x1F534; 已通知联系人 &middot; 等待确认中
+    </div>
+
+    <div class="illustration illustration-sm">&#x1F6A8;</div>
+
+    <h2 style="margin-bottom:4px;">你的联系人正在确认你的安全</h2>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:8px;">
+      最后回复时间：昨天 20:15
+    </p>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:24px;">
+      已通知：妈妈
+    </p>
+
+    <a href="#alert-resolved-user" class="confirm-btn" style="background:var(--danger);">
+      今天还好 &#x2713;
+    </a>
+    <p style="font-size:12px; color:var(--gray-500); margin-top:12px;">
+      回复后可解除告警
+    </p>
+  </div>
+</div>
+
+<!-- ==================== HOME (State E: Idle / Off-hours) ==================== -->
+<div class="screen" id="home-idle">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:4px;">2026年6月22日 &middot; 下午好，小李</p>
+
+    <div class="illustration">&#x2600;&#xFE0F;</div>
+
+    <h2 style="margin-bottom:4px;">今天天气不错</h2>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:32px;">
+      今晚 8 点会收到提醒
+    </p>
+
+    <div class="confirm-btn disabled" style="cursor:default;">
+      <span style="font-size:13px;">今晚<br>8:00</span>
+    </div>
+
+    <div class="mt-auto" style="margin-top:32px;">
+      <div class="streak-badge">&#x1F4C5; 本月平安 18/22 天</div>
+      <div style="display:flex; justify-content:center; gap:16px; align-items:center; margin-top:12px;">
+        <a href="#settings" style="font-size:12px; color:var(--gray-500); text-decoration:none; opacity:0.7;">设置</a>
+        <span style="color:var(--gray-300);">|</span>
+        <a href="#emergency" style="font-size:12px; color:var(--danger); text-decoration:none; opacity:0.8;">&#x1F6A8; 紧急求助</a>
+      </div>
+    </div>
+
+    <!-- 未授权提醒（如有） -->
+    <div class="alert-banner warn" style="margin-top:16px; font-size:12px;">
+      &#x26A0;&#xFE0F; 消息推送未授权，<a href="#onboarding-6" style="color:var(--warm);">前往授权</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== REMINDER (Push notification simulation) ==================== -->
+<div class="screen" id="reminder">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <div class="card" style="background:var(--gray-100); border-left:4px solid var(--primary); text-align:left; margin-bottom:20px;">
+      <p style="font-size:11px; color:var(--gray-500); margin-bottom:4px;">今天还好 &middot; 通知</p>
+      <p style="font-size:15px; font-weight:600; color:var(--gray-900);">今天还好吗？</p>
+      <p style="font-size:13px; color:var(--gray-500); margin-top:2px;">点一下告诉关心你的人你没事 &#x1F60A;</p>
+    </div>
+
+    <div class="illustration">&#x1F4AC;</div>
+
+    <h2>收到提醒了</h2>
+    <p style="color:var(--gray-500); font-size:14px; margin:8px 0 32px;">
+      两种方式都可以回复
+    </p>
+
+    <a href="#confirmed" class="btn btn-primary mb-8">方式一：点"今天还好 &#x2713;"</a>
+    <div class="card card-gray" style="font-size:13px;">
+      方式二：下拉通知横幅直接点"今天还好"
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONFIRMED (Warm feedback) ==================== -->
+<div class="screen" id="confirmed">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <div style="font-size:72px; margin:32px 0 16px;">&#x263A;&#xFE0F;</div>
+
+    <h1 style="color:var(--primary);">收到，安心了</h1>
+    <p style="color:var(--gray-500); font-size:15px; margin:8px 0 24px;">
+      已收到你的平安
+    </p>
+
+    <div class="streak-badge" style="font-size:15px; padding:8px 20px; margin-bottom:24px;">
+      &#x1F4C5; 本月平安 19/22 天
+    </div>
+
+    <div class="card" style="text-align:left;">
+      <p style="font-size:13px; color:var(--gray-500);">明天晚上 8 点再见 &#x1F319;</p>
+    </div>
+
+    <div class="mt-auto" style="margin-top:16px;">
+      <a href="#home-done" class="btn btn-outline">回到首页</a>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ==================== ALERT: Contact Notification ==================== -->
+<div class="screen" id="alert-contact">
+  <div class="status-bar danger">告警通知</div>
+  <div class="content">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:8px;">联系人视角 &middot; 妈妈收到通知</p>
+
+    <div class="card card-danger" style="text-align:left; margin-bottom:16px;">
+      <p style="font-size:11px; color:var(--gray-500); margin-bottom:4px;">今天还好 &middot; 安全提醒</p>
+      <p style="font-size:15px; font-weight:600; color:var(--danger);">小李今天没有回复平安</p>
+      <p style="font-size:13px; color:var(--gray-700); margin-top:4px; line-height:1.5;">
+        最后回复时间：昨天 20:15<br>
+        请及时联系确认安全
+      </p>
+    </div>
+
+    <div class="alert-banner danger">
+      &#x26A0;&#xFE0F; 告警状态 &middot; 等待联系人确认
+    </div>
+
+    <!-- Timeline -->
+    <div class="card" style="margin-bottom:16px;">
+      <p style="font-size:13px; font-weight:600; color:var(--gray-700); margin-bottom:8px;">发生了什么</p>
+      <div class="timeline">
+        <div class="timeline-item done">
+          <span class="tl-time">22:00</span> &middot; 给小李发了"今天还好吗？"
+        </div>
+        <div class="timeline-item done">
+          <span class="tl-time">22:00</span> &middot; 小李没回复，发了关心式提醒
+        </div>
+        <div class="timeline-item done">
+          <span class="tl-time">22:30</span> &middot; 小李仍未回复，通知了你
+        </div>
+        <div class="timeline-item active">
+          正在等你确认...
+        </div>
+      </div>
+    </div>
+
+    <!-- Countdown to 2nd round -->
+    <div class="card card-gray" style="text-align:center; margin-bottom:16px;">
+      <p style="font-size:12px; color:var(--gray-500); margin-bottom:4px;">距第二轮通知还有</p>
+      <div class="countdown danger" style="font-size:22px; justify-content:center;">08:42</div>
+    </div>
+
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:12px;">点击通知后进入：</p>
+
+    <a href="#alert-confirm" class="btn btn-primary mb-8">已联系，TA没事 &#x2713;</a>
+    <a href="#alert-help" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">联系不上，需要帮助</a>
+  </div>
+</div>
+
+<!-- ==================== ALERT: Contact Confirm ==================== -->
+<div class="screen" id="alert-confirm">
+  <div class="status-bar white">
+    <a href="#alert-contact" class="back">&larr;</a>
+    确认安全
+  </div>
+  <div class="content text-center">
+    <div style="font-size:64px; margin:24px 0 12px;">&#x2705;</div>
+    <h2>告警已解除</h2>
+    <p style="color:var(--danger); font-size:13px; font-weight:600; margin-bottom:8px;">
+      6月22日告警 &middot; 已解除
+    </p>
+    <p style="color:var(--gray-500); font-size:14px; margin:8px 0 24px;">
+      你已确认小李安全<br>
+      处理时间：22:35
+    </p>
+
+    <div class="card" style="text-align:left;">
+      <p style="font-size:13px; color:var(--gray-700); margin-bottom:8px;">发生了什么</p>
+      <div class="timeline">
+        <div class="timeline-item done">
+          <span class="tl-time">22:00</span> &middot; 给小李发了"今天还好吗？"
+        </div>
+        <div class="timeline-item done">
+          <span class="tl-time">22:30</span> &middot; 小李没回复，通知了你
+        </div>
+        <div class="timeline-item done">
+          <span class="tl-time">22:35</span> &middot; 你确认了小李没事
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-auto">
+      <a href="#home" class="btn btn-primary">好的</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ALERT: User-side Resolution ==================== -->
+<div class="screen" id="alert-resolved-user">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content text-center">
+    <div style="font-size:64px; margin:24px 0 12px;">&#x2705;</div>
+    <h2 style="color:var(--primary);">告警已解除</h2>
+    <p style="color:var(--danger); font-size:13px; font-weight:600; margin-bottom:8px;">
+      6月22日告警 &middot; 已解除
+    </p>
+    <p style="color:var(--gray-500); font-size:14px; margin:8px 0 16px;">
+      你回复了"今天还好"，<br>联系人已知道你安全
+    </p>
+
+    <div class="card" style="text-align:left;">
+      <p style="font-size:13px; color:var(--gray-700); margin-bottom:8px;">发生了什么</p>
+      <div class="timeline">
+        <div class="timeline-item done">
+          <span class="tl-time">22:00</span> &middot; 给你发了"今天还好吗？"
+        </div>
+        <div class="timeline-item done">
+          <span class="tl-time">22:30</span> &middot; 你没回复，通知了妈妈
+        </div>
+        <div class="timeline-item done">
+          <span class="tl-time">22:42</span> &middot; 你回复了"今天还好"
+        </div>
+        <div class="timeline-item done">
+          <span class="tl-time">22:42</span> &middot; 已告诉妈妈你没事
+        </div>
+      </div>
+    </div>
+
+    <div class="streak-badge" style="margin-top:16px;">&#x1F4C5; 本月平安 19/22 天</div>
+
+    <div class="mt-auto">
+      <a href="#home-done" class="btn btn-primary">回到首页</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ALERT: Need Help ==================== -->
+<div class="screen" id="alert-help">
+  <div class="status-bar white">
+    <a href="#alert-contact" class="back">&larr;</a>
+    需要帮助
+  </div>
+  <div class="content">
+    <div class="alert-banner danger" style="margin-bottom:20px;">
+      &#x1F6A8; 联系不上小李，请按照以下建议行动
+    </div>
+
+    <a class="action-item" href="tel:">
+      <div class="action-icon">&#x1F4DE;</div>
+      <div class="action-text">
+        <div class="action-title">拨打小李电话</div>
+        <div class="action-desc">138****5678</div>
+      </div>
+      <span style="color:var(--primary); font-size:13px;">拨号 &rarr;</span>
+    </a>
+
+    <a class="action-item" href="tel:120">
+      <div class="action-icon">&#x1F691;</div>
+      <div class="action-text">
+        <div class="action-title">拨打 120 急救</div>
+        <div class="action-desc">小李地址：XX市XX区XX路XX号</div>
+      </div>
+      <span style="color:var(--danger); font-size:13px;">拨号 &rarr;</span>
+    </a>
+
+    <a class="action-item" href="tel:">
+      <div class="action-icon">&#x1F465;</div>
+      <div class="action-text">
+        <div class="action-title">联系其他紧急联系人</div>
+        <div class="action-desc">妈妈 &middot; 139****1234</div>
+      </div>
+      <span style="color:var(--primary); font-size:13px;">拨号 &rarr;</span>
+    </a>
+
+    <div class="divider"></div>
+    <p style="font-size:12px; color:var(--gray-500); text-align:center; line-height:1.6;">
+      Phase 1 暂不支持自动拨打120<br>
+      如需紧急救援请手动拨打
+    </p>
+
+    <div class="mt-auto">
+      <a href="#alert-contact" class="btn btn-ghost">返回告警页</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CHILD: Setup for Parents ==================== -->
+<div class="screen" id="child-setup">
+  <div class="status-bar white">
+    <a href="#settings" class="back">&larr;</a>
+    为家人开通守护
+  </div>
+  <div class="content">
+    <h2>守护爸妈</h2>
+    <p class="subtitle">帮远方的父母设置平安提醒</p>
+
+    <div class="input-group">
+      <label>父母姓名</label>
+      <input type="text" placeholder="如：李建国" value="李妈妈">
+    </div>
+    <div class="input-group">
+      <label>手机号</label>
+      <input type="tel" placeholder="父母的手机号" value="139****1234">
+    </div>
+
+    <div class="card card-gray" style="margin-bottom:16px;">
+      <p style="font-size:13px; color:var(--gray-700);">提醒时间</p>
+      <div class="flex-row" style="margin-top:8px; gap:8px;">
+        <select style="padding:8px 12px; border-radius:8px; border:1px solid var(--gray-300); font-size:15px; flex:1;">
+          <option>晚上 7:00</option>
+          <option>晚上 6:00</option>
+          <option>晚上 8:00</option>
+        </select>
+        <span style="color:var(--gray-500);">至</span>
+        <select style="padding:8px 12px; border-radius:8px; border:1px solid var(--gray-300); font-size:15px; flex:1;">
+          <option>晚上 9:00</option>
+          <option>晚上 8:00</option>
+          <option>晚上 10:00</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card card-gray" style="font-size:13px;">
+      &#x1F4F1; 设置后，我们会生成一个邀请链接发给父母，父母下载 App 后即可完成绑定
+    </div>
+
+    <div class="mt-auto">
+      <a href="#child-invite" class="btn btn-primary">生成邀请链接</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CHILD: Send Invite ==================== -->
+<div class="screen" id="child-invite">
+  <div class="status-bar white">
+    <a href="#child-setup" class="back">&larr;</a>
+    发送邀请
+  </div>
+  <div class="content text-center">
+    <h2>邀请链接已生成</h2>
+    <p class="subtitle">发送给父母即可完成邀请</p>
+
+    <div class="card" style="padding:24px; margin-bottom:16px;">
+      <div style="font-size:48px; margin-bottom:8px;">&#x1F4F2;</div>
+      <p style="font-size:14px; font-weight:600; color:var(--primary); margin-bottom:4px;">
+        李妈妈的守护邀请
+      </p>
+      <p style="font-size:12px; color:var(--gray-500);">
+        提醒时间：19:00 - 21:00
+      </p>
+      <div style="margin-top:12px; padding:8px; background:var(--gray-100); border-radius:8px;">
+        <p style="font-size:11px; color:var(--gray-500); word-break:break-all;">
+          https://jthh.app/invite/abc123
+        </p>
+      </div>
+    </div>
+
+    <a class="btn btn-primary mb-8" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+      分享邀请给妈妈
+    </a>
+    <a class="btn btn-outline mb-8">复制链接</a>
+
+    <p style="font-size:12px; color:var(--gray-500); margin-top:8px;">
+      支持 iMessage、短信、微信等分享渠道<br>父母下载 App 后自动绑定
+    </p>
+
+    <div class="mt-auto">
+      <a href="#child-waiting" class="btn btn-ghost">查看绑定状态</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CHILD: Waiting for Binding ==================== -->
+<div class="screen" id="child-waiting">
+  <div class="status-bar white">
+    <a href="#child-invite" class="back">&larr;</a>
+    等待绑定
+  </div>
+  <div class="content text-center">
+    <div class="illustration illustration-sm">&#x23F3;</div>
+    <h2>等待父母绑定</h2>
+    <p style="color:var(--gray-500); font-size:14px; margin:8px 0 24px;">
+      邀请已发送给李妈妈
+    </p>
+
+    <div class="card" style="text-align:left; padding:20px;">
+      <div class="bind-step">
+        <div class="step-icon done">&#x2713;</div>
+        <div class="step-label done">邀请已发送</div>
+      </div>
+      <div class="bind-step">
+        <div class="step-icon pending">&#x25CB;</div>
+        <div class="step-label pending">父母下载 App</div>
+      </div>
+      <div class="bind-step">
+        <div class="step-icon pending">&#x25CB;</div>
+        <div class="step-label pending">一键绑定</div>
+      </div>
+      <div class="bind-step">
+        <div class="step-icon pending">&#x25CB;</div>
+        <div class="step-label pending">守护开启</div>
+      </div>
+    </div>
+
+    <div class="mt-auto">
+      <a href="#child-invite" class="btn btn-outline mb-8">重新发送邀请</a>
+      <a href="#child-dashboard" class="btn btn-ghost" style="font-size:12px;">模拟：父母已绑定 &rarr; 查看看板</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CHILD: Care Dashboard (Paid) ==================== -->
+<div class="screen" id="child-dashboard">
+  <div class="status-bar white">
+    <a href="#home" class="back">&larr;</a>
+    关怀看板
+  </div>
+  <div class="content">
+    <div class="flex-between mb-16">
+      <div>
+        <h2>妈妈的守护</h2>
+        <p style="font-size:13px; color:var(--gray-500);">李妈妈 &middot; 提醒时间 19:00-21:00</p>
+      </div>
+      <span class="tag tag-ok" style="font-size:13px; padding:5px 12px;">正常</span>
+    </div>
+
+    <!-- Calendar with corrected weekday alignment -->
+    <div class="card">
+      <div class="flex-between mb-8">
+        <span style="font-size:14px; font-weight:600;">平安日历</span>
+        <span style="font-size:12px; color:var(--gray-500);">最近 7 天</span>
+      </div>
+      <div class="calendar-grid">
+        <div class="cal-header">一</div>
+        <div class="cal-header">二</div>
+        <div class="cal-header">三</div>
+        <div class="cal-header">四</div>
+        <div class="cal-header">五</div>
+        <div class="cal-header">六</div>
+        <div class="cal-header">日</div>
+        <!-- 6月16日=周二，所以周一留空 -->
+        <div class="cal-day cal-empty"></div>
+        <div class="cal-day cal-ok">16</div>
+        <div class="cal-day cal-ok">17</div>
+        <div class="cal-day cal-miss">18</div>
+        <div class="cal-day cal-ok">19</div>
+        <div class="cal-day cal-ok">20</div>
+        <div class="cal-day cal-ok">21</div>
+        <div class="cal-day cal-today cal-ok">22</div>
+        <div class="cal-day cal-empty"></div>
+        <div class="cal-day cal-empty"></div>
+        <div class="cal-day cal-empty"></div>
+        <div class="cal-day cal-empty"></div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:8px; font-size:11px; color:var(--gray-500);">
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--primary-light);margin-right:4px;"></span>已回复</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--danger-light);margin-right:4px;"></span>未回复</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between">
+        <span style="font-size:13px; color:var(--gray-500);">最后回复</span>
+        <span style="font-size:14px; font-weight:600;">今天 19:25</span>
+      </div>
+      <div class="divider"></div>
+      <div class="flex-between">
+        <span style="font-size:13px; color:var(--gray-500);">连续平安</span>
+        <span style="font-size:14px; font-weight:600;">本月 18/22 天</span>
+      </div>
+      <div class="divider"></div>
+      <div class="flex-between">
+        <span style="font-size:13px; color:var(--gray-500);">6月18日</span>
+        <span class="tag tag-warn">妈妈未回复，你代确认了"TA没事"</span>
+      </div>
+    </div>
+
+    <div class="mt-auto">
+      <a class="btn btn-outline" style="font-size:14px;">代确认"TA没事"</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CHILD: Care Dashboard (Free) ==================== -->
+<div class="screen" id="child-dashboard-free">
+  <div class="status-bar white">
+    <a href="#home" class="back">&larr;</a>
+    关怀看板
+  </div>
+  <div class="content">
+    <div class="flex-between mb-16">
+      <div>
+        <h2>妈妈的守护</h2>
+        <p style="font-size:13px; color:var(--gray-500);">李妈妈 &middot; 提醒时间 19:00-21:00</p>
+      </div>
+      <span class="tag tag-ok" style="font-size:13px; padding:5px 12px;">正常</span>
+    </div>
+
+    <!-- Simplified free view -->
+    <div class="card">
+      <div class="flex-between">
+        <span style="font-size:13px; color:var(--gray-500);">当前状态</span>
+        <span class="tag tag-ok" style="font-size:13px;">正常</span>
+      </div>
+      <div class="divider"></div>
+      <div class="flex-between">
+        <span style="font-size:13px; color:var(--gray-500);">最后回复</span>
+        <span style="font-size:14px; font-weight:600;">今天 19:25</span>
+      </div>
+    </div>
+
+    <!-- Upgrade hint -->
+    <div class="card" style="border:2px dashed var(--gray-300); text-align:center; padding:24px;">
+      <div style="font-size:32px; margin-bottom:8px;">&#x1F4CA;</div>
+      <p style="font-size:14px; font-weight:600; color:var(--gray-700); margin-bottom:4px;">
+        升级查看平安日历
+      </p>
+      <p style="font-size:12px; color:var(--gray-500); margin-bottom:16px;">
+        查看最近 7 天回复记录、连续平安天数、未回复提醒
+      </p>
+      <a href="#payment" class="btn btn-primary btn-sm">升级守护版</a>
+    </div>
+
+    <div class="mt-auto">
+      <a class="btn btn-outline" style="font-size:14px;">代确认"TA没事"</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAYMENT ==================== -->
+<div class="screen" id="payment">
+  <div class="status-bar white">
+    <a href="#settings" class="back">&larr;</a>
+    升级守护
+  </div>
+  <div class="content">
+    <h2 class="text-center">更完善的守护</h2>
+    <p class="subtitle text-center">7 天免费试用，随时可取消</p>
+
+    <div class="price-card">
+      <h3 style="font-size:16px; color:var(--gray-700);">免费版</h3>
+      <div class="price" style="color:var(--gray-500);">0 <span>元</span></div>
+      <ul class="feature-list">
+        <li>每日"今天还好"提醒</li>
+        <li>通知栏一键回复</li>
+        <li>1 位紧急联系人</li>
+        <li>短信通知联系人</li>
+        <li class="disabled">短信 + 语音电话双通道</li>
+        <li class="disabled">多位联系人（最多5位）</li>
+        <li class="disabled">关怀看板（7天日历）</li>
+      </ul>
+    </div>
+
+    <!-- Monthly plan -->
+    <div class="price-card featured" style="margin-bottom:8px;">
+      <div class="badge">月付</div>
+      <h3 style="font-size:16px; color:var(--primary);">守护版</h3>
+      <div class="price">0.9 <span>元/月</span></div>
+      <ul class="feature-list">
+        <li>每日"今天还好"提醒 + 通知栏快捷回复</li>
+        <li>最多 5 位紧急联系人</li>
+        <li>短信 + 语音电话双通道通知</li>
+        <li>联系人优先级排序</li>
+        <li>关怀看板（7天平安日历）</li>
+        <li>子女可代付费</li>
+      </ul>
+    </div>
+
+    <!-- Annual plan -->
+    <div class="price-card" style="border:2px solid var(--primary); margin-bottom:16px; position:relative;">
+      <div class="badge" style="background:var(--primary);">年付 &middot; 省8%</div>
+      <h3 style="font-size:16px; color:var(--primary);">守护版 &middot; 年付</h3>
+      <div class="price">9.9 <span>元/年</span></div>
+      <p style="font-size:11px; color:var(--gray-500); margin-bottom:8px;">约 0.83 元/月，比月付更划算</p>
+      <ul class="feature-list">
+        <li>与月付版功能完全相同</li>
+      </ul>
+    </div>
+
+    <a href="#home" class="btn btn-primary mb-8">免费试用 7 天</a>
+    <p style="font-size:11px; color:var(--gray-500); text-align:center; margin-bottom:8px;">
+      试用到期前 1 天提醒，可随时在 iOS 设置中取消
+    </p>
+    <p style="font-size:10px; color:var(--gray-300); text-align:center; margin-bottom:16px;">
+      通过 Apple In-App Purchase 订阅，自动续费
+    </p>
+
+    <!-- Family subscribe -->
+    <div class="card card-gray" style="text-align:center;">
+      <p style="font-size:13px; color:var(--gray-700); margin-bottom:8px;">为家人订阅</p>
+      <a href="#child-setup" class="btn btn-outline btn-sm">为父母开通守护版</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SETTINGS ==================== -->
+<div class="screen" id="settings">
+  <div class="status-bar white">
+    <a href="#home" class="back">&larr;</a>
+    设置
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="flex-between" style="padding:8px 0;">
+        <span style="font-size:14px;">提醒时间</span>
+        <span style="font-size:14px; color:var(--gray-500);">20:00 - 22:00 &rarr;</span>
+      </div>
+      <div class="divider"></div>
+      <div class="flex-between" style="padding:8px 0;">
+        <span style="font-size:14px;">紧急联系人</span>
+        <span style="font-size:14px; color:var(--gray-500);">妈妈 &rarr;</span>
+      </div>
+      <div class="divider"></div>
+      <div class="flex-between" style="padding:8px 0;">
+        <span style="font-size:14px;">订阅状态</span>
+        <span style="font-size:14px; color:var(--gray-500);">免费版 &rarr;</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <a href="#child-setup" style="display:block; padding:8px 0; font-size:14px; color:var(--primary); text-decoration:none;">
+        为家人开通守护 &rarr;
+      </a>
+      <div class="divider"></div>
+      <a href="#payment" style="display:block; padding:8px 0; font-size:14px; color:var(--primary); text-decoration:none;">
+        升级守护版 &rarr;
+      </a>
+      <div class="divider"></div>
+      <a href="#pause" style="display:block; padding:8px 0; font-size:14px; color:var(--warm); text-decoration:none;">
+        暂停守护 &rarr;
+      </a>
+    </div>
+
+    <!-- Managed guardians (if any) -->
+    <div class="card">
+      <p style="font-size:13px; color:var(--gray-500); margin-bottom:8px;">管理的守护者</p>
+      <div class="guardian-row">
+        <div class="contact-avatar">&#x1F469;</div>
+        <div class="guardian-info">
+          <div class="guardian-name">李妈妈</div>
+          <div class="guardian-status">正常 &middot; 最后回复 19:25</div>
+        </div>
+        <a href="#child-dashboard" style="font-size:12px; color:var(--primary); text-decoration:none;">看板 &rarr;</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <a href="#onboarding-2" style="display:block; padding:8px 0; font-size:14px; color:var(--gray-700); text-decoration:none;">
+        查看协议
+      </a>
+      <div class="divider"></div>
+      <a style="display:block; padding:8px 0; font-size:14px; color:var(--gray-700); text-decoration:none; cursor:pointer;">
+        隐私政策
+      </a>
+      <div class="divider"></div>
+      <a href="#delete-confirm" style="display:block; padding:8px 0; font-size:14px; color:var(--danger); text-decoration:none;">
+        删除我的数据
+      </a>
+    </div>
+
+    <p style="text-align:center; font-size:12px; color:var(--gray-500); margin-top:20px;">
+      今天还好 v1.0
+    </p>
+  </div>
+</div>
+
+<!-- ==================== DELETE DATA CONFIRM ==================== -->
+<div class="screen" id="delete-confirm">
+  <div class="status-bar white">
+    <a href="#settings" class="back">&larr;</a>
+    删除数据
+  </div>
+  <div class="content" style="justify-content:center;">
+    <div style="text-align:center; padding:20px;">
+      <div style="font-size:48px; margin-bottom:16px;">&#x26A0;&#xFE0F;</div>
+      <h2>确定删除所有数据吗？</h2>
+      <p style="color:var(--gray-500); font-size:14px; margin:12px 0; line-height:1.6;">
+        删除后无法恢复，包括：回复记录、<br>联系人信息、守护设置。<br>你的紧急联系人将不再收到通知。
+      </p>
+    </div>
+
+    <div class="input-group" style="margin-bottom:16px;">
+      <label>请输入"确认删除"以继续</label>
+      <input type="text" placeholder="确认删除" id="delete-input">
+    </div>
+
+    <a href="#onboarding-1" class="btn btn-danger mb-8" id="delete-btn">确认删除</a>
+    <a href="#settings" class="btn btn-ghost">取消</a>
+  </div>
+</div>
+
+<!-- ==================== LOADING STATE DEMO ==================== -->
+<div class="screen" id="loading-demo">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:20px;">加载态演示（骨架屏）</p>
+
+    <div style="text-align:center; margin-bottom:24px;">
+      <div class="skeleton skeleton-circle" style="width:64px;height:64px;margin:0 auto 16px;"></div>
+      <div class="skeleton skeleton-title" style="margin:0 auto 8px;"></div>
+      <div class="skeleton skeleton-text" style="width:40%;margin:0 auto;"></div>
+    </div>
+
+    <div style="text-align:center; margin-bottom:32px;">
+      <div class="skeleton skeleton-circle" style="width:120px;height:120px;margin:0 auto;"></div>
+    </div>
+
+    <div class="skeleton skeleton-text" style="width:60%;margin:0 auto 8px;"></div>
+    <div class="skeleton skeleton-text" style="width:80%;margin:0 auto 8px;"></div>
+    <div class="skeleton skeleton-text" style="width:40%;margin:0 auto;"></div>
+  </div>
+</div>
+
+<!-- ==================== ERROR STATE DEMO ==================== -->
+<div class="screen" id="error-demo">
+  <div class="status-bar"><span style="margin-right:6px;display:inline-flex;align-items:center;"><svg class="mascot sm" viewBox="0 0 100 100" fill="none">
+<circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" stroke-width="9" fill="none"/>
+<circle cx="50" cy="50" r="40" fill="white"/>
+<rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)"/>
+<path d="M68 41 L58 50 L68 59" stroke="url(#eyeGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg></span>今天还好</div>
+  <div class="content" style="justify-content:center; text-align:center;">
+    <div style="font-size:64px; margin-bottom:16px;">&#x1F614;</div>
+    <h2>加载失败</h2>
+    <p style="color:var(--gray-500); font-size:14px; margin:8px 0 24px;">
+      请检查网络连接后重试
+    </p>
+    <a class="btn btn-primary" style="max-width:200px; margin:0 auto;">重试</a>
+  </div>
+</div>
+
+<!-- ==================== EMERGENCY: Active Help Request ==================== -->
+<div class="screen" id="emergency">
+  <div class="status-bar danger">紧急求助</div>
+  <div class="content">
+    <div class="alert-banner danger" style="margin-bottom:16px;">
+      &#x1F6A8; 你正在发起紧急求助
+    </div>
+
+    <p style="font-size:14px; color:var(--gray-700); margin-bottom:16px; line-height:1.6;">
+      如果你需要紧急帮助，可以选择以下方式。你的联系人会收到"我需要帮助"的通知。
+    </p>
+
+    <a class="action-item" href="tel:120">
+      <div class="action-icon">&#x1F691;</div>
+      <div class="action-text">
+        <div class="action-title">拨打 120 急救</div>
+        <div class="action-desc">紧急地址：XX市XX区XX路XX号</div>
+      </div>
+      <span style="color:var(--danger); font-size:13px;">拨号 &rarr;</span>
+    </a>
+
+    <a class="action-item">
+      <div class="action-icon">&#x1F4E8;</div>
+      <div class="action-text">
+        <div class="action-title">通知所有联系人</div>
+        <div class="action-desc">向妈妈发送"我需要帮助"短信</div>
+      </div>
+      <span style="color:var(--primary); font-size:13px;">发送 &rarr;</span>
+    </a>
+
+    <a class="action-item" href="tel:">
+      <div class="action-icon">&#x1F4DE;</div>
+      <div class="action-text">
+        <div class="action-title">拨打联系人电话</div>
+        <div class="action-desc">妈妈 &middot; 139****1234</div>
+      </div>
+      <span style="color:var(--primary); font-size:13px;">拨号 &rarr;</span>
+    </a>
+
+    <div class="divider"></div>
+
+    <a href="#home" class="btn btn-ghost">我没事，取消求助</a>
+  </div>
+</div>
+
+<!-- ==================== PAUSE: Pause Guardian ==================== -->
+<div class="screen" id="pause">
+  <div class="status-bar white">
+    <a href="#settings" class="back">&larr;</a>
+    暂停守护
+  </div>
+  <div class="content">
+    <h2>暂停守护</h2>
+    <p class="subtitle">出差、旅行或与亲友同住时，可以暂时关闭提醒</p>
+
+    <p style="font-size:13px; color:var(--gray-700); margin-bottom:16px;">选择暂停时长：</p>
+
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+      <label class="checkbox-row" style="margin-bottom:0;">
+        <input type="radio" name="pause-dur" checked>
+        <div class="label">1 天（明天自动恢复）</div>
+      </label>
+      <label class="checkbox-row" style="margin-bottom:0;">
+        <input type="radio" name="pause-dur">
+        <div class="label">3 天</div>
+      </label>
+      <label class="checkbox-row" style="margin-bottom:0;">
+        <input type="radio" name="pause-dur">
+        <div class="label">7 天</div>
+      </label>
+      <label class="checkbox-row" style="margin-bottom:0;">
+        <input type="radio" name="pause-dur">
+        <div class="label">自定义日期</div>
+      </label>
+    </div>
+
+    <div class="card card-gray" style="font-size:13px; color:var(--gray-700); margin-bottom:20px;">
+      &#x1F4A1; 暂停期间不会发送提醒、不会触发告警、不会通知联系人。到期后自动恢复守护。
+    </div>
+
+    <div class="mt-auto">
+      <a href="#home-paused" class="btn btn-warm">确认暂停</a>
+      <a href="#settings" class="btn btn-ghost" style="margin-top:8px;">取消</a>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== HOME (State: Paused) ==================== -->
+<div class="screen" id="home-paused">
+  <div class="status-bar" style="background:var(--gray-500);">今天还好</div>
+  <div class="content text-center">
+    <p style="font-size:13px; color:var(--gray-500); margin-bottom:4px;">2026年6月22日 &middot; 晚上好，小李</p>
+
+    <div class="illustration">&#x1F4A4;</div>
+
+    <h2 style="margin-bottom:4px;">守护已暂停</h2>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:24px;">
+      3 天后自动恢复（6月25日）
+    </p>
+
+    <div class="card card-gray" style="text-align:left;">
+      <p style="font-size:13px; color:var(--gray-700);">暂停期间不会收到提醒，也不会通知联系人。安心享受你的时光！</p>
+    </div>
+
+    <div class="mt-auto">
+      <a href="#home" class="btn btn-primary mb-8">立即恢复守护</a>
+      <div class="streak-badge" style="margin-top:12px;">&#x1F4C5; 本月平安 18/22 天</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end phone -->
+
+<script>
+function toggleAgreement() {
+  var checkboxes = document.querySelectorAll('#onboarding-2 input[type="checkbox"]');
+  var btn = document.getElementById('agree-btn');
+  var hint = document.getElementById('agree-hint');
+  var allChecked = Array.from(checkboxes).every(function(cb) { return cb.checked; });
+  if (allChecked) {
+    btn.classList.remove('disabled');
+    hint.style.display = 'none';
+  } else {
+    btn.classList.add('disabled');
+    hint.style.display = 'block';
+  }
+}
+</script>
+
+</body>
+</html>

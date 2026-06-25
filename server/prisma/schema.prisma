@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── 用户 ───
+model User {
+  id              String   @id @default(cuid())
+  phone           String   @unique
+  nickname        String?
+  address         String?
+  onboardingStep  String   @default("login")
+  isOnboarded     Boolean  @default(false)
+  notificationAuth Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  contacts        EmergencyContact[]
+  reminderConfig  ReminderConfig?
+  dailyRecords    DailyRecord[]
+  guardStatus     GuardStatus?
+  alertEvents     AlertEvent[]
+  pauseLogs       PauseLog[]
+  helpRequests    HelpRequest[]
+  agreements      AgreementConsent[]
+  subscription    Subscription?
+
+  // 子女端：作为守护者
+  guardianOf      GuardianRelation[] @relation("guardian")
+  // 子女端：作为被守护者
+  wardOf          GuardianRelation[] @relation("ward")
+}
+
+// ─── 紧急联系人 ───
+model EmergencyContact {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  phone     String
+  relation  String   @default("家人")
+  priority  Int      @default(1)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notificationLogs NotificationLog[]
+  alertActions     AlertAction[]
+}
+
+// ─── 提醒配置 ───
+model ReminderConfig {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  startTime      String   @default("20:00")
+  endTime        String   @default("22:00")
+  gracePeriodMin Int      @default(30)
+  timezone       String   @default("Asia/Shanghai")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ─── 每日回复记录 ───
+model DailyRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  date       String
+  status     String   @default("waiting") // idle | waiting | replied | grace | alert
+  repliedAt  DateTime?
+  replyMethod String?  // notification_action | in_app
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, date])
+}
+
+// ─── 守护状态 ───
+model GuardStatus {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  status        String    @default("idle") // idle | waiting | replied | grace | alert | paused
+  lastReplyAt   DateTime?
+  alertTriggeredAt DateTime?
+  consecutiveTimeouts Int  @default(0)
+  updatedAt     DateTime  @updatedAt
+
+  activeAlert   AlertEvent?
+}
+
+// ─── 告警事件 ───
+model AlertEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  guardStatusId  String
+  guardStatus    GuardStatus @relation(fields: [guardStatusId], references: [id])
+  status         String   @default("active") // active | confirmed | help_needed | resolved
+  lastReplyAt    DateTime?
+  triggeredAt    DateTime @default(now())
+  resolvedAt     DateTime?
+  smsRounds      Int      @default(0)
+
+  contactsNotified String  @default("[]") // JSON array of contact IDs
+  timeline        String   @default("[]") // JSON array of AlertTimelineItem
+
+  actions        AlertAction[]
+
+  @@unique([guardStatusId])
+}
+
+// ─── 告警处理记录 ───
+model AlertAction {
+  id         String   @id @default(cuid())
+  alertId    String
+  alert      AlertEvent @relation(fields: [alertId], references: [id])
+  contactId  String
+  contact    EmergencyContact @relation(fields: [contactId], references: [id])
+  action     String   // confirmed | help_needed
+  createdAt  DateTime @default(now())
+}
+
+// ─── 通知记录 ───
+model NotificationLog {
+  id         String   @id @default(cuid())
+  contactId  String
+  contact    EmergencyContact @relation(fields: [contactId], references: [id])
+  channel    String   // sms | voice_call | apns
+  round      Int      @default(1)
+  status     String   @default("pending") // pending | sent | delivered | failed
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+}
+
+// ─── 守护关系（子女端）───
+model GuardianRelation {
+  id         String   @id @default(cuid())
+  guardianId String
+  guardian   User     @relation("guardian", fields: [guardianId], references: [id])
+  wardId     String
+  ward       User     @relation("ward", fields: [wardId], references: [id])
+  relation   String   @default("子女")
+  inviteCode String?  @unique
+  isBound    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([guardianId, wardId])
+}
+
+// ─── 暂停记录 ───
+model PauseLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  startTime  DateTime
+  endTime    DateTime
+  reason     String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+// ─── 求助记录 ───
+model HelpRequest {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  latitude   Float?
+  longitude  Float?
+  addressText String?
+  createdAt  DateTime @default(now())
+}
+
+// ─── 协议同意记录 ───
+model AgreementConsent {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  agreementVersion String
+  disclaimer1     Boolean  @default(false) // 不替代专业医疗
+  disclaimer2     Boolean  @default(false) // 不保证通知成功
+  disclaimer3     Boolean  @default(false) // 故障免责
+  userAgreement   Boolean  @default(false)
+  privacyPolicy   Boolean  @default(false)
+  consentedAt     DateTime @default(now())
+}
+
+// ─── 订阅 ───
+model Subscription {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  plan             String   @default("free") // free | monthly | yearly
+  status           String   @default("inactive") // inactive | active | trial | cancelled | expired
+  trialEndsAt      DateTime?
+  currentPeriodEnd DateTime?
+  appleTransactionId String?
+  paidBy           String?  // 本人 | 子女用户ID
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ─── 短信验证码（临时存储）───
+model VerificationCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}

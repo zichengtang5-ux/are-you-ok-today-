@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment secrets
+.env
+
+# Database files
+*.db
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Qoder
+.qoder/
+_output/
+
+# Expo
+app/dist/
+app/.expo/
