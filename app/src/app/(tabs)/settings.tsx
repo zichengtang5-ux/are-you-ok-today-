@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Card, Button, Dialog } from '@/components/ui';
+import { Card, Button, Banner, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
@@ -48,6 +48,7 @@ export default function SettingsScreen() {
     contacts,
     subscription,
     refreshSubscription,
+    notificationAuthorized,
   } = useStore();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -137,6 +138,13 @@ export default function SettingsScreen() {
           >
             <Text style={styles.linkText}>升级守护版 →</Text>
           </Pressable>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/guardian')}
+            accessibilityLabel="守护中心"
+          >
+            <Text style={styles.linkText}>守护中心 →</Text>
+          </Pressable>
         </Card>
 
         {/* Legal & data */}
@@ -193,6 +201,13 @@ export default function SettingsScreen() {
               {subscription?.status === 'expired' ? '重新开通守护版' : '升级守护版'}
             </Button>
           )}
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/guardian')}
+            accessibilityLabel="守护中心"
+          >
+            <Text style={[styles.linkText, { textAlign: 'center' }]}>守护中心 →</Text>
+          </Pressable>
         </Card>
 
         {/* Version */}

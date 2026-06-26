@@ -243,6 +243,24 @@ export default function HomeScreen() {
           </>
         )}
 
+        {/* Quick action shortcuts */}
+        <View style={styles.quickRow}>
+          <Pressable
+            onPress={() => router.push('/guardian')}
+            style={styles.quickBtn}
+          >
+            <Text style={styles.quickIcon}>👨‍👩‍👧</Text>
+            <Text style={styles.quickLabel}>守护中心</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/help/emergency')}
+            style={[styles.quickBtn, styles.quickBtnDanger]}
+          >
+            <Text style={styles.quickIcon}>🆘</Text>
+            <Text style={[styles.quickLabel, styles.quickLabelDanger]}>紧急求助</Text>
+          </Pressable>
+        </View>
+
         {/* Settings link */}
         <Pressable onPress={() => router.push('/settings')} style={styles.settingsLink}>
           <Text style={styles.settingsText}>设置</Text>
@@ -395,5 +413,34 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: Colors.gray600,
     textDecorationLine: 'underline',
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  quickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.primaryLight,
+  },
+  quickBtnDanger: {
+    backgroundColor: Colors.dangerLight,
+  },
+  quickIcon: {
+    fontSize: 20,
+  },
+  quickLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+    color: Colors.primaryDark,
+  },
+  quickLabelDanger: {
+    color: Colors.dangerDark,
   },
 });
