@@ -5,4 +5,5 @@ export { Dialog } from './Dialog';
 export { Banner } from './Banner';
 export { StreakBadge } from './StreakBadge';
 export { Timeline } from './Timeline';
+export { PlanCard } from './PlanCard';
 export { LoadingState, ErrorState, EmptyState } from './States';

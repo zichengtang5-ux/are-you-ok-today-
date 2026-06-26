@@ -93,6 +93,7 @@ export default function RootLayout() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="alert" />
+      <Stack.Screen name="subscription" />
     </Stack>
   );
 }

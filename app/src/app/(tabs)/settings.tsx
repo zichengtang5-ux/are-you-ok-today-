@@ -1,14 +1,68 @@
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Button, Banner, Dialog } from '@/components/ui';
+import { useRouter } from 'expo-router';
+import { Card, Button, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
-import { useState } from 'react';
+import type { SubscriptionStatus } from '@/types';
+
+const PLAN_LABEL: Record<string, string> = {
+  free: '免费版',
+  monthly: '月付',
+  yearly: '年付',
+};
+
+function statusLabel(status?: SubscriptionStatus | null): string {
+  switch (status) {
+    case 'active':
+      return '守护版';
+    case 'trial':
+      return '试用中';
+    case 'expired':
+      return '已过期';
+    case 'cancelled':
+      return '已取消续订';
+    default:
+      return '免费版';
+  }
+}
+
+function formatEnd(iso?: string | null): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate(),
+    ).padStart(2, '0')}`;
+  } catch {
+    return iso;
+  }
+}
 
 export default function SettingsScreen() {
-  const { user, reminder, contacts, notificationAuthorized } = useStore();
+  const router = useRouter();
+  const {
+    user,
+    reminder,
+    contacts,
+    subscription,
+    refreshSubscription,
+  } = useStore();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // 进入设置时刷新订阅态（轻量 GET /subscription/status）
+  useEffect(() => {
+    if (user) {
+      refreshSubscription();
+    }
+  }, [user, refreshSubscription]);
+
+  const status = subscription?.status ?? 'none';
+  const isPremium = !!subscription?.isPremium;
+  const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
+  const endLabel = formatEnd(subscription?.currentPeriodEnd);
 
   const handleDeleteData = () => {
     if (deleteConfirmText === '确认删除') {
@@ -38,18 +92,49 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>订阅状态</Text>
-            <View style={styles.freeTag}>
-              <Text style={styles.freeTagText}>免费版</Text>
+            <View
+              style={[
+                styles.statusTag,
+                {
+                  backgroundColor: isPremium ? Colors.primaryLight : Colors.gray100,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusTagText,
+                  { color: isPremium ? Colors.primary : Colors.gray700 },
+                ]}
+              >
+                {statusLabel(subscription?.status)}
+                {planLabel !== '免费版' ? ` · ${planLabel}` : ''}
+              </Text>
             </View>
           </View>
+          {endLabel && (
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>
+                {subscription?.status === 'trial' ? '试用截止' : '有效期至'}
+              </Text>
+              <Text style={styles.settingValue}>{endLabel}</Text>
+            </View>
+          )}
         </Card>
 
         {/* Family settings */}
         <Card title="家庭设置" style={styles.card}>
-          <Pressable style={styles.linkRow}>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/subscription/proxy')}
+            accessibilityLabel="为家人开通守护"
+          >
             <Text style={styles.linkText}>为家人开通守护 →</Text>
           </Pressable>
-          <Pressable style={styles.linkRow}>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/subscription')}
+            accessibilityLabel="升级守护版"
+          >
             <Text style={styles.linkText}>升级守护版 →</Text>
           </Pressable>
         </Card>
@@ -74,11 +159,40 @@ export default function SettingsScreen() {
         <Card title="订阅管理" style={styles.card}>
           <View style={styles.planRow}>
             <Text style={styles.planLabel}>当前套餐</Text>
-            <Text style={styles.planValue}>免费版</Text>
+            <Text style={styles.planValue}>
+              {isPremium ? `守护版 · ${planLabel}` : '免费版'}
+            </Text>
           </View>
-          <Button variant="primary" onPress={() => {}}>
-            升级守护版
-          </Button>
+
+          {isPremium ? (
+            <>
+              {subscription?.status === 'cancelled' ? (
+                <Button variant="warm" onPress={() => router.push('/subscription')}>
+                  重新开通
+                </Button>
+              ) : (
+                <Pressable
+                  onPress={() =>
+                    Linking.openURL(
+                      'https://apps.apple.com/account/subscriptions',
+                    )
+                  }
+                  accessibilityLabel="在 Apple 账户中管理订阅"
+                >
+                  <Text style={[styles.linkText, { textAlign: 'center' }]}>
+                    在 Apple 账户中管理订阅 →
+                  </Text>
+                </Pressable>
+              )}
+            </>
+          ) : (
+            <Button
+              variant="primary"
+              onPress={() => router.push('/subscription')}
+            >
+              {subscription?.status === 'expired' ? '重新开通守护版' : '升级守护版'}
+            </Button>
+          )}
         </Card>
 
         {/* Version */}
@@ -150,6 +264,15 @@ const styles = StyleSheet.create({
   freeTagText: {
     fontSize: FontSizes.sm,
     color: Colors.gray700,
+    fontWeight: FontWeights.medium,
+  },
+  statusTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusTagText: {
+    fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
   },
   linkRow: {

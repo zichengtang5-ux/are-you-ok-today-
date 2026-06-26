@@ -90,6 +90,22 @@ export interface SubscriptionPlan {
   recommended?: boolean;
 }
 
+export type SubscriptionStatus =
+  | 'none'
+  | 'active'
+  | 'trial'
+  | 'expired'
+  | 'cancelled';
+
+export interface Subscription {
+  plan: PlanType;
+  status: SubscriptionStatus;
+  currentPeriodEnd: string | null;
+  originalTransactionId?: string;
+  isTrial?: boolean;
+  isPremium: boolean;
+}
+
 /* ──────────────── Onboarding step ──────────────── */
 export type OnboardingStep =
   | 'login'
