@@ -1,8 +1,8 @@
 # 前后端对齐文档 — S3~S7
 
 > 维护者：小后（后端）+ 小前（前端）
-> 最后更新：2026-06-25
-> 状态：待双方确认后并行开发
+> 最后更新：2026-06-26
+> 状态：后端 S1-S7 全部完成 ✅，前端 S1-S4 已合入 main
 > GitHub：https://github.com/zichengtang5-ux/are-you-ok-today-
 
 ---
@@ -63,13 +63,13 @@ are-you-ok-today-/
 
 | 阶段 | 状态 | 后端（小后） | 前端（小前） |
 |------|------|-------------|-------------|
-| S1 认证 | ✅ 完成 | 7 个 API | 待对接 |
-| S2 联系人/提醒/回复 | ✅ 完成 | 11 个 API | 待对接 |
-| S3 每日提醒引擎 | 🔲 待开发 | 定时任务 + APNs | iOS 本地通知 + 通知 Action |
-| S4 超时告警 | 🔲 待开发 | 超时检测 + SMS告警 + 联系人确认 | 告警页面 + 联系人确认页 |
-| S5 紧急求助 + 子女端 | 🔲 待开发 | 求助API + 子女关系API | 求助页 + 子女端页面 |
-| S6 订阅付费 | 🔲 待开发 | Apple IAP校验 + 付费网关 | StoreKit集成 + 付费页 |
-| S7 暂停/删除/收尾 | 🔲 待开发 | 暂停API + 数据删除API | 设置页完善 + 联调 |
+| S1 认证 | ✅ 完成 | 4 个 API | ✅ 已对接 |
+| S2 联系人/提醒/回复 | ✅ 完成 | 11 个 API | ✅ 已对接 |
+| S3 每日提醒引擎 | ✅ 完成 | Device 注册 + 定时任务 + APNs mock | ✅ 已对接 |
+| S4 超时告警 | ✅ 完成 | 告警检测 + SMS + 联系人确认 | ✅ 已对接 |
+| S5 紧急求助 + 子女端 | ✅ 完成 | 求助API + 子女关系API | 🔲 PR#5 待合入 |
+| S6 订阅付费 | ✅ 完成 | IAP校验 + 代付 + 状态查询 | 🔲 待开发 |
+| S7 暂停/删除/收尾 | ✅ 完成 | 暂停API + 数据删除API | 🔲 待开发 |
 
 ---
 
@@ -476,7 +476,7 @@ POST /api/guardian/wards/:id/proxy-reply
 
 ## 六、S6 API 契约 — 订阅付费
 
-### 新增接口（2 个）
+### 新增接口（3 个）
 
 #### POST /api/subscription/verify
 
@@ -490,11 +490,13 @@ POST /api/subscription/verify
 ```json
 {
   "transactionId": "Apple transaction ID",
-  "plan": "monthly"
+  "plan": "monthly",
+  "provider": "apple"
 }
 ```
 
 - `plan`: `"monthly"` | `"yearly"`
+- `provider`: `"apple"`（可选，预留安卓扩展）
 
 响应：
 ```json
@@ -502,7 +504,9 @@ POST /api/subscription/verify
   "subscription": {
     "plan": "monthly",
     "status": "active",
-    "currentPeriodEnd": "2026-07-25T00:00:00Z"
+    "currentPeriodEnd": "2026-07-25T00:00:00Z",
+    "originalTransactionId": "Apple transaction ID",
+    "isTrial": false
   }
 }
 ```
@@ -526,13 +530,43 @@ POST /api/subscription/proxy-subscribe
 }
 ```
 
+- **前置校验**：调用方必须是 ward 的已绑定 guardian（否则 403）
+
 响应：
 ```json
 {
   "message": "已为妈妈开通守护版",
-  "subscription": { "plan": "yearly", "status": "active" }
+  "subscription": {
+    "plan": "yearly",
+    "status": "active",
+    "currentPeriodEnd": "2027-06-26T00:00:00Z"
+  },
+  "wardName": "妈妈"
 }
 ```
+
+---
+
+#### GET /api/subscription/status
+
+获取订阅状态（前端刷新用，不必每次拉 /auth/me）
+
+```
+GET /api/subscription/status
+```
+
+响应：
+```json
+{
+  "plan": "monthly",
+  "status": "active",
+  "currentPeriodEnd": "2026-07-25T00:00:00Z",
+  "isPremium": true
+}
+```
+
+- 未订阅用户：`{ plan: "free", status: "inactive", currentPeriodEnd: null, isPremium: false }`
+- 过期自动标记为 `expired`
 
 ---
 
@@ -543,16 +577,16 @@ POST /api/subscription/proxy-subscribe
 3. 购买成功后拿到 `transactionId`
 4. 调 `POST /api/subscription/verify` 校验
 5. 后端调 App Store Server API 验证 → 更新订阅状态
-6. 前端刷新 `GET /api/auth/me` 获取最新付费状态
+6. 前端调 `GET /api/subscription/status` 刷新付费状态
 
 ### 付费功能网关
 
 后端在以下接口中检查付费状态：
 - 联系人数量限制（免费 1 / 付费 5）— 已实现 ✅
-- 关怀看板完整数据 — S5 实现
-- 告警通知语音电话 — S4 实现
+- 关怀看板完整数据 — S5 已实现 ✅
+- 告警通知语音电话 — S4 已实现（mock 模式）
 
-前端根据 `user.isPremium`（或 `subscription.status`）控制 UI 展示。
+前端根据 `GET /api/subscription/status` 的 `isPremium` 控制 UI 展示。
 
 ---
 
@@ -688,17 +722,18 @@ DELETE /api/user/account
 | 22 | POST | `/api/alert/:id/help` | S4 | 联系人需要帮助 |
 | 23 | POST | `/api/help/emergency` | S5 | 触发紧急求助 |
 | 24 | GET | `/api/help/address` | S5 | 获取当前地址 |
-| 25 | POST | `/api/guardian/create` | S5 | 创建守护档案 |
-| 26 | POST | `/api/guardian/accept-invite` | S5 | 接受邀请 |
-| 27 | GET | `/api/guardian/wards` | S5 | 守护列表 |
-| 28 | GET | `/api/guardian/wards/:id/dashboard` | S5 | 关怀看板 |
-| 29 | POST | `/api/guardian/wards/:id/proxy-reply` | S5 | 子女代确认 |
+| 25 | POST | `/api/guardian/create` | S5 | 创建守护档案（返回原始 wardPhone） |
+| 26 | POST | `/api/guardian/accept-invite` | S5 | 接受邀请（大小写不敏感） |
+| 27 | GET | `/api/guardian/wards` | S5 | 守护列表（wardPhone 脱敏） |
+| 28 | GET | `/api/guardian/wards/:id/dashboard` | S5 | 关怀看板（免费用户字段为 null） |
+| 29 | POST | `/api/guardian/wards/:id/proxy-reply` | S5 | 子女代确认（幂等） |
 | 30 | POST | `/api/subscription/verify` | S6 | IAP 交易校验 |
 | 31 | POST | `/api/subscription/proxy-subscribe` | S6 | 子女代付 |
-| 32 | POST | `/api/pause` | S7 | 暂停守护 |
-| 33 | POST | `/api/pause/resume` | S7 | 提前恢复 |
-| 34 | GET | `/api/pause/status` | S7 | 暂停状态 |
-| 35 | DELETE | `/api/user/account` | S7 | 删除账号 |
+| 32 | GET | `/api/subscription/status` | S6 | 获取订阅状态 |
+| 33 | POST | `/api/pause` | S7 | 暂停守护 |
+| 34 | POST | `/api/pause/resume` | S7 | 提前恢复 |
+| 35 | GET | `/api/pause/status` | S7 | 暂停状态 |
+| 36 | DELETE | `/api/user/account` | S7 | 删除账号 |
 
 ---
 
@@ -739,6 +774,7 @@ DELETE /api/user/account
 
 - 后端在列表接口中返回完整手机号
 - 前端展示时脱敏：`138****5678`
+- **子女端守护关系**：`POST /guardian/create` 返回原始 `wardPhone`（用户刚输入），`GET /guardian/wards` 返回脱敏 `wardPhone`
 
 ### 推送文案（前端本地通知）
 
