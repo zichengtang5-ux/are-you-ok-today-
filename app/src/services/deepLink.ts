@@ -39,6 +39,16 @@ export function parseDeepLink(url: string): DeepLinkRoute | null {
     return { path: '/(tabs)/settings' as Href };
   }
 
+  if (segments[0] === 'subscription') {
+    if (segments[1] === 'proxy') {
+      return {
+        path: '/subscription/proxy' as Href,
+        params: queryParams as Record<string, string>,
+      };
+    }
+    return { path: '/subscription' as Href };
+  }
+
   return null;
 }
 
