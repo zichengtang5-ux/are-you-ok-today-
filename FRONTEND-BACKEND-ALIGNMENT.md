@@ -1,7 +1,8 @@
 # 前后端对齐文档 — S3~S7
 
 > 维护者：小后（后端）+ 小前（前端）
-> 最后更新：2026-06-25
+> 最后更新：2026-06-26
+> 变更记录：2026-06-26 §六 S6 契约扩展（3 端点 + `provider/originalTransactionId/isTrial/wardName` 字段 + 新增 `GET /subscription/status`）；§五 `POST /guardian/create` 手机号脱敏说明
 > 状态：待双方确认后并行开发
 > GitHub：https://github.com/zichengtang5-ux/are-you-ok-today-
 
@@ -369,6 +370,7 @@ POST /api/guardian/create
 ```
 
 - 前端用 `UIActivityViewController` 分享 `inviteLink` + App Store 下载链接
+- **手机号脱敏说明**：`POST /guardian/create` 响应返回**原始** `wardPhone`（用户刚输入，方便前端回显）；`GET /guardian/wards` 列表返回**脱敏** `wardPhone`（如 `138****2222`）。前端展示列表时不要再做二次脱敏。
 
 ---
 
@@ -476,7 +478,7 @@ POST /api/guardian/wards/:id/proxy-reply
 
 ## 六、S6 API 契约 — 订阅付费
 
-### 新增接口（2 个）
+### 新增接口（3 个）
 
 #### POST /api/subscription/verify
 
@@ -490,11 +492,13 @@ POST /api/subscription/verify
 ```json
 {
   "transactionId": "Apple transaction ID",
-  "plan": "monthly"
+  "plan": "monthly",
+  "provider": "apple"
 }
 ```
 
 - `plan`: `"monthly"` | `"yearly"`
+- `provider`: 预留字段，当前固定 `"apple"`，后续可扩展 `"google"` 等
 
 响应：
 ```json
@@ -502,10 +506,16 @@ POST /api/subscription/verify
   "subscription": {
     "plan": "monthly",
     "status": "active",
-    "currentPeriodEnd": "2026-07-25T00:00:00Z"
+    "currentPeriodEnd": "2026-07-25T00:00:00Z",
+    "originalTransactionId": "Apple original transaction ID",
+    "isTrial": false
   }
 }
 ```
+
+- `originalTransactionId`: 续订追踪用（Apple 续费订阅的原始交易 ID）
+- `isTrial`: 是否在试用期（如首次订阅享 7 天免费）
+- `status`: `"active"` | `"trial"` | `"expired"` | `"cancelled"`
 
 ---
 
@@ -526,13 +536,49 @@ POST /api/subscription/proxy-subscribe
 }
 ```
 
+- **前置校验**：调用方必须是 `wardId` 的已绑定 `guardian`（`isBound: true`），否则返回 `403 Forbidden`
+- 子女代付后，订阅归属 `wardId`，`currentPeriodEnd` 按代付方案计算
+
 响应：
 ```json
 {
   "message": "已为妈妈开通守护版",
-  "subscription": { "plan": "yearly", "status": "active" }
+  "wardName": "妈妈",
+  "subscription": {
+    "plan": "yearly",
+    "status": "active",
+    "currentPeriodEnd": "2027-06-25T00:00:00Z"
+  }
 }
 ```
+
+错误响应：
+```json
+{ "statusCode": 403, "message": "无权为该用户代付", "error": "Forbidden" }
+```
+
+---
+
+#### GET /api/subscription/status
+
+获取当前订阅状态（前端独立刷新用，避免每次拉 `/auth/me`）
+
+```
+GET /api/subscription/status
+```
+
+响应：
+```json
+{
+  "plan": "yearly",
+  "status": "active",
+  "currentPeriodEnd": "2027-06-25T00:00:00Z",
+  "isPremium": true
+}
+```
+
+- 未订阅用户返回 `{ plan: null, status: "none", currentPeriodEnd: null, isPremium: false }`
+- `isPremium` 为最终布尔值（由后端按 `status in (active, trial)` 计算），前端直接用它做功能网关判断
 
 ---
 
@@ -541,9 +587,10 @@ POST /api/subscription/proxy-subscribe
 1. 用户在付费页选择方案（月付 0.9 / 年付 9.9）
 2. 前端调 StoreKit 2 发起购买
 3. 购买成功后拿到 `transactionId`
-4. 调 `POST /api/subscription/verify` 校验
+4. 调 `POST /api/subscription/verify` 校验（携带 `provider: "apple"`）
 5. 后端调 App Store Server API 验证 → 更新订阅状态
-6. 前端刷新 `GET /api/auth/me` 获取最新付费状态
+6. 前端调 `GET /api/subscription/status` 刷新订阅态（轻量）；同时 `GET /api/auth/me` 的 `isPremium` 字段也会同步更新
+7. 子女代付流程：子女端付费页选择"为爸妈开通" → 走 `POST /api/subscription/proxy-subscribe`
 
 ### 付费功能网关
 
@@ -552,7 +599,9 @@ POST /api/subscription/proxy-subscribe
 - 关怀看板完整数据 — S5 实现
 - 告警通知语音电话 — S4 实现
 
-前端根据 `user.isPremium`（或 `subscription.status`）控制 UI 展示。
+前端根据 `isPremium`（来自 `GET /api/subscription/status` 或 `GET /api/auth/me`）控制 UI 展示：
+- 未付费：看板页展示 `upgradeHint` + 付费引导卡
+- 已付费：展示完整 `recentDays/monthlyStats/history`
 
 ---
 
@@ -695,10 +744,11 @@ DELETE /api/user/account
 | 29 | POST | `/api/guardian/wards/:id/proxy-reply` | S5 | 子女代确认 |
 | 30 | POST | `/api/subscription/verify` | S6 | IAP 交易校验 |
 | 31 | POST | `/api/subscription/proxy-subscribe` | S6 | 子女代付 |
-| 32 | POST | `/api/pause` | S7 | 暂停守护 |
-| 33 | POST | `/api/pause/resume` | S7 | 提前恢复 |
-| 34 | GET | `/api/pause/status` | S7 | 暂停状态 |
-| 35 | DELETE | `/api/user/account` | S7 | 删除账号 |
+| 32 | GET | `/api/subscription/status` | S6 | 订阅状态 |
+| 33 | POST | `/api/pause` | S7 | 暂停守护 |
+| 34 | POST | `/api/pause/resume` | S7 | 提前恢复 |
+| 35 | GET | `/api/pause/status` | S7 | 暂停状态 |
+| 36 | DELETE | `/api/user/account` | S7 | 删除账号 |
 
 ---
 
