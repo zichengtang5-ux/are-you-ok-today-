@@ -64,7 +64,6 @@ export function PlanCard({
           <View
             key={f.label}
             style={styles.featureRow}
-            accessibilityRole="listitem"
           >
             <Text
               style={[
