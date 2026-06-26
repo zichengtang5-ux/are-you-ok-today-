@@ -9,7 +9,9 @@ import type {
   AlertEvent,
   Guardian,
   OnboardingStep,
+  Subscription,
 } from '@/types';
+import { subscriptionApi } from '@/services/api.types';
 
 interface AppState {
   /* Auth */
@@ -34,6 +36,9 @@ interface AppState {
   /* Notification */
   notificationAuthorized: boolean;
 
+  /* Subscription (S6) */
+  subscription: Subscription | null;
+
   /* Actions */
   setUser: (user: User | null) => void;
   completeOnboarding: () => void;
@@ -52,11 +57,13 @@ interface AppState {
   resolveAlert: () => void;
   setGuardians: (guardians: Guardian[]) => void;
   setNotificationAuthorized: (v: boolean) => void;
+  setSubscription: (sub: Subscription | null) => void;
+  refreshSubscription: () => Promise<void>;
 }
 
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isOnboarded: false,
       onboardingStep: 'login',
@@ -67,6 +74,7 @@ export const useStore = create<AppState>()(
       activeAlert: null,
       guardians: [],
       notificationAuthorized: false,
+      subscription: null,
 
       setUser: (user) => set({ user }),
       completeOnboarding: () => set({ isOnboarded: true }),
@@ -98,6 +106,26 @@ export const useStore = create<AppState>()(
       resolveAlert: () => set({ activeAlert: null, todayStatus: 'replied' }),
       setGuardians: (guardians) => set({ guardians }),
       setNotificationAuthorized: (v) => set({ notificationAuthorized: v }),
+      setSubscription: (subscription) => set({ subscription }),
+      refreshSubscription: async () => {
+        try {
+          const status = await subscriptionApi.getStatus();
+          const user = get().user;
+          set({
+            subscription: {
+              plan: status.plan ?? 'free',
+              status: status.status,
+              currentPeriodEnd: status.currentPeriodEnd,
+              isPremium: status.isPremium,
+            },
+            user: user
+              ? { ...user, isPremium: status.isPremium }
+              : user,
+          });
+        } catch {
+          /* 静默：订阅态刷新失败不阻断主流程 */
+        }
+      },
     }),
     {
       name: 'today-ok-storage',

@@ -364,32 +364,49 @@ export const guardianApi = {
 
 /* ──────────────── Subscription (S6) ──────────────── */
 export type SubscriptionPlan = 'monthly' | 'yearly';
+export type SubscriptionProvider = 'apple';
+export type SubscriptionStatusValue = 'active' | 'trial' | 'expired' | 'cancelled' | 'none';
 
 export interface SubscriptionVerifyRequest {
   transactionId: string;
   plan: SubscriptionPlan;
+  provider?: SubscriptionProvider;
+}
+
+export interface SubscriptionRecord {
+  plan: SubscriptionPlan;
+  status: SubscriptionStatusValue;
+  currentPeriodEnd: string;
+  originalTransactionId?: string;
+  isTrial?: boolean;
 }
 
 export interface SubscriptionResponse {
-  subscription: {
-    plan: SubscriptionPlan;
-    status: 'active' | 'expired' | 'cancelled';
-    currentPeriodEnd: string;
-  };
+  subscription: SubscriptionRecord;
 }
 
 export interface ProxySubscribeRequest {
   wardId: string;
   transactionId: string;
   plan: SubscriptionPlan;
+  provider?: SubscriptionProvider;
 }
 
 export interface ProxySubscribeResponse {
   message: string;
+  wardName: string;
   subscription: {
     plan: SubscriptionPlan;
-    status: string;
+    status: SubscriptionStatusValue;
+    currentPeriodEnd: string;
   };
+}
+
+export interface SubscriptionStatusResponse {
+  plan: SubscriptionPlan | null;
+  status: SubscriptionStatusValue;
+  currentPeriodEnd: string | null;
+  isPremium: boolean;
 }
 
 export const subscriptionApi = {
@@ -398,6 +415,9 @@ export const subscriptionApi = {
 
   proxySubscribe: (data: ProxySubscribeRequest) =>
     api.post<ProxySubscribeResponse>('/subscription/proxy-subscribe', data),
+
+  getStatus: () =>
+    api.get<SubscriptionStatusResponse>('/subscription/status'),
 };
 
 /* ──────────────── Pause (S7) ──────────────── */
