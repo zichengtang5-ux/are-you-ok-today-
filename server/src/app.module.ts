@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -12,22 +13,27 @@ import { AlertModule } from './alert/alert.module';
 import { GuardianModule } from './guardian/guardian.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SmsModule } from './sms/sms.module';
+import { PushModule } from './push/push.module';
+import { DeviceModule } from './device/device.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{
       ttl: 60_000,
       limit: 30,
     }]),
     PrismaModule,
     SmsModule,
+    PushModule,
     AuthModule,
     UserModule,
     ContactModule,
     ReminderModule,
     AlertModule,
+    DeviceModule,
     GuardianModule,
     SubscriptionModule,
   ],
