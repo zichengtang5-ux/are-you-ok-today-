@@ -14,6 +14,7 @@ import {
   addDeepLinkListener,
   navigateDeepLink,
 } from '@/services/deepLink';
+import { authEvents } from '@/services/authEvents';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -78,11 +79,17 @@ export default function RootLayout() {
       navigateDeepLink(url, router);
     });
 
+    const unsubscribeLogout = authEvents.onLogout(() => {
+      setUser(null);
+      router.replace('/onboarding/login');
+    });
+
     return () => {
       unsubscribeNotification();
       unsubscribeDeepLink();
+      unsubscribeLogout();
     };
-  }, [router, setTodayStatus]);
+  }, [router, setTodayStatus, setUser]);
 
   if (isLoading) {
     return <LoadingState message="正在加载..." />;

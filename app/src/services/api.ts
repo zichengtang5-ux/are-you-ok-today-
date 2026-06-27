@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authEvents } from './authEvents';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -48,7 +49,7 @@ class ApiClient {
             return this.client(originalRequest);
           } catch (refreshError) {
             await this.clearTokens();
-            // TODO: Redirect to login
+            authEvents.emitLogout();
             return Promise.reject(refreshError);
           }
         }

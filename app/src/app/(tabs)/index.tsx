@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Card, Dialog } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
-import { StatusIllustration } from '@/components/ui/StatusIllustration';
+import { MascotLogo } from '@/components/ui/MascotLogo';
 import { useStore } from '@/store/useStore';
 import { replyApi, alertApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
@@ -28,32 +28,35 @@ const statusBarVariant: Record<ReplyStatus, 'primary' | 'warn' | 'danger' | 'whi
   paused: 'white',
 };
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 6) return '凌晨好';
-  if (hour < 12) return '早上好';
-  if (hour < 14) return '中午好';
-  if (hour < 18) return '下午好';
-  return '晚上好';
+function computeEffectiveStatus(
+  backendStatus: string,
+  reminderConfig?: { startTime: string; endTime: string },
+): ReplyStatus {
+  if (backendStatus !== 'idle' || !reminderConfig) return backendStatus as ReplyStatus;
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = reminderConfig.startTime.split(':').map(Number);
+  const [eh, em] = reminderConfig.endTime.split(':').map(Number);
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
+  if (mins >= start && mins < end) return 'waiting';
+  return 'idle';
 }
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, reply, undoReply, setTodayStatus, setReminder, setStreak, setActiveAlert } = useStore();
+  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, reply, setTodayStatus, setReminder, setStreak, setActiveAlert } = useStore();
   const config = statusConfig[todayStatus];
 
-  const [showUndoDialog, setShowUndoDialog] = useState(false);
-  const [undoCountdown, setUndoCountdown] = useState(30);
-  const [showUndoButton, setShowUndoButton] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const undoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       replyApi.getStatus().then((data) => {
         if (cancelled) return;
-        setTodayStatus(data.status as ReplyStatus);
+        const effectiveStatus = computeEffectiveStatus(data.status, data.reminderConfig ?? undefined);
+        setTodayStatus(effectiveStatus);
         if (data.reminderConfig) {
           setReminder({ startTime: data.reminderConfig.startTime, endTime: data.reminderConfig.endTime, gracePeriodMin: data.reminderConfig.gracePeriodMin });
         }
@@ -70,27 +73,12 @@ export default function HomeScreen() {
     }, [setTodayStatus, setReminder, setStreak, setActiveAlert]),
   );
 
-  useEffect(() => {
-    if (todayStatus === 'replied') {
-      setShowUndoButton(true);
-      setUndoCountdown(30);
-      undoTimerRef.current = setInterval(() => {
-        setUndoCountdown((prev) => {
-          if (prev <= 1) { if (undoTimerRef.current) clearInterval(undoTimerRef.current); setShowUndoButton(false); return 0; }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => { if (undoTimerRef.current) clearInterval(undoTimerRef.current); };
-    }
-  }, [todayStatus]);
-
   const handleReply = async () => {
     setActionLoading(true);
     try {
       const result = await replyApi.reply();
       reply();
       setTodayStatus(result.guardStatus as ReplyStatus);
-      router.push('/confirmed');
     } catch (err: any) {
       // silently handle
     } finally {
@@ -98,18 +86,7 @@ export default function HomeScreen() {
     }
   };
 
-  const confirmUndo = async () => {
-    setShowUndoDialog(false);
-    try {
-      const result = await replyApi.undoReply();
-      undoReply();
-      setTodayStatus(result.guardStatus as ReplyStatus);
-      setShowUndoButton(false);
-    } catch (err: any) {}
-  };
-
   const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const currentDay = now.getDate();
   const nickname = user?.nickname ?? '';
 
@@ -134,11 +111,14 @@ export default function HomeScreen() {
       <GreenStatusBar variant={statusBarVariant[todayStatus]} title="今天还好" showMascot />
       <View style={styles.content}>
         <Text style={styles.greeting}>
-          {now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })} · {getGreeting()}{nickname ? `，${nickname}` : ''}
+          hello{nickname ? `，${nickname}` : ''}
+        </Text>
+        <Text style={styles.date}>
+          {now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
         </Text>
 
         <View style={styles.hero}>
-          <StatusIllustration status={todayStatus} />
+          <MascotLogo size="lg" variant={todayStatus === 'waiting' ? 'double-bar' : 'default'} />
           <Text style={[styles.title, styles.titleBelowIcon, todayStatus === 'replied' && { color: Colors.primary }]}>{config.title}</Text>
           {renderSubtitle()}
           {todayStatus === 'alert' && activeAlert && (
@@ -158,7 +138,7 @@ export default function HomeScreen() {
           <Text style={styles.monthBadgeText}>本月平安 {streak}/{currentDay} 天</Text>
         </View>
 
-        {todayStatus === 'idle' && !notificationAuthorized && (
+        {todayStatus !== 'alert' && !notificationAuthorized && (
           <Pressable style={styles.warnBanner} onPress={() => router.push('/onboarding/notification-auth')}>
             <Text style={styles.warnBannerText}>! 消息推送未授权，前往授权</Text>
           </Pressable>
@@ -201,40 +181,20 @@ export default function HomeScreen() {
         )}
 
         {todayStatus === 'replied' && (
-          <>
-            <Card style={styles.repliedCard}>
-              <Text style={styles.nextReminder}>明天 {reminder.endTime} 再见</Text>
-            </Card>
-            {showUndoButton && (
-              <Pressable onPress={() => setShowUndoDialog(true)} style={styles.undoBtn}>
-                <Text style={styles.undoText}>撤回回复{undoCountdown > 0 ? ` (${undoCountdown}s)` : ''}</Text>
-              </Pressable>
-            )}
-          </>
+          <Card style={styles.repliedCard}>
+            <Text style={styles.nextReminder}>明天 {reminder.endTime} 再见</Text>
+          </Card>
         )}
 
-        <View style={{ flex: 1 }} />
-
         <View style={styles.bottomLinks}>
-          <Pressable onPress={() => router.push('/(tabs)/settings')}>
+          <Pressable onPress={() => router.navigate('/(tabs)/settings')}>
             <Text style={styles.bottomLink}>设置</Text>
           </Pressable>
-          <Text style={styles.bottomSeparator}> | </Text>
+          <Text style={styles.bottomSeparator}>|</Text>
           <Pressable onPress={() => router.push('/help/emergency')}>
             <Text style={[styles.bottomLink, styles.bottomLinkDanger]}>紧急求助</Text>
           </Pressable>
         </View>
-
-        <Dialog
-          visible={showUndoDialog}
-          title="确定撤回回复吗？"
-          message="撤回后，系统会重新进入等待回复状态，超时后可能通知你的联系人。"
-          confirmText="撤回回复"
-          cancelText="取消"
-          variant="warm"
-          onConfirm={confirmUndo}
-          onCancel={() => setShowUndoDialog(false)}
-        />
       </View>
     </SafeAreaView>
   );
@@ -243,8 +203,20 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white },
   content: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
-  greeting: { fontSize: FontSizes.sm, color: Colors.gray600, fontWeight: FontWeights.medium, marginBottom: Spacing.lg },
-  hero: { alignItems: 'center', marginBottom: Spacing.lg },
+  greeting: {
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.gray900,
+    textAlign: 'center',
+  },
+  date: {
+    fontSize: FontSizes.sm,
+    color: Colors.gray500,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: Spacing.lg,
+  },
+  hero: { alignItems: 'center', marginBottom: Spacing.md },
   title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900, textAlign: 'center', marginBottom: Spacing.sm },
   titleBelowIcon: { marginTop: Spacing.md },
   subtitle: { fontSize: FontSizes.base, color: Colors.gray600, textAlign: 'center' },
@@ -271,9 +243,14 @@ const styles = StyleSheet.create({
   buttonHint: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: Spacing.md },
   repliedCard: { alignItems: 'center', marginTop: Spacing.md },
   nextReminder: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium },
-  undoBtn: { alignSelf: 'center', marginTop: Spacing.md, padding: Spacing.sm },
-  undoText: { fontSize: FontSizes.sm, color: Colors.gray500 },
-  bottomLinks: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: Spacing.lg },
+  bottomLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.xl,
+    gap: 8,
+  },
   bottomLink: { fontSize: FontSizes.sm, color: Colors.gray600, padding: 8 },
   bottomLinkDanger: { color: Colors.danger },
   bottomSeparator: { fontSize: FontSizes.sm, color: Colors.gray300 },

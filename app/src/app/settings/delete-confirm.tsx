@@ -1,20 +1,46 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Input, Button } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
+import { userApi } from '@/services/api.types';
+import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function DeleteConfirmScreen() {
   const router = useRouter();
   const [confirmText, setConfirmText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleDelete = () => {
-    if (confirmText === '确认删除') {
-      // TODO: Call API to delete user data
-      console.log('Deleting user data...');
+  const handleDelete = async () => {
+    if (confirmText !== '确认删除' || submitting) return;
+    setSubmitting(true);
+    try {
+      await userApi.deleteAccount(confirmText);
+      await AsyncStorage.multiRemove([
+        'access_token',
+        'refresh_token',
+        'today-ok-storage',
+      ]);
+      useStore.setState({
+        user: null,
+        isOnboarded: false,
+        onboardingStep: 'login',
+        contacts: [],
+        todayStatus: 'idle',
+        streak: 0,
+        activeAlert: null,
+        guardians: [],
+        notificationAuthorized: false,
+        subscription: null,
+      });
       router.replace('/onboarding/login');
+    } catch (err: any) {
+      Alert.alert('删除失败', err?.message || '请稍后再试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -47,10 +73,10 @@ export default function DeleteConfirmScreen() {
           variant="danger"
           size="lg"
           onPress={handleDelete}
-          disabled={confirmText !== '确认删除'}
+          disabled={confirmText !== '确认删除' || submitting}
           style={styles.confirmButton}
         >
-          确认删除
+          {submitting ? '删除中...' : '确认删除'}
         </Button>
         <Button
           variant="ghost"

@@ -61,10 +61,11 @@ export default function SettingsScreen() {
   const isPremium = !!subscription?.isPremium;
   const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
   const endLabel = formatEnd(subscription?.currentPeriodEnd);
+  const hasGuardians = guardians.length > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="white" title="设置" showMascot={false} onBack={() => router.back()} />
+      <GreenStatusBar variant="white" title="设置" showMascot={false} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
 
         {/* Guard settings */}
@@ -93,88 +94,95 @@ export default function SettingsScreen() {
               <Text style={styles.chevron}>→</Text>
             </View>
           </Pressable>
-          <View style={styles.settingRow}>
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => router.push('/settings/edit-contact')}
+          >
             <Text style={styles.settingLabel}>紧急联系人</Text>
-            <Text style={styles.settingValue}>{contacts[0]?.name || '未设置'}</Text>
-          </View>
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>订阅状态</Text>
-            <View
-              style={[
-                styles.statusTag,
-                {
-                  backgroundColor: isPremium ? Colors.primaryLight : Colors.gray100,
-                },
-              ]}
-            >
-              <Text
+            <View style={styles.settingValueRow}>
+              <Text style={styles.settingValue} numberOfLines={1}>
+                {contacts[0]?.name || '未设置'}
+              </Text>
+              <Text style={styles.chevron}>→</Text>
+            </View>
+          </Pressable>
+        </Card>
+
+        {/* Subscription */}
+        <Card title="订阅" style={styles.card}>
+          <View style={styles.subRow}>
+            <View style={styles.subInfo}>
+              <View
                 style={[
-                  styles.statusTagText,
-                  { color: isPremium ? Colors.primary : Colors.gray700 },
+                  styles.statusTag,
+                  { backgroundColor: isPremium ? Colors.primaryLight : Colors.gray100 },
                 ]}
               >
-                {statusLabel(subscription?.status)}
-                {planLabel !== '免费版' ? ` · ${planLabel}` : ''}
-              </Text>
+                <Text
+                  style={[
+                    styles.statusTagText,
+                    { color: isPremium ? Colors.primary : Colors.gray700 },
+                  ]}
+                >
+                  {statusLabel(subscription?.status)}
+                  {planLabel !== '免费版' ? ` · ${planLabel}` : ''}
+                </Text>
+              </View>
+              {endLabel && (
+                <Text style={styles.subEndLabel}>
+                  {subscription?.status === 'trial' ? '试用截止' : '有效期至'} {endLabel}
+                </Text>
+              )}
             </View>
+            {!isPremium && (
+              <Pressable
+                style={styles.upgradeBtn}
+                onPress={() => router.push('/subscription')}
+              >
+                <Text style={styles.upgradeBtnText}>
+                  {subscription?.status === 'expired' ? '重新开通' : '升级'}
+                </Text>
+              </Pressable>
+            )}
           </View>
-          {endLabel && (
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>
-                {subscription?.status === 'trial' ? '试用截止' : '有效期至'}
-              </Text>
-              <Text style={styles.settingValue}>{endLabel}</Text>
-            </View>
+          {!isPremium && (
+            <Pressable
+              style={styles.subActionRow}
+              onPress={() => router.push('/subscription/proxy')}
+            >
+              <Text style={styles.subActionText}>为家人开通守护 →</Text>
+            </Pressable>
           )}
           {isPremium && subscription?.status !== 'cancelled' && (
             <Pressable
-              style={styles.settingRow}
-              onPress={() =>
-                Linking.openURL('https://apps.apple.com/account/subscriptions')
-              }
+              style={styles.subActionRow}
+              onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
             >
-              <Text style={styles.linkText}>在 Apple 账户中管理订阅 →</Text>
+              <Text style={styles.subActionText}>在 Apple 账户中管理订阅 →</Text>
             </Pressable>
           )}
         </Card>
 
-        {/* Family settings — upgrade, family setup, guardian center, pause */}
-        <Card style={styles.card}>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/subscription/proxy')}
-            accessibilityLabel="为家人开通守护"
-          >
-            <Text style={styles.linkText}>为家人开通守护 →</Text>
-          </Pressable>
-          {!isPremium && (
+        {/* Family & guard settings — only when guardians exist */}
+        {hasGuardians && (
+          <Card style={styles.card}>
             <Pressable
               style={styles.linkRow}
-              onPress={() => router.push('/subscription')}
-              accessibilityLabel="升级守护版"
+              onPress={() => router.push('/guardian')}
             >
-              <Text style={styles.linkText}>
-                {subscription?.status === 'expired' ? '重新开通守护版 →' : '升级守护版 →'}
-              </Text>
+              <Text style={styles.linkText}>守护中心 →</Text>
             </Pressable>
-          )}
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/guardian')}
-            accessibilityLabel="守护中心"
-          >
-            <Text style={styles.linkText}>守护中心 →</Text>
-          </Pressable>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/(tabs)/settings')}
-          >
-            <Text style={styles.pauseText}>暂停守护</Text>
-          </Pressable>
-        </Card>
+            <Pressable
+              style={styles.linkRow}
+              onPress={() => router.push('/settings/pause-settings')}
+            >
+              <Text style={styles.pauseText}>暂停守护</Text>
+            </Pressable>
+          </Card>
+        )}
 
-        {/* Managed guardians */}
-        {guardians.length > 0 && (
+        {/* Managed guardians — only when guardians exist */}
+        {hasGuardians && (
           <Card title="管理的守护者" style={styles.card}>
             {guardians.map((g, i) => (
               <View key={g.id || i} style={styles.guardianRow}>
@@ -219,20 +227,10 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.gray50,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: Spacing.lg,
-    gap: Spacing.lg,
-  },
-  card: {
-    gap: Spacing.sm,
-  },
+  container: { flex: 1, backgroundColor: Colors.gray50 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: Spacing.lg, gap: Spacing.lg },
+  card: { gap: Spacing.sm },
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -241,63 +239,43 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray200,
   },
-  settingLabel: {
-    fontSize: FontSizes.base,
-    color: Colors.gray700,
-  },
-  settingValue: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.medium,
-    color: Colors.gray900,
-  },
-  settingValueRow: {
+  settingLabel: { fontSize: FontSizes.base, color: Colors.gray700 },
+  settingValue: { fontSize: FontSizes.base, fontWeight: FontWeights.medium, color: Colors.gray900 },
+  settingValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  chevron: { fontSize: FontSizes.base, color: Colors.gray400 },
+  statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusTagText: { fontSize: FontSizes.sm, fontWeight: FontWeights.medium },
+  subRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 4,
-    flexShrink: 1,
+    paddingVertical: Spacing.sm,
   },
-  chevron: {
-    fontSize: FontSizes.base,
-    color: Colors.gray400,
-  },
-  statusTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  subInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  subEndLabel: { fontSize: FontSizes.sm, color: Colors.gray500 },
+  upgradeBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
   },
-  statusTagText: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
+  upgradeBtnText: { fontSize: FontSizes.sm, color: Colors.white, fontWeight: FontWeights.semibold },
+  subActionRow: {
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray200,
   },
+  subActionText: { fontSize: FontSizes.base, color: Colors.primary, fontWeight: FontWeights.medium },
   linkRow: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray200,
   },
-  linkText: {
-    fontSize: FontSizes.base,
-    color: Colors.primary,
-    fontWeight: FontWeights.medium,
-  },
-  dangerLinkRow: {
-    paddingVertical: Spacing.sm,
-  },
-  dangerLinkText: {
-    fontSize: FontSizes.base,
-    color: Colors.danger,
-    fontWeight: FontWeights.semibold,
-  },
-  pauseText: {
-    fontSize: FontSizes.base,
-    color: Colors.warmDark,
-    fontWeight: FontWeights.semibold,
-  },
-  version: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray500,
-    textAlign: 'center',
-    marginTop: Spacing.xl,
-  },
+  linkText: { fontSize: FontSizes.base, color: Colors.primary, fontWeight: FontWeights.medium },
+  dangerLinkRow: { paddingVertical: Spacing.sm },
+  dangerLinkText: { fontSize: FontSizes.base, color: Colors.danger, fontWeight: FontWeights.semibold },
+  pauseText: { fontSize: FontSizes.base, color: Colors.warmDark, fontWeight: FontWeights.semibold },
+  version: { fontSize: FontSizes.sm, color: Colors.gray500, textAlign: 'center', marginTop: Spacing.xl },
   guardianRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -306,19 +284,12 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.gray200,
   },
   guardianAvatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginRight: Spacing.sm,
   },
-  guardianAvatarText: {
-    fontSize: 16,
-    fontWeight: FontWeights.bold,
-    color: Colors.primary,
-  },
+  guardianAvatarText: { fontSize: 16, fontWeight: FontWeights.bold, color: Colors.primary },
   guardianInfo: { flex: 1 },
   guardianName: { fontSize: FontSizes.base, fontWeight: FontWeights.semibold, color: Colors.gray900 },
   guardianStatus: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: 2 },

@@ -4,6 +4,7 @@ export default function SettingsLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="delete-confirm" />
+      <Stack.Screen name="pause-settings" />
     </Stack>
   );
 }
