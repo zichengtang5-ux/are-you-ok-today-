@@ -37,11 +37,12 @@ export interface ProductPrice {
 let iapModulePromise: Promise<any> | null = null;
 
 async function loadIapModule() {
+  if (USE_IAP_MOCK) return null;
   if (iapModulePromise) return iapModulePromise;
-  // Variable module name keeps Metro from resolving `react-native-iap` at
+  // String concatenation prevents Metro from resolving the module name at
   // bundle time — Expo Go does not ship this native module. Real EAS builds
   // must install it via `npx expo install react-native-iap`.
-  const iapModuleName = 'react-native-iap';
+  const iapModuleName = ['react-native-iap'].join('');
   iapModulePromise = Promise.resolve()
     .then(() => require(iapModuleName))
     .catch((err: Error) => {
