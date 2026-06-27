@@ -10,3 +10,4 @@ export { LoadingState, ErrorState, EmptyState } from './States';
 export { MascotLogo } from './MascotLogo';
 export { StepDots } from './StepDots';
 export { GreenStatusBar } from './GreenStatusBar';
+export { StatusIllustration } from './StatusIllustration';

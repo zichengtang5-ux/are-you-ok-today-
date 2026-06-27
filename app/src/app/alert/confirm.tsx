@@ -65,7 +65,10 @@ export default function AlertConfirmScreen() {
 
         {/* Success state */}
         <View style={styles.successSection}>
-          <Text style={styles.successEmoji}>✅</Text>
+          <View style={styles.successIconWrap}>
+            <View style={styles.successCheckLong} />
+            <View style={styles.successCheckShort} />
+          </View>
           <Text style={styles.successTitle}>告警已解除</Text>
           <Text style={styles.eventDate}>{resolved.date}告警 · 已解除</Text>
           {resolved.time && (
@@ -113,9 +116,35 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     gap: Spacing.sm,
   },
-  successEmoji: {
-    fontSize: 56,
+  successIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.sm,
+    overflow: 'hidden',
+  },
+  successCheckLong: {
+    position: 'absolute',
+    width: 28,
+    height: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 2,
+    left: 12,
+    top: 26,
+    transform: [{ rotate: '45deg' }],
+  },
+  successCheckShort: {
+    position: 'absolute',
+    width: 14,
+    height: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 2,
+    left: 16,
+    top: 36,
+    transform: [{ rotate: '-45deg' }],
   },
   successTitle: {
     fontSize: FontSizes['2xl'],

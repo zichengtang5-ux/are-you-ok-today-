@@ -47,7 +47,7 @@ export default function AgreementScreen() {
 
         {/* Warning banner */}
         <View style={styles.alertBanner}>
-          <Text style={styles.alertText}>⚠️ 请特别注意以下条款</Text>
+          <Text style={styles.alertText}>! 请特别注意以下条款</Text>
         </View>
 
         {/* Agreement items as checkbox rows */}

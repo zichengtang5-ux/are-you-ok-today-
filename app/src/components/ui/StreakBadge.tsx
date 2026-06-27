@@ -9,7 +9,7 @@ interface Props {
 export function StreakBadge({ count }: Props) {
   return (
     <View style={styles.badge}>
-      <Text style={styles.icon}>🔥</Text>
+      <View style={styles.dot} />
       <Text style={styles.text}>已连续 {count} 天平安</Text>
     </View>
   );
@@ -27,8 +27,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignSelf: 'center',
   },
-  icon: {
-    fontSize: FontSizes.base,
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.warm,
   },
   text: {
     fontSize: FontSizes.sm,

@@ -1,16 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing } from 'react-native';
+import Svg, { Circle, Rect, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '../../theme';
 
 type Size = 'sm' | 'md' | 'lg';
 
 const SIZES: Record<Size, number> = { sm: 28, md: 48, lg: 120 };
-const RING_WIDTH = { sm: 2, md: 3, lg: 4 };
 
 export function MascotLogo({ size = 'md', pulse = false }: { size?: Size; pulse?: boolean }) {
   const dim = SIZES[size];
-  const ring = RING_WIDTH[size];
-  const inner = dim - ring * 2;
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.5)).current;
@@ -33,10 +31,6 @@ export function MascotLogo({ size = 'md', pulse = false }: { size?: Size; pulse?
     return () => loop.stop();
   }, [pulse]);
 
-  const checkSize = dim * 0.25;
-  const barWidth = dim * 0.08;
-  const barHeight = dim * 0.22;
-
   return (
     <View style={{ width: dim + 24, height: dim + 24, alignItems: 'center', justifyContent: 'center' }}>
       {pulse && (
@@ -55,40 +49,30 @@ export function MascotLogo({ size = 'md', pulse = false }: { size?: Size; pulse?
           ]}
         />
       )}
-      <View
-        style={{
-          width: dim,
-          height: dim,
-          borderRadius: dim / 2,
-          borderWidth: ring,
-          borderColor: Colors.primary,
-          backgroundColor: Colors.white,
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'row',
-          gap: dim * 0.06,
-        }}
-      >
-        <View
-          style={{
-            width: barWidth,
-            height: barHeight,
-            borderRadius: barWidth / 2,
-            backgroundColor: Colors.primaryDark,
-          }}
+      <Svg width={dim} height={dim} viewBox="0 0 100 100" fill="none">
+        <Defs>
+          <LinearGradient id="mascotGrad" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0%" stopColor="#A5D6A7" />
+            <Stop offset="50%" stopColor="#66BB6A" />
+            <Stop offset="100%" stopColor="#2E7D32" />
+          </LinearGradient>
+          <LinearGradient id="eyeGrad" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor="#66BB6A" />
+            <Stop offset="100%" stopColor="#1B5E20" />
+          </LinearGradient>
+        </Defs>
+        <Circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" strokeWidth="8" fill="none" />
+        <Circle cx="50" cy="50" r="40" fill="white" />
+        <Rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)" />
+        <Path
+          d="M68 41 L58 50 L68 59"
+          stroke="url(#eyeGrad)"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
         />
-        <View
-          style={{
-            width: checkSize,
-            height: checkSize * 1.2,
-            borderRightWidth: barWidth * 1.2,
-            borderBottomWidth: barWidth * 1.2,
-            borderColor: Colors.primaryDark,
-            transform: [{ rotate: '45deg' }],
-            marginTop: -checkSize * 0.3,
-          }}
-        />
-      </View>
+      </Svg>
     </View>
   );
 }

@@ -71,7 +71,12 @@ export default function NotificationAuthScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.illustration}>🔔</Text>
+          <View style={styles.illustrationWrap}>
+            <View style={styles.bellBody}>
+              <View style={styles.bellTop} />
+              <View style={styles.bellClapper} />
+            </View>
+          </View>
           <Text style={styles.title}>允许发送提醒消息</Text>
           <Text style={styles.description}>
             我们需要通知权限，才能在每天设定的时间询问你"今天还好吗？"
@@ -93,7 +98,7 @@ export default function NotificationAuthScreen() {
               <Text style={styles.notifApp}>今天还好</Text>
               <Text style={styles.notifTime}>超时后</Text>
             </View>
-            <Text style={styles.notifTitle}>⚠️ 还没回复，确认安全吗？</Text>
+            <Text style={styles.notifTitle}>! 还没回复，确认安全吗？</Text>
             <Text style={styles.notifBody}>如不回复，30 分钟后将通知你的紧急联系人</Text>
           </View>
         </View>
@@ -130,10 +135,34 @@ export default function NotificationAuthScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.gray50 },
-  content: { flex: 1, padding: Spacing.lg, justifyContent: 'center' },
+  content: { flex: 1, padding: Spacing.lg },
   header: { marginBottom: Spacing.lg },
   hero: { alignItems: 'center', marginBottom: Spacing.lg },
-  illustration: { fontSize: 64, marginBottom: Spacing.md },
+  illustrationWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  bellBody: {
+    alignItems: 'center',
+  },
+  bellTop: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+  },
+  bellClapper: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    marginTop: 2,
+  },
   title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900, marginBottom: Spacing.sm, textAlign: 'center' },
   description: { fontSize: FontSizes.base, color: Colors.gray600, textAlign: 'center', lineHeight: 22 },
   previewSection: { gap: Spacing.sm, marginBottom: Spacing.lg },
@@ -148,5 +177,5 @@ const styles = StyleSheet.create({
   notifTitle: { fontSize: 14, fontWeight: '600', color: Colors.gray900, marginBottom: 2 },
   notifBody: { fontSize: 13, color: Colors.gray600 },
   warning: { marginBottom: Spacing.lg },
-  buttons: { gap: Spacing.md },
+  buttons: { gap: Spacing.md, marginTop: 'auto' },
 });

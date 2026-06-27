@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { Button, Input } from '@/components/ui';
 import { StepDots } from '@/components/ui/StepDots';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
@@ -14,11 +15,36 @@ export default function BasicInfoScreen() {
   const [nickname, setNickname] = useState('');
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
+  const [locationHint, setLocationHint] = useState('');
 
   const setUser = useStore((s) => s.setUser);
   const setOnboardingStep = useStore((s) => s.setOnboardingStep);
   const user = useStore((s) => s.user);
+
+  const handleUseLocation = async () => {
+    setLocating(true);
+    setError('');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setError('需要定位权限来自动填充地址');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      if (geo) {
+        const parts = [geo.city, geo.district, geo.street, geo.name].filter(Boolean);
+        setAddress(parts.join(''));
+        setLocationHint('请补充具体门牌号（如 3 号楼 502），方便紧急联系人和救援准确找到你');
+      }
+    } catch (err: any) {
+      setError('定位失败，请手动输入地址');
+    } finally {
+      setLocating(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!nickname.trim()) {
@@ -36,7 +62,7 @@ export default function BasicInfoScreen() {
         isOnboarded: false,
       });
 
-      setUser({ nickname, address } as any);
+      setUser({ ...user, nickname, address } as any);
       setOnboardingStep('contact-setup');
       router.replace('/onboarding/contact-setup');
     } catch (err: any) {
@@ -72,12 +98,37 @@ export default function BasicInfoScreen() {
             onChangeText={() => {}}
             placeholder="—"
           />
-          <Input
-            label="当前住址（用于紧急定位）"
-            value={address}
-            onChangeText={setAddress}
-            placeholder="如：北京市朝阳区XX路XX号"
-          />
+
+          <View>
+            <Text style={styles.label}>当前住址（用于紧急定位）</Text>
+            <Pressable
+              onPress={handleUseLocation}
+              disabled={locating}
+              style={({ pressed }) => [
+                styles.locationBtn,
+                pressed && { backgroundColor: Colors.primaryLight },
+              ]}
+            >
+              {locating ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <Text style={styles.locationBtnText}>使用当前定位</Text>
+              )}
+            </Pressable>
+            <Input
+              label=""
+              value={address}
+              onChangeText={(text) => { setAddress(text); setLocationHint(''); }}
+              placeholder="如：朝阳区XX路XX号 3号楼502"
+            />
+            {locationHint ? (
+              <Text style={styles.locationHint}>{locationHint}</Text>
+            ) : null}
+            <Text style={styles.addressNote}>
+              请写到具体门牌号，方便紧急联系人和 120 准确定位。地址信息可发送给联系人。
+            </Text>
+          </View>
+
           <Text style={styles.hint}>
             地址信息仅用于紧急情况，我们会严格保护你的隐私。
           </Text>
@@ -105,6 +156,17 @@ const styles = StyleSheet.create({
   title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900 },
   subtitle: { fontSize: FontSizes.sm, color: Colors.gray600, marginTop: 6 },
   form: { gap: Spacing.md, marginBottom: Spacing.xl },
+  label: { fontSize: FontSizes.sm, fontWeight: FontWeights.medium, color: Colors.gray700, marginBottom: 6 },
+  locationBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 10, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: Colors.primary, borderRadius: 8,
+    backgroundColor: Colors.white,
+    marginBottom: 8,
+  },
+  locationBtnText: { fontSize: FontSizes.sm, color: Colors.primary, fontWeight: FontWeights.semibold },
+  locationHint: { fontSize: FontSizes.xs, color: Colors.warm, fontWeight: FontWeights.medium, marginTop: 4 },
+  addressNote: { fontSize: FontSizes.xs, color: Colors.gray500, marginTop: 4, lineHeight: 18 },
   hint: { fontSize: FontSizes.xs, color: Colors.gray500, lineHeight: 18 },
   button: { marginTop: 'auto' },
 });

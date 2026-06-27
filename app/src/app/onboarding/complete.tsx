@@ -43,11 +43,11 @@ export default function CompleteScreen() {
 
         {notificationAuthorized ? (
           <View style={styles.okBanner}>
-            <Text style={styles.okBannerText}>✅ 通知已授权，每日提醒将准时送达</Text>
+            <Text style={styles.okBannerText}>[OK] 通知已授权，每日提醒将准时送达</Text>
           </View>
         ) : (
           <View style={styles.warnBanner}>
-            <Text style={styles.warnBannerText}>⚠️ 消息推送未授权，可能无法收到提醒</Text>
+            <Text style={styles.warnBannerText}>! 消息推送未授权，可能无法收到提醒</Text>
           </View>
         )}
 

@@ -7,10 +7,10 @@ import {
   Share,
   Alert,
   StyleSheet,
+  Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
 import { Card, Input, Button, Banner } from '@/components/ui';
 import { guardianApi, type CreateGuardianResponse } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing, Radius, Shadows } from '@/theme';
@@ -75,7 +75,7 @@ export default function CreateGuardianScreen() {
 
   const handleCopy = async () => {
     if (!result) return;
-    await Clipboard.setStringAsync(result.inviteLink);
+    Clipboard.setString(result.inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -106,7 +106,9 @@ export default function CreateGuardianScreen() {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           {/* Success illustration */}
           <View style={styles.successHero}>
-            <Text style={styles.successEmoji}>✉️</Text>
+            <View style={styles.successEmoji}>
+              <Text style={styles.successEmojiText}>信</Text>
+            </View>
             <Text style={styles.successTitle}>邀请已生成</Text>
           </View>
 
@@ -175,7 +177,9 @@ export default function CreateGuardianScreen() {
         {/* Preview card */}
         <Card variant="warm" style={styles.previewCard}>
           <View style={styles.previewRow}>
-            <Text style={styles.previewEmoji}>👨‍👩‍👧</Text>
+            <View style={styles.previewEmoji}>
+              <Text style={styles.previewEmojiText}>家</Text>
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.previewTitle}>远程守护家人</Text>
               <Text style={styles.previewDesc}>
@@ -302,7 +306,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewEmoji: {
-    fontSize: 40,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.warmLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewEmojiText: {
+    fontSize: 24,
+    fontWeight: FontWeights.bold,
+    color: Colors.warmDark,
   },
   previewTitle: {
     fontSize: FontSizes.base,
@@ -369,8 +383,18 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   successEmoji: {
-    fontSize: 64,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.sm,
+  },
+  successEmojiText: {
+    fontSize: 36,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
   },
   successTitle: {
     fontSize: FontSizes.lg,

@@ -225,7 +225,7 @@ export default function EmergencyHelpScreen() {
             onPress={() => Linking.openURL('tel:120')}
             style={styles.quickRow}
           >
-            <Text style={styles.quickIcon}>🚑</Text>
+            <Text style={styles.quickIcon}>急救</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.quickLabel}>120 急救</Text>
               <Text style={styles.quickHint}>危及生命时第一时间拨打</Text>

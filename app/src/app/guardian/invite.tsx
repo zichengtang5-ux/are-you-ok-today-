@@ -62,7 +62,7 @@ export default function InviteScreen() {
             {/* Success illustration */}
             <View style={styles.hero}>
               <View style={styles.successCircle}>
-                <Text style={styles.successEmoji}>🤝</Text>
+                <Text style={styles.successEmoji}>OK</Text>
               </View>
               <Text style={styles.successTitle}>绑定成功</Text>
               <Text style={styles.successSub}>
@@ -91,7 +91,7 @@ export default function InviteScreen() {
         ) : stage === 'submitting' ? (
           <View style={styles.hero}>
             <View style={styles.loadingCircle}>
-              <Text style={styles.loadingEmoji}>✉️</Text>
+              <Text style={styles.loadingEmoji}>信</Text>
             </View>
             <Text style={styles.loadingTitle}>正在确认邀请...</Text>
           </View>
@@ -99,7 +99,9 @@ export default function InviteScreen() {
           <>
             {/* Welcome card */}
             <Card variant="warm" style={styles.welcomeCard}>
-              <Text style={styles.welcomeEmoji}>💌</Text>
+              <View style={styles.welcomeEmoji}>
+                <Text style={styles.welcomeEmojiText}>邀</Text>
+              </View>
               <Text style={styles.welcomeTitle}>加入家人的守护圈</Text>
               <Text style={styles.welcomeDesc}>
                 输入家人发给你的邀请码，即可让 TA 在 App 中看到你每天是否平安
@@ -199,7 +201,9 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   successEmoji: {
-    fontSize: 56,
+    fontSize: 40,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
   },
   successTitle: {
     fontSize: FontSizes.xl,
@@ -220,7 +224,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingEmoji: {
-    fontSize: 48,
+    fontSize: 36,
+    fontWeight: FontWeights.bold,
+    color: Colors.warmDark,
   },
   loadingTitle: {
     fontSize: FontSizes.base,
@@ -233,7 +239,17 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   welcomeEmoji: {
-    fontSize: 48,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FCE4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeEmojiText: {
+    fontSize: 28,
+    fontWeight: FontWeights.bold,
+    color: '#E91E63',
   },
   welcomeTitle: {
     fontSize: FontSizes.lg,

@@ -23,7 +23,9 @@ export default function DeleteConfirmScreen() {
       <GreenStatusBar variant="white" title="删除数据" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.warningSection}>
-          <Text style={styles.warningIcon}>⚠️</Text>
+          <View style={styles.warningIconWrap}>
+            <Text style={styles.warningIconText}>!</Text>
+          </View>
           <Text style={styles.title}>确定删除所有数据吗？</Text>
           <Text style={styles.description}>
             删除后无法恢复，包括：回复记录、{'\n'}
@@ -69,7 +71,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xl,
   },
-  warningIcon: { fontSize: 48, marginBottom: Spacing.md },
+  warningIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.warmLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+    borderWidth: 2,
+    borderColor: Colors.warm,
+  },
+  warningIconText: {
+    fontSize: 28,
+    fontWeight: FontWeights.bold,
+    color: Colors.warm,
+  },
   title: {
     fontSize: FontSizes['2xl'],
     fontWeight: FontWeights.bold,

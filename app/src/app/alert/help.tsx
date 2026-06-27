@@ -7,9 +7,9 @@ import { alertApi, type AlertHelpResponse, type SuggestedAction } from '@/servic
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 const ACTION_EMOJI: Record<string, string> = {
-  call_user: '📞',
-  call_120: '🚑',
-  call_contact: '👥',
+  call_user: '电话',
+  call_120: '急救',
+  call_contact: '联系人',
 };
 
 const ACTION_BUTTON_LABEL: Record<string, string> = {
@@ -148,7 +148,7 @@ export default function AlertHelpScreen() {
         {/* Danger banner */}
         <Card variant="danger" style={styles.banner}>
           <Text style={styles.bannerText}>
-            🚨 联系不上对方，请按照以下建议行动
+            !! 联系不上对方，请按照以下建议行动
           </Text>
         </Card>
 
@@ -169,7 +169,7 @@ export default function AlertHelpScreen() {
         ) : (
           <Card style={styles.actionCard}>
             <ActionItem
-              emoji="📞"
+              emoji="电话"
               label="拨打 120 急救"
               actionLabel="拨号 →"
               actionColor={Colors.danger}

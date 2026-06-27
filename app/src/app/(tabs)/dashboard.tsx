@@ -16,7 +16,9 @@ export default function DashboardScreen() {
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <GreenStatusBar variant="white" title="关怀看板" showMascot={false} onBack={() => router.back()} />
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>👨‍👩‍👧</Text>
+          <View style={styles.emptyIconWrap}>
+            <Text style={styles.emptyIconText}>?</Text>
+          </View>
           <Text style={styles.emptyTitle}>还没有守护的家人</Text>
           <Text style={styles.emptyText}>为家人开通守护，随时查看平安状态</Text>
         </View>
@@ -32,7 +34,9 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>关怀看板</Text>
           <View style={styles.profile}>
-            <Text style={styles.avatar}>👵</Text>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>{guardian.wardName?.[0] ?? '?'}</Text>
+            </View>
             <View>
               <Text style={styles.name}>{guardian.wardName}的守护</Text>
               <Text style={styles.detail}>
@@ -135,9 +139,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.xl,
   },
-  emptyIcon: {
-    fontSize: 64,
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.md,
+  },
+  emptyIconText: {
+    fontSize: 32,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
   },
   emptyTitle: {
     fontSize: FontSizes.xl,
@@ -167,8 +181,18 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: Radius.md,
   },
-  avatar: {
-    fontSize: 32,
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
   },
   name: {
     fontSize: FontSizes.base,

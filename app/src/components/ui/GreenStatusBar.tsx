@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../theme';
 import { MascotLogo } from './MascotLogo';
 
@@ -29,17 +30,20 @@ export function GreenStatusBar({
   showMascot?: boolean;
   onBack?: () => void;
 }) {
+  const { top } = useSafeAreaInsets();
   const textColor = TEXT[variant];
+  const barHeight = Math.max(top, 20) + 44;
+
   return (
-    <View style={[styles.bar, { backgroundColor: BG[variant] }]}>
+    <View style={[styles.bar, { backgroundColor: BG[variant], paddingTop: Math.max(top, 20), height: barHeight }]}>
       <StatusBar
         barStyle={variant === 'white' ? 'dark-content' : 'light-content'}
         backgroundColor={BG[variant]}
       />
       {onBack && (
-        <Text onPress={onBack} style={[styles.back, { color: textColor }]}>
-          ←
-        </Text>
+        <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
+          <Text style={[styles.back, { color: textColor }]}>←</Text>
+        </Pressable>
       )}
       {showMascot && variant !== 'white' && (
         <View style={styles.mascot}>
@@ -53,7 +57,6 @@ export function GreenStatusBar({
 
 const styles = StyleSheet.create({
   bar: {
-    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -61,16 +64,23 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   title: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 17,
+    fontWeight: '600',
   },
   mascot: {
     marginRight: 6,
   },
-  back: {
+  backBtn: {
     position: 'absolute',
     left: 16,
-    fontSize: 20,
+    bottom: 8,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  back: {
+    fontSize: 22,
     fontWeight: '400',
   },
 });

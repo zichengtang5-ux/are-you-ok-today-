@@ -133,7 +133,7 @@ export default function ContactSetupScreen() {
             {lastAdded && (
               <View style={styles.successBanner}>
                 <Text style={styles.successText}>
-                  ✅ {lastAdded} 已添加，验证短信已发送
+                  [OK] {lastAdded} 已添加，验证短信已发送
                 </Text>
               </View>
             )}
@@ -143,7 +143,9 @@ export default function ContactSetupScreen() {
               <Card style={styles.contactList}>
                 {contacts.map((c, i) => (
                   <View key={c.id || i} style={styles.contactRow}>
-                    <Text style={styles.contactAvatar}>👤</Text>
+                    <View style={styles.contactAvatarCircle}>
+                      <Text style={styles.contactAvatarText}>{c.name?.[0] ?? '?'}</Text>
+                    </View>
                     <View style={styles.contactInfo}>
                       <Text style={styles.contactName}>{c.name}</Text>
                       <Text style={styles.contactPhone}>
@@ -302,7 +304,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray200,
   },
-  contactAvatar: { fontSize: 24, marginRight: Spacing.sm },
+  contactAvatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  contactAvatarText: {
+    fontSize: 14,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
+  },
   contactInfo: { flex: 1 },
   contactName: { fontSize: FontSizes.base, fontWeight: FontWeights.semibold, color: Colors.gray900 },
   contactPhone: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: 2 },

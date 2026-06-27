@@ -134,7 +134,7 @@ export default function GuardianHubScreen() {
             style={styles.actionBtn}
           >
             <View style={[styles.actionIcon, { backgroundColor: Colors.warmLight }]}>
-              <Text style={styles.actionEmoji}>✉️</Text>
+              <Text style={[styles.actionEmoji, { color: Colors.warmDark }]}>信</Text>
             </View>
             <Text style={styles.actionLabel}>接受邀请</Text>
             <Text style={styles.actionHint}>输入邀请码</Text>

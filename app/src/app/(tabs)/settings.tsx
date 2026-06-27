@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
-import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
 
 const PLAN_LABEL: Record<string, string> = {
@@ -50,17 +50,14 @@ export default function SettingsScreen() {
     subscription,
     guardians,
     refreshSubscription,
-    notificationAuthorized,
   } = useStore();
 
-  // 进入设置时刷新订阅态（轻量 GET /subscription/status）
   useEffect(() => {
     if (user) {
       refreshSubscription();
     }
   }, [user, refreshSubscription]);
 
-  const status = subscription?.status ?? 'none';
   const isPremium = !!subscription?.isPremium;
   const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
   const endLabel = formatEnd(subscription?.currentPeriodEnd);
@@ -72,12 +69,30 @@ export default function SettingsScreen() {
 
         {/* Guard settings */}
         <Card title="守护设置" style={styles.card}>
-          <View style={styles.settingRow}>
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => router.push('/settings/edit-reminder')}
+          >
             <Text style={styles.settingLabel}>提醒时间</Text>
-            <Text style={styles.settingValue}>
-              {reminder.startTime} - {reminder.endTime}
-            </Text>
-          </View>
+            <View style={styles.settingValueRow}>
+              <Text style={styles.settingValue}>
+                {reminder.startTime} - {reminder.endTime}
+              </Text>
+              <Text style={styles.chevron}>→</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => router.push('/settings/edit-address')}
+          >
+            <Text style={styles.settingLabel}>当前住址</Text>
+            <View style={styles.settingValueRow}>
+              <Text style={styles.settingValue} numberOfLines={1}>
+                {user?.address || '未设置'}
+              </Text>
+              <Text style={styles.chevron}>→</Text>
+            </View>
+          </Pressable>
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>紧急联系人</Text>
             <Text style={styles.settingValue}>{contacts[0]?.name || '未设置'}</Text>
@@ -111,10 +126,20 @@ export default function SettingsScreen() {
               <Text style={styles.settingValue}>{endLabel}</Text>
             </View>
           )}
+          {isPremium && subscription?.status !== 'cancelled' && (
+            <Pressable
+              style={styles.settingRow}
+              onPress={() =>
+                Linking.openURL('https://apps.apple.com/account/subscriptions')
+              }
+            >
+              <Text style={styles.linkText}>在 Apple 账户中管理订阅 →</Text>
+            </Pressable>
+          )}
         </Card>
 
-        {/* Family settings */}
-        <Card title="家庭设置" style={styles.card}>
+        {/* Family settings — upgrade, family setup, guardian center, pause */}
+        <Card style={styles.card}>
           <Pressable
             style={styles.linkRow}
             onPress={() => router.push('/subscription/proxy')}
@@ -122,19 +147,29 @@ export default function SettingsScreen() {
           >
             <Text style={styles.linkText}>为家人开通守护 →</Text>
           </Pressable>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/subscription')}
-            accessibilityLabel="升级守护版"
-          >
-            <Text style={styles.linkText}>升级守护版 →</Text>
-          </Pressable>
+          {!isPremium && (
+            <Pressable
+              style={styles.linkRow}
+              onPress={() => router.push('/subscription')}
+              accessibilityLabel="升级守护版"
+            >
+              <Text style={styles.linkText}>
+                {subscription?.status === 'expired' ? '重新开通守护版 →' : '升级守护版 →'}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             style={styles.linkRow}
             onPress={() => router.push('/guardian')}
             accessibilityLabel="守护中心"
           >
             <Text style={styles.linkText}>守护中心 →</Text>
+          </Pressable>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/(tabs)/settings')}
+          >
+            <Text style={styles.pauseText}>暂停守护</Text>
           </Pressable>
         </Card>
 
@@ -143,7 +178,9 @@ export default function SettingsScreen() {
           <Card title="管理的守护者" style={styles.card}>
             {guardians.map((g, i) => (
               <View key={g.id || i} style={styles.guardianRow}>
-                <Text style={styles.guardianAvatar}>👤</Text>
+                <View style={styles.guardianAvatarCircle}>
+                  <Text style={styles.guardianAvatarText}>{g.wardName?.[0] ?? '?'}</Text>
+                </View>
                 <View style={styles.guardianInfo}>
                   <Text style={styles.guardianName}>{g.wardName}</Text>
                   <Text style={styles.guardianStatus}>
@@ -158,16 +195,6 @@ export default function SettingsScreen() {
           </Card>
         )}
 
-        {/* Pause guard */}
-        <Card style={styles.card}>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/(tabs)/settings')}
-          >
-            <Text style={styles.pauseText}>⏸️ 暂停守护</Text>
-          </Pressable>
-        </Card>
-
         {/* Legal & data */}
         <Card title="法律与数据" style={styles.card}>
           <Pressable style={styles.linkRow}>
@@ -181,53 +208,6 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/delete-confirm')}
           >
             <Text style={styles.dangerLinkText}>删除我的数据</Text>
-          </Pressable>
-        </Card>
-
-        {/* Subscription management */}
-        <Card title="订阅管理" style={styles.card}>
-          <View style={styles.planRow}>
-            <Text style={styles.planLabel}>当前套餐</Text>
-            <Text style={styles.planValue}>
-              {isPremium ? `守护版 · ${planLabel}` : '免费版'}
-            </Text>
-          </View>
-
-          {isPremium ? (
-            <>
-              {subscription?.status === 'cancelled' ? (
-                <Button variant="warm" onPress={() => router.push('/subscription')}>
-                  重新开通
-                </Button>
-              ) : (
-                <Pressable
-                  onPress={() =>
-                    Linking.openURL(
-                      'https://apps.apple.com/account/subscriptions',
-                    )
-                  }
-                  accessibilityLabel="在 Apple 账户中管理订阅"
-                >
-                  <Text style={[styles.linkText, { textAlign: 'center' }]}>
-                    在 Apple 账户中管理订阅 →
-                  </Text>
-                </Pressable>
-              )}
-            </>
-          ) : (
-            <Button
-              variant="primary"
-              onPress={() => router.push('/subscription')}
-            >
-              {subscription?.status === 'expired' ? '重新开通守护版' : '升级守护版'}
-            </Button>
-          )}
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/guardian')}
-            accessibilityLabel="守护中心"
-          >
-            <Text style={[styles.linkText, { textAlign: 'center' }]}>守护中心 →</Text>
           </Pressable>
         </Card>
 
@@ -270,16 +250,15 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.medium,
     color: Colors.gray900,
   },
-  freeTag: {
-    backgroundColor: Colors.gray100,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+  settingValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
   },
-  freeTagText: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray700,
-    fontWeight: FontWeights.medium,
+  chevron: {
+    fontSize: FontSizes.base,
+    color: Colors.gray400,
   },
   statusTag: {
     paddingHorizontal: 10,
@@ -313,21 +292,6 @@ const styles = StyleSheet.create({
     color: Colors.warmDark,
     fontWeight: FontWeights.semibold,
   },
-  planRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  planLabel: {
-    fontSize: FontSizes.base,
-    color: Colors.gray700,
-  },
-  planValue: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.semibold,
-    color: Colors.gray900,
-  },
   version: {
     fontSize: FontSizes.sm,
     color: Colors.gray500,
@@ -341,7 +305,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray200,
   },
-  guardianAvatar: { fontSize: 28, marginRight: Spacing.sm },
+  guardianAvatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  guardianAvatarText: {
+    fontSize: 16,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
+  },
   guardianInfo: { flex: 1 },
   guardianName: { fontSize: FontSizes.base, fontWeight: FontWeights.semibold, color: Colors.gray900 },
   guardianStatus: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: 2 },

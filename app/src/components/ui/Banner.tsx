@@ -11,9 +11,9 @@ interface Props {
 }
 
 const variantMap: Record<Variant, { bg: string; text: string; icon: string }> = {
-  info: { bg: Colors.primaryLight, text: Colors.primaryDark, icon: 'ℹ️' },
-  warn: { bg: Colors.warmLight, text: Colors.warmDark, icon: '⚠️' },
-  danger: { bg: Colors.dangerLight, text: Colors.dangerDark, icon: '🚨' },
+  info: { bg: Colors.primaryLight, text: Colors.primaryDark, icon: 'i' },
+  warn: { bg: Colors.warmLight, text: Colors.warmDark, icon: '!' },
+  danger: { bg: Colors.dangerLight, text: Colors.dangerDark, icon: '!!' },
 };
 
 export function Banner({ children, variant = 'info', style }: Props) {

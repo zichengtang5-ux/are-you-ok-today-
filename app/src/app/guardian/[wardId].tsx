@@ -19,42 +19,42 @@ import { Colors, FontSizes, FontWeights, Spacing, Radius, Shadows } from '@/them
 
 const STATUS_CONFIG: Record<string, { emoji: string; title: string; hint: string; color: string; bg: string }> = {
   replied: {
-    emoji: '✅',
+    emoji: 'OK',
     title: '今天已报平安',
     hint: 'TA 今天已经回复过了',
     color: Colors.primaryDark,
     bg: Colors.primaryLight,
   },
   waiting: {
-    emoji: '🌙',
+    emoji: '月',
     title: '等待 TA 回复',
     hint: '提醒时间段内，TA 还未回复',
     color: Colors.warmDark,
     bg: Colors.warmLight,
   },
   grace: {
-    emoji: '⏳',
+    emoji: '...',
     title: '宽限期',
     hint: 'TA 还没回复，即将通知你',
     color: Colors.warmDark,
     bg: Colors.warmLight,
   },
   alert: {
-    emoji: '🚨',
+    emoji: '!!',
     title: '告警中',
     hint: 'TA 长时间未回复，请注意确认',
     color: Colors.dangerDark,
     bg: Colors.dangerLight,
   },
   idle: {
-    emoji: '☀️',
+    emoji: '日',
     title: '非提醒时段',
     hint: '今天还未进入提醒时间',
     color: Colors.gray700,
     bg: Colors.gray100,
   },
   paused: {
-    emoji: '⏸️',
+    emoji: '||',
     title: '守护已暂停',
     hint: 'TA 主动暂停了守护',
     color: Colors.gray700,
@@ -234,7 +234,7 @@ export default function WardDashboardScreen() {
           </Card>
         ) : (
           <Card variant="warm" style={styles.upsellCard}>
-            <Text style={styles.upsellEmoji}>🔒</Text>
+            <Text style={styles.upsellEmoji}>锁</Text>
             <Text style={styles.upsellTitle}>升级解锁完整关怀看板</Text>
             <Text style={styles.upsellDesc}>
               查看 TA 的 30 天回复日历、本月平安天数、代确认历史记录
@@ -305,7 +305,7 @@ export default function WardDashboardScreen() {
             onPress={() => router.push('/guardian')}
             style={styles.quickRow}
           >
-            <Text style={styles.quickIcon}>👥</Text>
+            <Text style={styles.quickIcon}>人</Text>
             <Text style={styles.quickLabel}>返回守护中心</Text>
             <Text style={styles.quickArrow}>→</Text>
           </Pressable>
