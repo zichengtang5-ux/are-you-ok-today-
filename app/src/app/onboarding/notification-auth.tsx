@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Banner, Dialog } from '@/components/ui';
 import { StepDots } from '@/components/ui/StepDots';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { requestNotificationPermission, scheduleDailyReminder, registerDeviceToken } from '@/services/notifications';
@@ -62,7 +63,8 @@ export default function NotificationAuthScreen() {
   const handleRetryAuth = () => { setShowDeniedDialog(false); handleAuthorize(); };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.header}>
           <StepDots current={5} total={5} />

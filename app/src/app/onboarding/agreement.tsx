@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button } from '@/components/ui';
 import { StepDots } from '@/components/ui/StepDots';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
@@ -34,12 +35,14 @@ export default function AgreementScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <StepDots current={1} total={5} />
           <Text style={styles.title}>请阅读并同意</Text>
+          <Text style={styles.subtitle}>这些条款保护你和我们的权益</Text>
         </View>
 
         {/* Warning banner */}
@@ -109,6 +112,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: Spacing.lg },
   header: { marginBottom: Spacing.lg },
   title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900 },
+  subtitle: { fontSize: FontSizes.sm, color: Colors.gray600, marginTop: 6 },
   alertBanner: {
     padding: 12,
     borderRadius: Radius.sm,

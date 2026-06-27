@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Card, Button, Banner, Dialog } from '@/components/ui';
+import { Card, Button } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
@@ -48,11 +48,10 @@ export default function SettingsScreen() {
     reminder,
     contacts,
     subscription,
+    guardians,
     refreshSubscription,
     notificationAuthorized,
   } = useStore();
-  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // 进入设置时刷新订阅态（轻量 GET /subscription/status）
   useEffect(() => {
@@ -65,15 +64,6 @@ export default function SettingsScreen() {
   const isPremium = !!subscription?.isPremium;
   const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
   const endLabel = formatEnd(subscription?.currentPeriodEnd);
-
-  const handleDeleteData = () => {
-    if (deleteConfirmText === '确认删除') {
-      // TODO: Call API to delete user data
-      console.log('Deleting user data...');
-      setDeleteDialogVisible(false);
-      setDeleteConfirmText('');
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -148,6 +138,26 @@ export default function SettingsScreen() {
           </Pressable>
         </Card>
 
+        {/* Managed guardians */}
+        {guardians.length > 0 && (
+          <Card title="管理的守护者" style={styles.card}>
+            {guardians.map((g, i) => (
+              <View key={g.id || i} style={styles.guardianRow}>
+                <Text style={styles.guardianAvatar}>👤</Text>
+                <View style={styles.guardianInfo}>
+                  <Text style={styles.guardianName}>{g.wardName}</Text>
+                  <Text style={styles.guardianStatus}>
+                    {g.status === 'replied' ? '正常' : g.status === 'alert' ? '告警中' : g.status} · 最后回复 {g.lastReplyAt ? new Date(g.lastReplyAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </Text>
+                </View>
+                <Pressable onPress={() => router.push(`/guardian/${g.id}`)}>
+                  <Text style={styles.guardianLink}>看板 →</Text>
+                </Pressable>
+              </View>
+            ))}
+          </Card>
+        )}
+
         {/* Pause guard */}
         <Card style={styles.card}>
           <Pressable
@@ -168,7 +178,7 @@ export default function SettingsScreen() {
           </Pressable>
           <Pressable
             style={styles.dangerLinkRow}
-            onPress={() => setDeleteDialogVisible(true)}
+            onPress={() => router.push('/settings/delete-confirm')}
           >
             <Text style={styles.dangerLinkText}>删除我的数据</Text>
           </Pressable>
@@ -224,21 +234,6 @@ export default function SettingsScreen() {
         {/* Version */}
         <Text style={styles.version}>今天还好 v1.0</Text>
       </ScrollView>
-
-      {/* Delete confirmation dialog */}
-      <Dialog
-        visible={deleteDialogVisible}
-        title="确定删除所有数据吗？"
-        message="删除后无法恢复，包括：回复记录、联系人信息、守护设置。你的紧急联系人将不再收到通知。"
-        confirmText="确认删除"
-        cancelText="取消"
-        variant="danger"
-        onConfirm={handleDeleteData}
-        onCancel={() => {
-          setDeleteDialogVisible(false);
-          setDeleteConfirmText('');
-        }}
-      />
     </SafeAreaView>
   );
 }
@@ -339,4 +334,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.xl,
   },
+  guardianRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray200,
+  },
+  guardianAvatar: { fontSize: 28, marginRight: Spacing.sm },
+  guardianInfo: { flex: 1 },
+  guardianName: { fontSize: FontSizes.base, fontWeight: FontWeights.semibold, color: Colors.gray900 },
+  guardianStatus: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: 2 },
+  guardianLink: { fontSize: FontSizes.sm, color: Colors.primary, fontWeight: FontWeights.medium },
 });

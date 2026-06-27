@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card } from '@/components/ui';
 import { StepDots } from '@/components/ui/StepDots';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
@@ -40,7 +41,8 @@ export default function ReminderTimeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>

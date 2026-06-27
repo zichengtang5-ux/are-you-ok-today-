@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Input } from '@/components/ui';
 import { StepDots } from '@/components/ui/StepDots';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
@@ -47,7 +48,8 @@ export default function BasicInfoScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.header}>
           <StepDots current={2} total={5} />

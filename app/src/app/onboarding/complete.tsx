@@ -54,6 +54,11 @@ export default function CompleteScreen() {
         <Button variant="primary" size="lg" onPress={handleEnter} style={styles.button}>
           进入首页
         </Button>
+        {!notificationAuthorized && (
+          <Button variant="ghost" size="md" onPress={() => router.replace('/onboarding/notification-auth')} style={styles.authBackBtn}>
+            返回授权通知
+          </Button>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -86,4 +91,5 @@ const styles = StyleSheet.create({
   },
   warnBannerText: { fontSize: FontSizes.sm, color: Colors.warmDark, fontWeight: FontWeights.medium },
   button: { marginTop: 'auto' },
+  authBackBtn: { marginTop: Spacing.md },
 });
