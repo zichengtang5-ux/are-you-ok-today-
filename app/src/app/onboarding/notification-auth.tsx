@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Button, Card, Banner, Dialog } from '@/components/ui';
+import { Button, Banner, Dialog } from '@/components/ui';
+import { StepDots } from '@/components/ui/StepDots';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
-import { requestNotificationPermission, scheduleDailyReminder, getNotificationStatus, registerDeviceToken } from '@/services/notifications';
-import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
+import { requestNotificationPermission, scheduleDailyReminder, registerDeviceToken } from '@/services/notifications';
+import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 export default function NotificationAuthScreen() {
   const router = useRouter();
@@ -18,25 +19,14 @@ export default function NotificationAuthScreen() {
 
   const handleAuthorize = async () => {
     setLoading(true);
-
     try {
       const granted = await requestNotificationPermission();
-
       if (granted) {
         setNotificationAuthorized(true);
         await userApi.updateProfile({ notificationAuth: true });
-
-        // Schedule daily reminder
         await scheduleDailyReminder(reminder.startTime, reminder.endTime);
-
-        // Register APNs device token (non-blocking)
         registerDeviceToken().catch(() => {});
-
-        await userApi.updateOnboarding({
-          step: 'complete',
-          isOnboarded: true,
-        });
-
+        await userApi.updateOnboarding({ step: 'complete', isOnboarded: true });
         completeOnboarding();
         setOnboardingStep('complete');
         router.replace('/onboarding/complete');
@@ -51,22 +41,14 @@ export default function NotificationAuthScreen() {
     }
   };
 
-  const handleSkip = () => {
-    setShowDeniedDialog(true);
-  };
+  const handleSkip = () => { setShowDeniedDialog(true); };
 
   const handleContinueWithoutAuth = async () => {
     setLoading(true);
-
     try {
       setNotificationAuthorized(false);
       setShowDeniedDialog(false);
-
-      await userApi.updateOnboarding({
-        step: 'complete',
-        isOnboarded: true,
-      });
-
+      await userApi.updateOnboarding({ step: 'complete', isOnboarded: true });
       completeOnboarding();
       setOnboardingStep('complete');
       router.replace('/onboarding/complete');
@@ -77,20 +59,15 @@ export default function NotificationAuthScreen() {
     }
   };
 
-  const handleRetryAuth = () => {
-    setShowDeniedDialog(false);
-    handleAuthorize();
-  };
+  const handleRetryAuth = () => { setShowDeniedDialog(false); handleAuthorize(); };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.stepIndicator}>5 / 5</Text>
+          <StepDots current={5} total={5} />
         </View>
 
-        {/* Hero */}
         <View style={styles.hero}>
           <Text style={styles.illustration}>🔔</Text>
           <Text style={styles.title}>允许发送提醒消息</Text>
@@ -99,14 +76,32 @@ export default function NotificationAuthScreen() {
           </Text>
         </View>
 
-        {/* Warning */}
+        {/* Notification preview cards */}
+        <View style={styles.previewSection}>
+          <View style={styles.notifCard}>
+            <View style={styles.notifHeader}>
+              <Text style={styles.notifApp}>今天还好</Text>
+              <Text style={styles.notifTime}>现在</Text>
+            </View>
+            <Text style={styles.notifTitle}>今天还好吗？</Text>
+            <Text style={styles.notifBody}>点击回复"还好"，或长按回复更多信息</Text>
+          </View>
+          <View style={styles.notifCard}>
+            <View style={styles.notifHeader}>
+              <Text style={styles.notifApp}>今天还好</Text>
+              <Text style={styles.notifTime}>超时后</Text>
+            </View>
+            <Text style={styles.notifTitle}>⚠️ 还没回复，确认安全吗？</Text>
+            <Text style={styles.notifBody}>如不回复，30 分钟后将通知你的紧急联系人</Text>
+          </View>
+        </View>
+
         {authDenied && (
           <Banner variant="danger" style={styles.warning}>
             不授权将无法收到每日平安提醒，守护功能将无法正常工作。
           </Banner>
         )}
 
-        {/* Buttons */}
         <View style={styles.buttons}>
           <Button variant="primary" size="lg" onPress={handleAuthorize} loading={loading}>
             允许发送提醒
@@ -116,7 +111,6 @@ export default function NotificationAuthScreen() {
           </Button>
         </View>
 
-        {/* Denied confirmation dialog */}
         <Dialog
           visible={showDeniedDialog}
           title="确定不授权吗？"
@@ -133,48 +127,24 @@ export default function NotificationAuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.gray50,
+  container: { flex: 1, backgroundColor: Colors.gray50 },
+  content: { flex: 1, padding: Spacing.lg, justifyContent: 'center' },
+  header: { marginBottom: Spacing.lg },
+  hero: { alignItems: 'center', marginBottom: Spacing.lg },
+  illustration: { fontSize: 64, marginBottom: Spacing.md },
+  title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900, marginBottom: Spacing.sm, textAlign: 'center' },
+  description: { fontSize: FontSizes.base, color: Colors.gray600, textAlign: 'center', lineHeight: 22 },
+  previewSection: { gap: Spacing.sm, marginBottom: Spacing.lg },
+  notifCard: {
+    backgroundColor: Colors.gray100,
+    borderRadius: Radius.md,
+    padding: 12,
   },
-  content: {
-    flex: 1,
-    padding: Spacing.lg,
-    justifyContent: 'center',
-  },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  stepIndicator: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray500,
-    fontWeight: FontWeights.medium,
-  },
-  hero: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  illustration: {
-    fontSize: 80,
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: FontWeights.bold,
-    color: Colors.gray900,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: FontSizes.base,
-    color: Colors.gray600,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  warning: {
-    marginBottom: Spacing.lg,
-  },
-  buttons: {
-    gap: Spacing.md,
-  },
+  notifHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  notifApp: { fontSize: 12, fontWeight: '600', color: Colors.gray700 },
+  notifTime: { fontSize: 11, color: Colors.gray500 },
+  notifTitle: { fontSize: 14, fontWeight: '600', color: Colors.gray900, marginBottom: 2 },
+  notifBody: { fontSize: 13, color: Colors.gray600 },
+  warning: { marginBottom: Spacing.lg },
+  buttons: { gap: Spacing.md },
 });

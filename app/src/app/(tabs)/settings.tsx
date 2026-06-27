@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Card, Button, Banner, Dialog } from '@/components/ui';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
@@ -75,9 +76,9 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="white" title="设置" showMascot={false} onBack={() => router.back()} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>设置</Text>
 
         {/* Guard settings */}
         <Card title="守护设置" style={styles.card}>
@@ -144,6 +145,16 @@ export default function SettingsScreen() {
             accessibilityLabel="守护中心"
           >
             <Text style={styles.linkText}>守护中心 →</Text>
+          </Pressable>
+        </Card>
+
+        {/* Pause guard */}
+        <Card style={styles.card}>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/(tabs)/settings')}
+          >
+            <Text style={styles.pauseText}>⏸️ 暂停守护</Text>
           </Pressable>
         </Card>
 
@@ -244,12 +255,6 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.lg,
   },
-  title: {
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    color: Colors.gray900,
-    marginBottom: Spacing.md,
-  },
   card: {
     gap: Spacing.sm,
   },
@@ -306,6 +311,11 @@ const styles = StyleSheet.create({
   dangerLinkText: {
     fontSize: FontSizes.base,
     color: Colors.danger,
+    fontWeight: FontWeights.semibold,
+  },
+  pauseText: {
+    fontSize: FontSizes.base,
+    color: Colors.warmDark,
     fontWeight: FontWeights.semibold,
   },
   planRow: {

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Card, Button, Timeline, LoadingState } from '@/components/ui';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { alertApi, type ActiveAlertResponse } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { AlertTimelineItem } from '@/types';
@@ -58,12 +59,9 @@ export default function AlertConfirmScreen() {
   const resolved = resolvedAt ? formatDateTime(resolvedAt) : { date: '今天', time: '' };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="primary" title="确认安全" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>确认安全</Text>
-        </View>
 
         {/* Success state */}
         <View style={styles.successSection}>

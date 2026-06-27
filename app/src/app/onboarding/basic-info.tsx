@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Input } from '@/components/ui';
+import { StepDots } from '@/components/ui/StepDots';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
@@ -16,6 +17,7 @@ export default function BasicInfoScreen() {
 
   const setUser = useStore((s) => s.setUser);
   const setOnboardingStep = useStore((s) => s.setOnboardingStep);
+  const user = useStore((s) => s.user);
 
   const handleSubmit = async () => {
     if (!nickname.trim()) {
@@ -47,23 +49,26 @@ export default function BasicInfoScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.stepIndicator}>2 / 5</Text>
-          <Text style={styles.title}>告诉我们你是谁</Text>
+          <StepDots current={2} total={5} />
+          <Text style={styles.title}>你的安全信息</Text>
+          <Text style={styles.subtitle}>紧急时刻，让联系人和 120 快速找到你</Text>
         </View>
 
-        {/* Form */}
         <View style={styles.form}>
           <Input
             label="昵称"
             value={nickname}
-            onChangeText={(text) => {
-              setNickname(text);
-              setError('');
-            }}
+            onChangeText={(text) => { setNickname(text); setError(''); }}
             placeholder="你的名字"
             error={error}
+          />
+          <Input
+            label="手机号"
+            value={user?.phone ?? ''}
+            editable={false}
+            onChangeText={() => {}}
+            placeholder="—"
           />
           <Input
             label="当前住址（用于紧急定位）"
@@ -76,7 +81,6 @@ export default function BasicInfoScreen() {
           </Text>
         </View>
 
-        {/* Submit button */}
         <Button
           variant="primary"
           size="lg"
@@ -93,38 +97,12 @@ export default function BasicInfoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.gray50,
-  },
-  content: {
-    flex: 1,
-    padding: Spacing.lg,
-  },
-  header: {
-    marginBottom: Spacing.xl,
-  },
-  stepIndicator: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray500,
-    fontWeight: FontWeights.medium,
-    marginBottom: Spacing.sm,
-  },
-  title: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: FontWeights.bold,
-    color: Colors.gray900,
-  },
-  form: {
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  hint: {
-    fontSize: FontSizes.xs,
-    color: Colors.gray500,
-    lineHeight: 18,
-  },
-  button: {
-    marginTop: 'auto',
-  },
+  container: { flex: 1, backgroundColor: Colors.gray50 },
+  content: { flex: 1, padding: Spacing.lg },
+  header: { marginBottom: Spacing.xl },
+  title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900 },
+  subtitle: { fontSize: FontSizes.sm, color: Colors.gray600, marginTop: 6 },
+  form: { gap: Spacing.md, marginBottom: Spacing.xl },
+  hint: { fontSize: FontSizes.xs, color: Colors.gray500, lineHeight: 18 },
+  button: { marginTop: 'auto' },
 });

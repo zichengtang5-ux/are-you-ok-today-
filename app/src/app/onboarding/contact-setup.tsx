@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card, Input } from '@/components/ui';
+import { StepDots } from '@/components/ui/StepDots';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
@@ -110,7 +111,7 @@ export default function ContactSetupScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.stepIndicator}>3 / 5</Text>
+          <StepDots current={3} total={5} />
           <Text style={styles.title}>出事了通知谁？</Text>
         </View>
 
@@ -206,12 +207,6 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: Spacing.lg,
-  },
-  stepIndicator: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray500,
-    fontWeight: FontWeights.medium,
-    marginBottom: Spacing.sm,
   },
   title: {
     fontSize: FontSizes['2xl'],

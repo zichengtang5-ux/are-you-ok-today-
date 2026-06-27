@@ -7,3 +7,6 @@ export { StreakBadge } from './StreakBadge';
 export { Timeline } from './Timeline';
 export { PlanCard } from './PlanCard';
 export { LoadingState, ErrorState, EmptyState } from './States';
+export { MascotLogo } from './MascotLogo';
+export { StepDots } from './StepDots';
+export { GreenStatusBar } from './GreenStatusBar';

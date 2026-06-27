@@ -1,16 +1,20 @@
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Card, Button, StreakBadge } from '@/components/ui';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const { guardians } = useStore();
   const guardian = guardians[0];
 
   if (!guardian) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <GreenStatusBar variant="white" title="关怀看板" showMascot={false} onBack={() => router.back()} />
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>👨‍👩‍👧</Text>
           <Text style={styles.emptyTitle}>还没有守护的家人</Text>
@@ -21,7 +25,8 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="white" title="关怀看板" showMascot={false} onBack={() => router.back()} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* Guardian info */}
         <View style={styles.header}>

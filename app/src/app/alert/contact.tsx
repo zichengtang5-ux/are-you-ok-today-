@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Button, Card, Banner, LoadingState, ErrorState } from '@/components/ui';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { alertApi, type ActiveAlertResponse, type AlertConfirmResponse } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
@@ -115,12 +116,9 @@ export default function AlertContactScreen() {
   const lastReplyTime = formatTime(alert.lastReplyAt);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="danger" title="安全确认" showMascot={false} onBack={() => router.back()} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.contextLabel}>联系人视角 · 安全确认</Text>
-        </View>
 
         {/* Notification card */}
         <Card variant="danger" style={styles.notificationCard}>

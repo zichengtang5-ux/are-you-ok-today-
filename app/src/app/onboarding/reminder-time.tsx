@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card } from '@/components/ui';
+import { StepDots } from '@/components/ui/StepDots';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
@@ -43,7 +44,7 @@ export default function ReminderTimeScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.stepIndicator}>4 / 5</Text>
+          <StepDots current={4} total={5} />
           <Text style={styles.title}>每天什么时候问你？</Text>
         </View>
 
@@ -100,12 +101,6 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: Spacing.xl,
-  },
-  stepIndicator: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray500,
-    fontWeight: FontWeights.medium,
-    marginBottom: Spacing.sm,
   },
   title: {
     fontSize: FontSizes['2xl'],
