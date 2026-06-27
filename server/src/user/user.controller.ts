@@ -48,6 +48,11 @@ export class UserController {
       throw new BadRequestException('确认文本不正确');
     }
 
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.alertAction.deleteMany({
         where: { alert: { userId } },
@@ -56,6 +61,12 @@ export class UserController {
       await tx.notificationLog.deleteMany({
         where: { contact: { userId } },
       });
+
+      await tx.emergencyContact.updateMany({
+        where: { phone: user.phone, userId: { not: userId } },
+        data: { isAccountDeleted: true },
+      });
+
       await tx.emergencyContact.deleteMany({ where: { userId } });
       await tx.dailyRecord.deleteMany({ where: { userId } });
       await tx.guardStatus.deleteMany({ where: { userId } });
@@ -69,7 +80,7 @@ export class UserController {
         where: { OR: [{ guardianId: userId }, { wardId: userId }] },
       });
       await tx.verificationCode.deleteMany({
-        where: { phone: { in: [userId] } },
+        where: { phone: user.phone },
       });
       await tx.user.delete({ where: { id: userId } });
     });
