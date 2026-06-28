@@ -47,6 +47,7 @@ describe('AlertController', () => {
       ]);
 
       const result = await controller.getActiveAlert('u1');
+      if (!result) throw new Error('expected non-null');
 
       expect(result.id).toBe('a1');
       expect(result.triggeredAt).toBe('2026-06-25T22:30:00.000Z');
@@ -69,6 +70,7 @@ describe('AlertController', () => {
       mockPrisma.emergencyContact.findMany.mockResolvedValue([]);
 
       const result = await controller.getActiveAlert('u1');
+      if (!result) throw new Error('expected non-null');
 
       expect(result.contactsNotified).toHaveLength(0);
       expect(result.timeline).toHaveLength(0);
@@ -86,6 +88,7 @@ describe('AlertController', () => {
       mockPrisma.emergencyContact.findMany.mockResolvedValue([]);
 
       const result = await controller.getActiveAlert('u1');
+      if (!result) throw new Error('expected non-null');
 
       expect(result.contactsNotified).toHaveLength(0);
       expect(result.timeline).toHaveLength(0);
