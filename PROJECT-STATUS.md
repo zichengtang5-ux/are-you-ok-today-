@@ -1,8 +1,9 @@
 # 项目状态总览 — 今天还好 App
 
-> 维护人：前端
+> 维护人：后端
 > 最后更新：2026-06-28
-> 当前分支：feat/ux-improvements-20260627
+> 前端当前分支：feat/ux-improvements-20260627
+> 后端当前分支：main (5b5bf05)
 > 本文档持续更新，所有后端协作记录、前端进度和上线前事项均集中于此。
 
 ---
@@ -66,9 +67,11 @@
 
 ### 1.6 后端 PR 状态
 
-- **PR #16**：后端对齐 PR — 4 个 bug 修复 + 5 项契约变更 + 测试
-- 链接：https://github.com/zichengtang5-ux/are-you-ok-today-/pull/16
-- 状态：待 review 合入
+- **PR #16**：后端对齐 PR — ✅ 已合入 (4b8fb9a)
+- **PR #17**：文档对齐 — ✅ 已合入 (4232850)
+- **PR #18**：GitHub Actions CI — ✅ 已合入 (812f524)
+- **PR #19**：Docker 部署基础设施 — ✅ 已合入 (753a385)
+- **PR #22**：真实服务集成（阿里云 SMS + APNs + Apple IAP）— ✅ 已合入 (5b5bf05)
 
 ---
 
@@ -186,7 +189,7 @@ interface UndoReplyResponse {
 
 | # | 事项 | 负责方 | 状态 | 备注 |
 |---|------|--------|------|------|
-| P0-1 | 后端 PR #16 review + 合入 | 后端 | ⬜ 待合入 | 包含 4 bug + 5 契约变更 |
+| P0-1 | 后端 PR #16 review + 合入 | 后端 | ✅ 已合入 | 4 bug + 5 契约变更 |
 | P0-2 | 前端接入 `POST /reply/today` 409 处理 | 前端 | ✅ 已完成 | `index.tsx` handleReply 已处理 409，引导恢复守护 |
 | P0-3 | 前端接入 `GET /alert/active` 展示告警详情 | 前端 | ✅ 已完成 | 类型已修正（移除 smsRounds，lastReplyAt 可空），首页已接入 |
 | P0-4 | 前端处理 `DELETE /reply/today` 新 status（waiting/grace） | 前端 | ✅ 已完成 | UndoReplyResponse 类型已修正，store undoReply 参数化 |
@@ -211,8 +214,8 @@ interface UndoReplyResponse {
 | P2-1 | App Store 审核提交 | 运营 | ⬜ 待做 | 需 EAS Build 产出 ipa |
 | P2-2 | S6 订阅付费全流程联调 | 前端+后端 | ⬜ 待做 | 真实 StoreKit 2 购买 → 后端 verify |
 | P2-3 | WebSocket/SSE push（Phase 2） | 后端 | ⬜ 待规划 | 替代 30 秒轮询 |
-| P2-4 | 短信/语音真实集成 | 后端 | ⬜ 待规划 | 当前 mock 模式 |
-| P2-5 | APNs 真实推送 | 后端 | ⬜ 待规划 | 当前 mock 模式 |
+| P2-4 | 短信真实集成 | 后端 | ✅ 已完成 | 阿里云 SMS SDK（PR #22 已合入） |
+| P2-5 | APNs 真实推送 | 后端 | ✅ 已完成 | apn 包集成（PR #22 已合入） |
 
 ---
 
@@ -260,12 +263,12 @@ interface UndoReplyResponse {
 
 ## 八、建议的推进顺序
 
-1. **立即**：Review + 合入后端 PR #16
-2. **第 1 批（0.5 天）**：~~P0-2 到 P0-6~~ ✅ 已完成 — 后端行为变更已全部接入
-3. **第 2 批（0.5 天）**：P1-1 到 P1-4 — EAS Build 配置、IAP 生产代码、环境变量
-4. **第 3 批（0.5 天）**：P1-5 到 P1-6 — 协议 URL、推送 token 确认
+1. **前端 P1 第 1 批（0.5 天）**：P1-1 EAS Build 配置 + P1-4 环境变量
+2. **前端 P1 第 2 批（0.5 天）**：P1-2 IAP 生产代码 + P1-6 推送 token 确认
+3. **前端 P1 第 3 批**：P1-3 App Store Connect + P1-5 协议 URL（需产品/法务）
+4. **联调**：前后端全流程联调（需生产凭证：阿里云 SMS、APNs、Apple IAP）
 5. **提交审核**：EAS Build 产出 ipa → App Store Connect 提交
 
 ---
 
-*本文档由前端维护，每次有重要进展时更新。*
+*本文档由后端维护，每次有重要进展时更新。*
