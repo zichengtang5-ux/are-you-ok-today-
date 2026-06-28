@@ -12,12 +12,6 @@ jest.mock('fs', () => {
   };
 });
 
-const mockSign = { update: jest.fn(), sign: jest.fn() };
-jest.mock('crypto', () => ({
-  __esModule: true,
-  createSign: jest.fn(() => mockSign),
-}));
-
 const actualCrypto = jest.requireActual('crypto');
 const testKeyPem: string = actualCrypto.generateKeyPairSync('ec', {
   namedCurve: 'P-256',
@@ -294,6 +288,7 @@ describe('SubscriptionService', () => {
 
   describe('IAP validation (non-development)', () => {
     let fetchSpy: jest.SpyInstance;
+    let cryptoSpy: jest.SpyInstance;
 
     beforeEach(() => {
       mockConfig.get.mockImplementation((key: string, defaultVal?: string) => {
@@ -316,14 +311,19 @@ describe('SubscriptionService', () => {
         Buffer.from([0x02, 0x20]),
         Buffer.alloc(32, 0xbb),
       ]);
-      mockSign.update.mockReturnThis();
-      mockSign.sign.mockReturnValue(fakeDerSig);
+
+      const mockSigner = {
+        update: jest.fn().mockReturnThis(),
+        sign: jest.fn().mockReturnValue(fakeDerSig),
+      };
+      cryptoSpy = jest.spyOn(require('crypto'), 'createSign').mockReturnValue(mockSigner as any);
 
       (service as any).apiTokenCache = null;
     });
 
     afterEach(() => {
       if (fetchSpy) fetchSpy.mockRestore();
+      if (cryptoSpy) cryptoSpy.mockRestore();
     });
 
     it('should return false when IAP API returns non-200', async () => {
