@@ -310,8 +310,14 @@ describe('SubscriptionService', () => {
       const fs = require('fs');
       fs.readFileSync.mockReturnValue(testKeyPem);
 
+      const fakeDerSig = Buffer.concat([
+        Buffer.from([0x30, 0x44, 0x02, 0x20]),
+        Buffer.alloc(32, 0xaa),
+        Buffer.from([0x02, 0x20]),
+        Buffer.alloc(32, 0xbb),
+      ]);
       mockSign.update.mockReturnThis();
-      mockSign.sign.mockReturnValue(Buffer.alloc(64, 1));
+      mockSign.sign.mockReturnValue(fakeDerSig);
 
       (service as any).apiTokenCache = null;
     });
