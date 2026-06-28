@@ -1,9 +1,10 @@
 # 前后端对齐文档 — S3~S7
 
 > 维护者：小后（后端）+ 小前（前端）
-> 最后更新：2026-06-26
-> 状态：后端 S1-S7 全部完成 ✅，前端 S1-S4 已合入 main
+> 最后更新：2026-06-28
+> 状态：后端 S1-S7 全部完成 ✅，前端 S1-S5 已合入 main ✅，前后端契约全部对齐 ✅
 > GitHub：https://github.com/zichengtang5-ux/are-you-ok-today-
+> 对齐 PR：https://github.com/zichengtang5-ux/are-you-ok-today-/pull/16
 
 ---
 
@@ -67,9 +68,9 @@ are-you-ok-today-/
 | S2 联系人/提醒/回复 | ✅ 完成 | 11 个 API | ✅ 已对接 |
 | S3 每日提醒引擎 | ✅ 完成 | Device 注册 + 定时任务 + APNs mock | ✅ 已对接 |
 | S4 超时告警 | ✅ 完成 | 告警检测 + SMS + 联系人确认 | ✅ 已对接 |
-| S5 紧急求助 + 子女端 | ✅ 完成 | 求助API + 子女关系API | 🔲 PR#5 待合入 |
-| S6 订阅付费 | ✅ 完成 | IAP校验 + 代付 + 状态查询 | 🔲 待开发 |
-| S7 暂停/删除/收尾 | ✅ 完成 | 暂停API + 数据删除API | 🔲 待开发 |
+| S5 紧急求助 + 子女端 | ✅ 完成 | 求助API + 子女关系API | ✅ 已合入 |
+| S6 订阅付费 | ✅ 完成 | IAP校验 + 代付 + 状态查询 | ✅ 已对接 |
+| S7 暂停/删除/收尾 | ✅ 完成 | 暂停API + 数据删除API | ✅ 已对接 |
 
 ---
 
@@ -104,10 +105,10 @@ are-you-ok-today-/
 | 事项 | 前端做什么 | 后端做什么 | 对齐点 |
 |------|-----------|-----------|--------|
 | 通知 Action 回复 | 点击通知按钮 → 调 `POST /api/reply/today` | 提供 API | 已对齐 ✅ |
-| APNs device token | 注册远程通知 → 拿到 token → 调 API 上报 | 提供 `POST /api/device/register` | **待对齐** |
-| 深链接 (Deep Link) | 处理 `todayok://` scheme → 路由到对应页面 | SMS 中包含深链接 | **待对齐** |
-| StoreKit transaction | 购买成功 → 调 `POST /api/subscription/verify` | 校验 + 更新订阅状态 | **待对齐** |
-| 联系人确认页 | 联系人打开深链接 → 显示确认页 → 调 API | 提供确认/求助 API | **待对齐** |
+| APNs device token | 注册远程通知 → 拿到 token → 调 API 上报 | 提供 `POST /api/device/register`（单设备模式，自动清理旧 token） | 已对齐 ✅ |
+| 深链接 (Deep Link) | 处理 `todayok://` scheme → 路由到对应页面 | SMS 中包含深链接 | 已对齐 ✅ |
+| StoreKit transaction | 购买成功 → 调 `POST /api/subscription/verify` | 校验 + 更新订阅状态 | 已对齐 ✅ |
+| 联系人确认页 | 联系人打开深链接 → 显示确认页 → 调 API | 提供确认/求助 API | 已对齐 ✅ |
 
 ---
 
@@ -713,11 +714,11 @@ DELETE /api/user/account
 | 13 | POST | `/api/contacts/:id/verify` | S2 | 验证联系人手机号 |
 | 14 | GET | `/api/reminder/config` | S2 | 获取提醒配置 |
 | 15 | PATCH | `/api/reminder/config` | S2 | 更新提醒配置 |
-| 16 | POST | `/api/reply/today` | S2 | 今日回复 |
-| 17 | DELETE | `/api/reply/today` | S2 | 撤回今日回复 |
-| 18 | GET | `/api/reply/status` | S2 | 获取守护状态 |
-| 19 | POST | `/api/device/register` | S3 | 上报 APNs token |
-| 20 | GET | `/api/alert/active` | S4 | 获取活跃告警 |
+| 16 | POST | `/api/reply/today` | S2 | 今日回复（暂停期返回 409） |
+| 17 | DELETE | `/api/reply/today` | S2 | 撤回回复（按时间判定 waiting/grace） |
+| 18 | GET | `/api/reply/status` | S2 | 获取守护状态（含暂停过期自动恢复） |
+| 19 | POST | `/api/device/register` | S3 | 上报 APNs token（单设备模式） |
+| 20 | GET | `/api/alert/active` | S4 | 获取活跃告警详情（**新增**） |
 | 21 | POST | `/api/alert/:id/confirm` | S4 | 联系人确认安全 |
 | 22 | POST | `/api/alert/:id/help` | S4 | 联系人需要帮助 |
 | 23 | POST | `/api/help/emergency` | S5 | 触发紧急求助 |
@@ -726,14 +727,14 @@ DELETE /api/user/account
 | 26 | POST | `/api/guardian/accept-invite` | S5 | 接受邀请（大小写不敏感） |
 | 27 | GET | `/api/guardian/wards` | S5 | 守护列表（wardPhone 脱敏） |
 | 28 | GET | `/api/guardian/wards/:id/dashboard` | S5 | 关怀看板（免费用户字段为 null） |
-| 29 | POST | `/api/guardian/wards/:id/proxy-reply` | S5 | 子女代确认（幂等） |
+| 29 | POST | `/api/guardian/wards/:id/proxy-reply` | S5 | 子女代确认（需 isBound） |
 | 30 | POST | `/api/subscription/verify` | S6 | IAP 交易校验 |
 | 31 | POST | `/api/subscription/proxy-subscribe` | S6 | 子女代付 |
-| 32 | GET | `/api/subscription/status` | S6 | 获取订阅状态 |
-| 33 | POST | `/api/pause` | S7 | 暂停守护 |
+| 32 | GET | `/api/subscription/status` | S6 | 获取订阅状态（实时判定过期） |
+| 33 | POST | `/api/pause` | S7 | 暂停守护（1-30 天严格校验） |
 | 34 | POST | `/api/pause/resume` | S7 | 提前恢复 |
 | 35 | GET | `/api/pause/status` | S7 | 暂停状态 |
-| 36 | DELETE | `/api/user/account` | S7 | 删除账号 |
+| 36 | DELETE | `/api/user/account` | S7 | 删除账号（级联标记关联联系人） |
 
 ---
 
@@ -796,9 +797,20 @@ DELETE /api/user/account
 
 ## 十一、双方确认签字
 
-- [ ] 小前：已阅读并确认全部 API 契约
-- [ ] 小后：已阅读并确认全部 API 契约
-- [ ] 双方确认深链接 scheme: `todayok://`
-- [ ] 双方确认推送文案内容
-- [ ] 小前：已获取 GitHub 仓库访问权限，能正常 clone 和提交 PR
-- [ ] 小后：已获取 GitHub 仓库访问权限，能正常 clone 和提交 PR
+- [x] 小前：已阅读并确认全部 API 契约
+- [x] 小后：已阅读并确认全部 API 契约
+- [x] 双方确认深链接 scheme: `todayok://`
+- [x] 双方确认推送文案内容
+- [x] 小前：已获取 GitHub 仓库访问权限，能正常 clone 和提交 PR
+- [x] 小后：已获取 GitHub 仓库访问权限，能正常 clone 和提交 PR
+
+### 2026-06-28 契约对齐确认
+
+- [x] 后端已回复 B1-B9 全部契约确认（详见 BACKEND-ALIGNMENT-REPLY.md）
+- [x] 后端已评估 N1-N5 可行性
+- [x] 后端已修复 4 个 Bug（PR #16）
+- [x] 双方确认撤销回复按时间判定状态（N1）
+- [x] 双方确认删除账号级联策略 — 方案 A（B5）
+- [x] 双方确认 `GET /alert/active` 返回结构（B3）
+- [x] 双方确认设备注册单设备模式（B4）
+- [x] 双方确认暂停期回复返回 409（B2）
