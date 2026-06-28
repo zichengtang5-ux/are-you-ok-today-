@@ -4,6 +4,23 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
+jest.mock('fs', () => ({
+  __esModule: true,
+  readFileSync: jest.fn(),
+}));
+
+const mockSign = { update: jest.fn(), sign: jest.fn() };
+jest.mock('crypto', () => ({
+  __esModule: true,
+  createSign: jest.fn(() => mockSign),
+}));
+
+const actualCrypto = jest.requireActual('crypto');
+const testKeyPem: string = actualCrypto.generateKeyPairSync('ec', {
+  namedCurve: 'P-256',
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+}).privateKey;
+
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
   const mockPrisma = {
@@ -274,15 +291,6 @@ describe('SubscriptionService', () => {
 
   describe('IAP validation (non-development)', () => {
     let fetchSpy: jest.SpyInstance;
-    let fsSpy: jest.SpyInstance;
-
-    const testKeyPem = (() => {
-      const { privateKey } = require('crypto').generateKeyPairSync('ec', {
-        namedCurve: 'P-256',
-        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-      });
-      return privateKey as string;
-    })();
 
     beforeEach(() => {
       mockConfig.get.mockImplementation((key: string, defaultVal?: string) => {
@@ -295,12 +303,18 @@ describe('SubscriptionService', () => {
         };
         return map[key] ?? defaultVal;
       });
-      fsSpy = jest.spyOn(require('fs'), 'readFileSync').mockReturnValue(testKeyPem);
+
+      const fs = require('fs');
+      fs.readFileSync.mockReturnValue(testKeyPem);
+
+      mockSign.update.mockReturnThis();
+      mockSign.sign.mockReturnValue(Buffer.alloc(64, 1));
+
+      (service as any).apiTokenCache = null;
     });
 
     afterEach(() => {
       if (fetchSpy) fetchSpy.mockRestore();
-      if (fsSpy) fsSpy.mockRestore();
     });
 
     it('should return false when IAP API returns non-200', async () => {

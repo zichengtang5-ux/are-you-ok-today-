@@ -8,6 +8,7 @@ jest.mock('@alicloud/dysmsapi20170525', () => {
     default: jest.fn().mockImplementation(() => ({
       sendSmsWithOptions: mockSendSmsWithOptions,
     })),
+    SendSmsRequest: jest.fn().mockImplementation((opts) => opts),
   };
 });
 jest.mock('@alicloud/openapi-client', () => {
