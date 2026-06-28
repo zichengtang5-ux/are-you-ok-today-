@@ -3,6 +3,7 @@ import { ReminderCronService } from './reminder-cron.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { SmsService } from '../sms/sms.service';
+import { VoiceService } from '../voice/voice.service';
 
 describe('ReminderCronService', () => {
   let service: ReminderCronService;
@@ -20,6 +21,9 @@ describe('ReminderCronService', () => {
   const mockSms = {
     sendAlertSms: jest.fn().mockResolvedValue(true),
   };
+  const mockVoice = {
+    sendAlertVoice: jest.fn().mockResolvedValue(true),
+  };
 
   beforeEach(async () => {
     const mod: TestingModule = await Test.createTestingModule({
@@ -28,6 +32,7 @@ describe('ReminderCronService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: PushService, useValue: mockPush },
         { provide: SmsService, useValue: mockSms },
+        { provide: VoiceService, useValue: mockVoice },
       ],
     }).compile();
 
@@ -176,8 +181,18 @@ describe('ReminderCronService', () => {
         '13800001111',
         expect.stringContaining('小李'),
       );
+      expect(mockVoice.sendAlertVoice).toHaveBeenCalledWith(
+        '13800001111',
+        '小李',
+        '从未回复',
+      );
       expect(mockPrisma.alertEvent.create).toHaveBeenCalled();
-      expect(mockPrisma.notificationLog.create).toHaveBeenCalled();
+      expect(mockPrisma.notificationLog.create).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.notificationLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ channel: 'voice_call', status: 'sent' }),
+        }),
+      );
     });
 
     it('should not create duplicate active alert', async () => {
@@ -208,6 +223,11 @@ describe('ReminderCronService', () => {
 
       await service.checkReminders();
       expect(mockPrisma.alertEvent.create).not.toHaveBeenCalled();
+      expect(mockVoice.sendAlertVoice).toHaveBeenCalledWith(
+        '13800001111',
+        '小李',
+        '从未回复',
+      );
     });
   });
 });
