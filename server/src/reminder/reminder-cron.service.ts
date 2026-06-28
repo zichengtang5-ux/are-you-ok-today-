@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { SmsService } from '../sms/sms.service';
+import { VoiceService } from '../voice/voice.service';
 
 function todayString(): string {
   const now = new Date();
@@ -31,6 +32,7 @@ export class ReminderCronService {
     private prisma: PrismaService,
     private pushService: PushService,
     private smsService: SmsService,
+    private voiceService: VoiceService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -186,6 +188,24 @@ export class ReminderCronService {
       });
     }
 
-    this.logger.log(`Alert triggered for user ${user.id}, notified ${user.contacts.length} contacts`);
+    for (const contact of user.contacts) {
+      const voiceResult = await this.voiceService.sendAlertVoice(
+        contact.phone,
+        nickname,
+        lastReplyAt,
+      );
+
+      await this.prisma.notificationLog.create({
+        data: {
+          contactId: contact.id,
+          channel: 'voice_call',
+          round: existingAlert ? 2 : 1,
+          status: voiceResult ? 'sent' : 'failed',
+          sentAt: now,
+        },
+      });
+    }
+
+    this.logger.log(`Alert triggered for user ${user.id}, notified ${user.contacts.length} contacts via SMS + voice`);
   }
 }

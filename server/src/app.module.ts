@@ -14,6 +14,7 @@ import { GuardianModule } from './guardian/guardian.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SmsModule } from './sms/sms.module';
 import { PushModule } from './push/push.module';
+import { VoiceModule } from './voice/voice.module';
 import { DeviceModule } from './device/device.module';
 import { HelpModule } from './help/help.module';
 import { PauseModule } from './pause/pause.module';
@@ -30,6 +31,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     PrismaModule,
     SmsModule,
     PushModule,
+    VoiceModule,
     AuthModule,
     UserModule,
     ContactModule,
