@@ -281,6 +281,7 @@ describe('GuardianService', () => {
         id: 'gr1',
         guardianId: 'g1',
         wardId: 'w1',
+        isBound: true,
       });
       mockReply.replyToday.mockResolvedValue({
         message: '收到，安心了',
@@ -299,6 +300,7 @@ describe('GuardianService', () => {
         id: 'gr1',
         guardianId: 'g1',
         wardId: 'w1',
+        isBound: true,
       });
       mockReply.replyToday.mockRejectedValue(new BadRequestException('今天已回复'));
 
@@ -313,6 +315,18 @@ describe('GuardianService', () => {
         id: 'gr1',
         guardianId: 'g-other',
         wardId: 'w1',
+        isBound: true,
+      });
+
+      await expect(service.proxyReply('g1', 'gr1')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should reject unbound guardian relation', async () => {
+      mockPrisma.guardianRelation.findUnique.mockResolvedValue({
+        id: 'gr1',
+        guardianId: 'g1',
+        wardId: 'w1',
+        isBound: false,
       });
 
       await expect(service.proxyReply('g1', 'gr1')).rejects.toThrow(ForbiddenException);

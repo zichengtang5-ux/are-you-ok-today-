@@ -47,6 +47,7 @@ model EmergencyContact {
   relation  String   @default("家人")
   priority  Int      @default(1)
   verified  Boolean  @default(false)
+  isAccountDeleted Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

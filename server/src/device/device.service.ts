@@ -6,6 +6,10 @@ export class DeviceService {
   constructor(private prisma: PrismaService) {}
 
   async registerDevice(userId: string, token: string, platform: string) {
+    await this.prisma.device.deleteMany({
+      where: { userId, token: { not: token } },
+    });
+
     await this.prisma.device.upsert({
       where: { userId_token: { userId, token } },
       update: { platform },

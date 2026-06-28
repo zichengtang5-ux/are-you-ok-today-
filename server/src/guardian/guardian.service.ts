@@ -253,6 +253,10 @@ export class GuardianService {
       throw new ForbiddenException('无权操作');
     }
 
+    if (!relation.isBound) {
+      throw new ForbiddenException('尚未绑定，无法代确认');
+    }
+
     const wardId = relation.wardId;
 
     try {

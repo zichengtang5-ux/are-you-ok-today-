@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 function todayString(): string {
@@ -16,11 +16,42 @@ function monthRange(): { start: string; end: string } {
   return { start, end };
 }
 
+function isAfterWindowEnd(reminderConfig: { endTime: string } | null): boolean {
+  const now = new Date();
+  const shanghai = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const endTimeStr = reminderConfig?.endTime ?? '22:00';
+  const [hours, minutes] = endTimeStr.split(':').map(Number);
+  const windowEnd = new Date(shanghai);
+  windowEnd.setUTCHours(hours, minutes, 0, 0);
+  return shanghai >= windowEnd;
+}
+
 @Injectable()
 export class ReplyService {
   constructor(private prisma: PrismaService) {}
 
   async replyToday(userId: string) {
+    const guardStatus = await this.prisma.guardStatus.findUnique({ where: { userId } });
+    if (guardStatus?.status === 'paused') {
+      const activePause = await this.prisma.pauseLog.findFirst({
+        where: { userId, isActive: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (activePause && activePause.endTime > new Date()) {
+        throw new ConflictException('守护已暂停，请先恢复守护');
+      }
+      if (activePause) {
+        await this.prisma.pauseLog.update({
+          where: { id: activePause.id },
+          data: { isActive: false },
+        });
+        await this.prisma.guardStatus.update({
+          where: { userId },
+          data: { status: 'idle' },
+        });
+      }
+    }
+
     const date = todayString();
     const now = new Date();
 
@@ -44,7 +75,7 @@ export class ReplyService {
       },
     });
 
-    const guardStatus = await this.prisma.guardStatus.upsert({
+    const updatedGuardStatus = await this.prisma.guardStatus.upsert({
       where: { userId },
       update: {
         status: 'replied',
@@ -72,7 +103,7 @@ export class ReplyService {
     return {
       message: '收到，安心了',
       repliedAt: now.toISOString(),
-      guardStatus: guardStatus.status,
+      guardStatus: updatedGuardStatus.status,
       alertResolved: !!activeAlert,
     };
   }
@@ -88,24 +119,70 @@ export class ReplyService {
       throw new BadRequestException('今天尚未回复');
     }
 
+    const reminderConfig = await this.prisma.reminderConfig.findUnique({ where: { userId } });
+    const afterWindow = isAfterWindowEnd(reminderConfig);
+    const newStatus = afterWindow ? 'grace' : 'waiting';
+
     await this.prisma.dailyRecord.update({
       where: { id: record.id },
-      data: { status: 'waiting', repliedAt: null, replyMethod: null },
+      data: { status: newStatus, repliedAt: null, replyMethod: null },
     });
 
     await this.prisma.guardStatus.update({
       where: { userId },
-      data: { status: 'waiting' },
+      data: { status: newStatus },
     });
 
-    return { message: '已撤回回复', guardStatus: 'waiting' };
+    if (afterWindow) {
+      const guardStatus = await this.prisma.guardStatus.findUnique({ where: { userId } });
+      const existingActive = await this.prisma.alertEvent.findFirst({
+        where: { userId, status: 'active' },
+      });
+      if (!existingActive && guardStatus) {
+        const now = new Date();
+        await this.prisma.alertEvent.create({
+          data: {
+            userId,
+            guardStatusId: guardStatus.id,
+            status: 'active',
+            lastReplyAt: null,
+            triggeredAt: now,
+            contactsNotified: '[]',
+            timeline: JSON.stringify([
+              { time: now.toISOString().slice(11, 16), action: '回复被撤回，重新进入告警' },
+            ]),
+          },
+        });
+      }
+    }
+
+    return { message: '已撤回回复', guardStatus: newStatus };
   }
 
   async getStatus(userId: string) {
     const date = todayString();
 
-    const [guardStatus, todayRecord, reminderConfig, { start, end }] = await Promise.all([
-      this.prisma.guardStatus.findUnique({ where: { userId } }),
+    const guardStatus = await this.prisma.guardStatus.findUnique({ where: { userId } });
+
+    if (guardStatus?.status === 'paused') {
+      const activePause = await this.prisma.pauseLog.findFirst({
+        where: { userId, isActive: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (activePause && activePause.endTime <= new Date()) {
+        await this.prisma.pauseLog.update({
+          where: { id: activePause.id },
+          data: { isActive: false },
+        });
+        await this.prisma.guardStatus.update({
+          where: { userId },
+          data: { status: 'idle' },
+        });
+        guardStatus.status = 'idle';
+      }
+    }
+
+    const [todayRecord, reminderConfig, { start, end }] = await Promise.all([
       this.prisma.dailyRecord.findUnique({ where: { userId_date: { userId, date } } }),
       this.prisma.reminderConfig.findUnique({ where: { userId } }),
       Promise.resolve(monthRange()),
