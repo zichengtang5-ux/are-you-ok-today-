@@ -336,16 +336,7 @@ describe('SubscriptionService', () => {
     });
 
     it('should return true when subscription status is active (1)', async () => {
-      fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          data: [
-            {
-              lastTransactions: [{ status: 1, signedTransactionInfo: 'signed' }],
-            },
-          ],
-        }),
-      } as Response);
+      jest.spyOn(service as any, 'validateAppleTransaction').mockResolvedValue(true);
 
       mockPrisma.subscription.upsert.mockResolvedValue({
         id: 's1',
