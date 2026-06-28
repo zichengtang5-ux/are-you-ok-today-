@@ -3,7 +3,7 @@
 > 维护人：后端
 > 最后更新：2026-06-28
 > 前端当前分支：feat/ux-improvements-20260627
-> 后端当前分支：main (5b5bf05)
+> 后端当前分支：main (ea7bcfd)
 > 本文档持续更新，所有后端协作记录、前端进度和上线前事项均集中于此。
 
 ---
@@ -72,6 +72,8 @@
 - **PR #18**：GitHub Actions CI — ✅ 已合入 (812f524)
 - **PR #19**：Docker 部署基础设施 — ✅ 已合入 (753a385)
 - **PR #22**：真实服务集成（阿里云 SMS + APNs + Apple IAP）— ✅ 已合入 (5b5bf05)
+- **PR #23**：PROJECT-STATUS.md 集中协作文档 — ✅ 已合入 (ceecdac)
+- **PR #24**：语音电话通知（VoiceService + ReminderCron 集成）— ✅ 已合入 (ea7bcfd)
 
 ---
 
