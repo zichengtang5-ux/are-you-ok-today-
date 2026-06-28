@@ -4,10 +4,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
-jest.mock('fs', () => ({
-  __esModule: true,
-  readFileSync: jest.fn(),
-}));
+jest.mock('fs', () => {
+  const actual = jest.requireActual('fs');
+  return {
+    ...actual,
+    readFileSync: jest.fn(),
+  };
+});
 
 const mockSign = { update: jest.fn(), sign: jest.fn() };
 jest.mock('crypto', () => ({
