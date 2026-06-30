@@ -3,8 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
-import { SmsService } from '../sms/sms.service';
-import { VoiceService } from '../voice/voice.service';
+import { NotificationQueueService } from '../notification/notification-queue.service';
 import {
   computeGraceDeadlineDueAt,
   computeNextEndTimeDueAt,
@@ -26,8 +25,7 @@ export class ReminderCronService {
   constructor(
     private prisma: PrismaService,
     private pushService: PushService,
-    private smsService: SmsService,
-    private voiceService: VoiceService,
+    private notificationQueue: NotificationQueueService,
     config: ConfigService,
   ) {
     this.shardIndex = config.get<number>('SCHEDULER_SHARD_INDEX', 0);
@@ -271,30 +269,18 @@ export class ReminderCronService {
       });
     }
 
-    // NOTE: 通知投递目前仍为同步调用，P0-3 将改为 BullMQ 异步投递（重试+死信+回执）。
+    // 通知投递改为异步：入 BullMQ 队列，由独立 worker 投递（重试+死信+回执）。
+    // cron 不再被阿里云 API 延迟/超时阻塞，单分钟吞吐与通知服务解耦。
     const round = existingAlert ? 2 : 1;
-    for (const contact of user.contacts) {
-      const message = `【今天还好】${nickname}今天没有回复平安，最后回复时间：${lastReplyAt}，请及时联系确认。`;
-      await this.smsService.sendAlertSms(contact.phone, message);
-      await this.prisma.notificationLog.create({
-        data: { contactId: contact.id, channel: 'sms', round, status: 'sent', sentAt: now },
-      });
-    }
-    for (const contact of user.contacts) {
-      const voiceResult = await this.voiceService.sendAlertVoice(contact.phone, nickname, lastReplyAt);
-      await this.prisma.notificationLog.create({
-        data: {
-          contactId: contact.id,
-          channel: 'voice_call',
-          round,
-          status: voiceResult ? 'sent' : 'failed',
-          sentAt: now,
-        },
-      });
-    }
+    await this.notificationQueue.enqueueAlert({
+      contacts: user.contacts.map((c) => ({ id: c.id, phone: c.phone })),
+      nickname,
+      lastReplyAt,
+      round,
+    });
 
     this.logger.log(
-      `Alert triggered for user ${user.id}, notified ${user.contacts.length} contacts via SMS + voice`,
+      `Alert triggered for user ${user.id}, enqueued notifications for ${user.contacts.length} contacts (round ${round})`,
     );
   }
 }

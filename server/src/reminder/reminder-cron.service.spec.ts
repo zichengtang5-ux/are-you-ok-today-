@@ -3,8 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ReminderCronService } from './reminder-cron.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
-import { SmsService } from '../sms/sms.service';
-import { VoiceService } from '../voice/voice.service';
+import { NotificationQueueService } from '../notification/notification-queue.service';
 import { getLocalDateParts } from './reminder-schedule.util';
 
 /**
@@ -30,8 +29,7 @@ describe('ReminderCronService', () => {
     notificationLog: { create: jest.fn().mockResolvedValue({}) },
   };
   const mockPush = { sendCareReminder: jest.fn().mockResolvedValue(true) };
-  const mockSms = { sendAlertSms: jest.fn().mockResolvedValue(true) };
-  const mockVoice = { sendAlertVoice: jest.fn().mockResolvedValue(true) };
+  const mockNotificationQueue = { enqueueAlert: jest.fn().mockResolvedValue(undefined) };
   const mockConfig = { get: (key: string, def: unknown) => def };
 
   function due(config: Record<string, unknown>) {
@@ -47,8 +45,7 @@ describe('ReminderCronService', () => {
         ReminderCronService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: PushService, useValue: mockPush },
-        { provide: SmsService, useValue: mockSms },
-        { provide: VoiceService, useValue: mockVoice },
+        { provide: NotificationQueueService, useValue: mockNotificationQueue },
         { provide: ConfigService, useValue: mockConfig },
       ],
     }).compile();
@@ -151,10 +148,14 @@ describe('ReminderCronService', () => {
     mockPrisma.alertEvent.create.mockResolvedValue({});
 
     await service.checkDueReminders();
-    expect(mockSms.sendAlertSms).toHaveBeenCalledWith('13800001111', expect.stringContaining('小李'));
-    expect(mockVoice.sendAlertVoice).toHaveBeenCalledWith('13800001111', '小李', '从未回复');
     expect(mockPrisma.alertEvent.create).toHaveBeenCalled();
-    expect(mockPrisma.notificationLog.create).toHaveBeenCalledTimes(2);
+    expect(mockNotificationQueue.enqueueAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contacts: [{ id: 'c1', phone: '13800001111' }],
+        nickname: '小李',
+        round: 1,
+      }),
+    );
   });
 
   it('should not create duplicate active alert', async () => {
@@ -174,6 +175,9 @@ describe('ReminderCronService', () => {
 
     await service.checkDueReminders();
     expect(mockPrisma.alertEvent.create).not.toHaveBeenCalled();
-    expect(mockVoice.sendAlertVoice).toHaveBeenCalledWith('13800001111', '小李', '从未回复');
+    // 已有活跃告警 → round 2，仍重新投递通知
+    expect(mockNotificationQueue.enqueueAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ round: 2 }),
+    );
   });
 });
