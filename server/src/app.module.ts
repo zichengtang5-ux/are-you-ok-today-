@@ -3,10 +3,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { ObservabilityModule } from './observability/observability.module';
+import { AllExceptionsFilter } from './observability/all-exceptions.filter';
 import { NotificationModule } from './notification/notification.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -49,6 +51,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     }),
     PrismaModule,
     RedisModule,
+    ObservabilityModule,
     NotificationModule,
     SmsModule,
     PushModule,
@@ -65,6 +68,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     SubscriptionModule,
   ],
   providers: [
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { useStore } from '@/store/useStore';
 import { authApi, replyApi } from '@/services/api.types';
+import { reportError } from '@/services/errorReporter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoadingState } from '@/components/ui/States';
 import {
@@ -45,7 +46,8 @@ export default function RootLayout() {
         } else {
           router.replace('/onboarding/login');
         }
-      } catch {
+      } catch (e) {
+        reportError(e, { scope: 'auth.me' });
         router.replace('/onboarding/login');
       } finally {
         setIsLoading(false);
@@ -67,8 +69,9 @@ export default function RootLayout() {
           try {
             const result = await replyApi.reply();
             setTodayStatus(result.guardStatus as any);
-          } catch {
-            // silently fail — user can retry in app
+          } catch (e) {
+            // 快捷回复"我平安"失败：用户可在 App 内重试，但必须上报（守护链路关键动作）
+            reportError(e, { scope: 'notificationAction.reply' });
           }
         }
       },

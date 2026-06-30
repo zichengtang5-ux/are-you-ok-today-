@@ -12,6 +12,7 @@ import type {
   Subscription,
 } from '@/types';
 import { subscriptionApi } from '@/services/api.types';
+import { reportError } from '@/services/errorReporter';
 
 interface AppState {
   /* Auth */
@@ -122,8 +123,9 @@ export const useStore = create<AppState>()(
               ? { ...user, isPremium: status.isPremium }
               : user,
           });
-        } catch {
-          /* 静默：订阅态刷新失败不阻断主流程 */
+        } catch (e) {
+          // 订阅态刷新失败不阻断主流程，但需上报以便观测（不再静默吞掉）
+          reportError(e, { scope: 'refreshSubscription' });
         }
       },
     }),

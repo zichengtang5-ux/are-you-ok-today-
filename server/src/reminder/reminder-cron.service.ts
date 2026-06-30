@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { NotificationQueueService } from '../notification/notification-queue.service';
+import { ObservabilityService } from '../observability/observability.module';
 import {
   computeGraceDeadlineDueAt,
   computeNextEndTimeDueAt,
@@ -26,6 +27,7 @@ export class ReminderCronService {
     private prisma: PrismaService,
     private pushService: PushService,
     private notificationQueue: NotificationQueueService,
+    private observability: ObservabilityService,
     config: ConfigService,
   ) {
     this.shardIndex = config.get<number>('SCHEDULER_SHARD_INDEX', 0);
@@ -42,11 +44,17 @@ export class ReminderCronService {
     const startedAt = Date.now();
     try {
       const processed = await this.checkDueReminders();
+      const tookMs = Date.now() - startedAt;
       this.logger.log(
-        `Reminder check done: processed=${processed} shard=${this.shardIndex}/${this.shardTotal} took=${Date.now() - startedAt}ms`,
+        `Reminder check done: processed=${processed} shard=${this.shardIndex}/${this.shardTotal} took=${tookMs}ms`,
       );
+      // 关键运行指标，便于日志系统聚合监控扫描耗时与吞吐
+      this.observability.metric('reminder_cron.processed', processed, {
+        shard: String(this.shardIndex),
+      });
+      this.observability.metric('reminder_cron.duration_ms', tookMs);
     } catch (error) {
-      this.logger.error('Reminder check failed', error);
+      this.observability.captureException(error, { job: 'reminder_cron' });
     } finally {
       this.running = false;
     }
@@ -92,7 +100,10 @@ export class ReminderCronService {
           await this.processOne(config, now);
           totalProcessed++;
         } catch (err) {
-          this.logger.error(`Failed to process reminder for user ${config.userId}`, err as Error);
+          this.observability.captureException(err, {
+            job: 'reminder_cron.processOne',
+            userId: config.userId,
+          });
           // 单用户失败不影响其他用户；推进 nextDueAt 避免卡死在同一条记录
           await this.advanceNextDueAt(config, now);
         }
@@ -282,5 +293,6 @@ export class ReminderCronService {
     this.logger.log(
       `Alert triggered for user ${user.id}, enqueued notifications for ${user.contacts.length} contacts (round ${round})`,
     );
+    this.observability.metric('alert.triggered', 1, { round: String(round) });
   }
 }
