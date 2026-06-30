@@ -20,7 +20,9 @@ cp .env.example .env
 |------|------|------|
 | `JWT_SECRET` | JWT 签名密钥（≥32 字符随机字符串） | `openssl rand -base64 48` |
 | `NODE_ENV` | 运行环境 | `production` |
-| `DATABASE_URL` | 数据库连接 | `file:./data/prod.db` (SQLite) 或 PostgreSQL URL |
+| `DATABASE_URL` | PostgreSQL 连接串 | `postgresql://user:pass@host:5432/today_ok?schema=public` |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Redis 连接（缓存 / 限流 / BullMQ 队列） | `redis.internal` / `6379` / `<强密码>` |
+| `SCHEDULER_SHARD_INDEX` / `SCHEDULER_SHARD_TOTAL` | 多实例调度分片（各实例不同 INDEX） | `0` / `4` |
 
 ## Docker 部署（推荐）
 
@@ -39,12 +41,13 @@ docker compose down
 
 ### 数据持久化
 
-SQLite 数据库文件存储在 Docker volume `db-data` 中（容器内 `/app/data/`）。
+`docker compose` 会启动三个服务：`api`、`postgres`、`redis`。
+- PostgreSQL 数据存储在 volume `pg-data`（容器内 `/var/lib/postgresql/data`）。
+- Redis（AOF 持久化）存储在 volume `redis-data`。
 
 备份数据库：
 ```bash
-docker compose exec api cp /app/data/prod.db /tmp/backup.db
-docker cp today-ok-api:/tmp/backup.db ./backup-$(date +%Y%m%d).db
+docker compose exec postgres pg_dump -U todayok today_ok > ./backup-$(date +%Y%m%d).sql
 ```
 
 ### 数据库迁移
@@ -85,12 +88,14 @@ curl http://localhost:3000/api/docs
 
 ## 生产环境建议
 
-1. **数据库**：SQLite 适合初期（< 1000 用户），后续迁移到 PostgreSQL
-2. **反向代理**：建议在前面加 Nginx/Caddy 做 TLS 终止
-3. **日志收集**：接入 CloudWatch / 阿里云 SLS
-4. **监控**：接入 UptimeRobot / 阿里云云监控
-5. **备份**：每日自动备份 SQLite 文件（或 PostgreSQL dump）
-6. **短信/推送**：上线前配置阿里云 SMS 和 APNs 真实凭证
+1. **数据库**：使用托管 PostgreSQL（如阿里云 RDS），配置主从读写分离与连接池；热点表（DailyRecord/AlertEvent）按用户分区
+2. **Redis**：使用托管 Redis（如阿里云 Tair），承载缓存、限流计数与 BullMQ 队列；开启持久化与高可用
+3. **多实例调度**：水平扩展时每个实例设置不同 `SCHEDULER_SHARD_INDEX`，避免 cron 重复触发
+4. **反向代理**：建议在前面加 Nginx/Caddy 做 TLS 终止
+5. **日志收集**：接入 CloudWatch / 阿里云 SLS
+6. **监控**：接入 Sentry（应用错误）+ 阿里云云监控（资源），对告警触发量与通知送达率单独建看板
+7. **备份**：每日自动 `pg_dump`
+8. **短信/推送**：上线前配置阿里云 SMS 和 APNs 真实凭证
 
 ## 端口映射
 
