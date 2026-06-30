@@ -85,6 +85,48 @@ describe('ReminderCronService', () => {
     };
   }
 
+  describe('handleReminderCheck (cron entry)', () => {
+    it('records metrics on success', async () => {
+      mockPrisma.reminderConfig.findMany.mockResolvedValue([]);
+      await service.handleReminderCheck();
+      expect(mockObservability.metric).toHaveBeenCalledWith(
+        'reminder_cron.processed',
+        expect.any(Number),
+        expect.objectContaining({ shard: '0' }),
+      );
+      expect(mockObservability.metric).toHaveBeenCalledWith(
+        'reminder_cron.duration_ms',
+        expect.any(Number),
+      );
+    });
+
+    it('captures exception when scan throws', async () => {
+      mockPrisma.reminderConfig.findMany.mockRejectedValueOnce(new Error('db down'));
+      await service.handleReminderCheck();
+      expect(mockObservability.captureException).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ job: 'reminder_cron' }),
+      );
+    });
+
+    it('skips re-entry while a previous tick is still running', async () => {
+      // 让第一次 findMany 挂起，模拟上一轮未完成
+      let release: (v: unknown) => void = () => {};
+      mockPrisma.reminderConfig.findMany.mockReturnValueOnce(
+        new Promise((res) => {
+          release = res;
+        }),
+      );
+      const first = service.handleReminderCheck();
+      // 第二次应因 running 标志直接返回，不再触发查询
+      await service.handleReminderCheck();
+      const callsAfterSecond = mockPrisma.reminderConfig.findMany.mock.calls.length;
+      release([]); // 释放第一次，结束循环
+      await first;
+      expect(callsAfterSecond).toBe(1);
+    });
+  });
+
   it('only scans due records (nextDueAt filter)', async () => {
     due(baseConfig(baseUser(), shanghaiHhmmOffset(60))); // endTime 未到
     mockPrisma.dailyRecord.findUnique.mockResolvedValue(null);
