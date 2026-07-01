@@ -45,17 +45,38 @@ describe('ReminderService', () => {
 
       const result = await service.getConfig('u1');
       expect(result.startTime).toBe('20:00');
-      expect(mockPrisma.reminderConfig.create).toHaveBeenCalledWith({ data: { userId: 'u1' } });
+      expect(mockPrisma.reminderConfig.create).toHaveBeenCalledWith({
+        data: { userId: 'u1', nextDueAt: expect.any(Date) },
+      });
     });
   });
 
   describe('updateConfig', () => {
-    it('should update start time', async () => {
+    it('should update start time without recomputing nextDueAt', async () => {
       mockPrisma.reminderConfig.findUnique.mockResolvedValue({ userId: 'u1' });
       mockPrisma.reminderConfig.update.mockResolvedValue({ startTime: '19:00' });
 
       const result = await service.updateConfig('u1', { startTime: '19:00' });
       expect(result.startTime).toBe('19:00');
+      expect(mockPrisma.reminderConfig.update).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        data: { startTime: '19:00' },
+      });
+    });
+
+    it('should recompute nextDueAt when endTime changes', async () => {
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        userId: 'u1',
+        endTime: '22:00',
+        timezone: 'Asia/Shanghai',
+      });
+      mockPrisma.reminderConfig.update.mockResolvedValue({ endTime: '21:00' });
+
+      await service.updateConfig('u1', { endTime: '21:00' });
+      expect(mockPrisma.reminderConfig.update).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        data: { endTime: '21:00', nextDueAt: expect.any(Date) },
+      });
     });
   });
 });

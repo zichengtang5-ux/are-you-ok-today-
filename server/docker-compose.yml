@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   api:
     build:
@@ -11,8 +9,11 @@ services:
       - "${PORT:-3000}:3000"
     env_file:
       - .env
-    volumes:
-      - db-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/docs"]
       interval: 30s
@@ -20,6 +21,39 @@ services:
       retries: 3
       start_period: 15s
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: today-ok-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-todayok}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-todayok}
+      POSTGRES_DB: ${POSTGRES_DB:-today_ok}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-todayok} -d ${POSTGRES_DB:-today_ok}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: today-ok-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
 volumes:
-  db-data:
+  pg-data:
+    driver: local
+  redis-data:
     driver: local

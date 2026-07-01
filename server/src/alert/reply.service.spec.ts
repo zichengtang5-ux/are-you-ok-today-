@@ -36,11 +36,16 @@ describe('ReplyService', () => {
       providers: [
         ReplyService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: require('../events/events.service').EventsService, useValue: { publish: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
     service = mod.get(ReplyService);
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('replyToday', () => {
@@ -116,6 +121,8 @@ describe('ReplyService', () => {
 
   describe('undoReply', () => {
     it('should undo reply and reset to waiting when before window end', async () => {
+      // 固定到上海时间 12:00（UTC 04:00），endTime 22:00 → 仍在窗口内
+      jest.useFakeTimers().setSystemTime(new Date('2026-06-30T04:00:00Z'));
       mockPrisma.dailyRecord.findUnique.mockResolvedValue({ id: 'dr1', status: 'replied' });
       mockPrisma.reminderConfig.findUnique.mockResolvedValue({
         startTime: '20:00',
@@ -129,6 +136,8 @@ describe('ReplyService', () => {
     });
 
     it('should undo reply and set to grace when after window end', async () => {
+      // 固定到上海时间 12:00（UTC 04:00），endTime 02:00 → 已过窗口
+      jest.useFakeTimers().setSystemTime(new Date('2026-06-30T04:00:00Z'));
       mockPrisma.dailyRecord.findUnique.mockResolvedValue({ id: 'dr1', status: 'replied' });
       mockPrisma.reminderConfig.findUnique.mockResolvedValue({
         startTime: '01:00',
@@ -146,6 +155,8 @@ describe('ReplyService', () => {
     });
 
     it('should not create new alert if one already active', async () => {
+      // 固定到上海时间 12:00（UTC 04:00），endTime 02:00 → 已过窗口 → grace
+      jest.useFakeTimers().setSystemTime(new Date('2026-06-30T04:00:00Z'));
       mockPrisma.dailyRecord.findUnique.mockResolvedValue({ id: 'dr1', status: 'replied' });
       mockPrisma.reminderConfig.findUnique.mockResolvedValue({
         startTime: '01:00',

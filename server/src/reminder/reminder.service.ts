@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeNextEndTimeDueAt } from './reminder-schedule.util';
 
 @Injectable()
 export class ReminderService {
@@ -9,8 +10,14 @@ export class ReminderService {
     let config = await this.prisma.reminderConfig.findUnique({ where: { userId } });
 
     if (!config) {
+      const endTime = '22:00';
+      const timezone = 'Asia/Shanghai';
       config = await this.prisma.reminderConfig.create({
-        data: { userId },
+        data: {
+          userId,
+          // 初始化 nextDueAt，否则调度引擎永远扫描不到该用户
+          nextDueAt: computeNextEndTimeDueAt(new Date(), endTime, timezone),
+        },
       });
     }
 
@@ -21,13 +28,20 @@ export class ReminderService {
     userId: string,
     data: { startTime?: string; endTime?: string; gracePeriodMin?: number; timezone?: string },
   ) {
-    await this.getConfig(userId);
+    const current = await this.getConfig(userId);
 
     const updateData: Record<string, unknown> = {};
     if (data.startTime !== undefined) updateData.startTime = data.startTime;
     if (data.endTime !== undefined) updateData.endTime = data.endTime;
     if (data.gracePeriodMin !== undefined) updateData.gracePeriodMin = data.gracePeriodMin;
     if (data.timezone !== undefined) updateData.timezone = data.timezone;
+
+    // endTime 或 timezone 变化时，重算 nextDueAt，保证调度引擎按新时间触发
+    if (data.endTime !== undefined || data.timezone !== undefined) {
+      const endTime = data.endTime ?? current.endTime;
+      const timezone = data.timezone ?? current.timezone;
+      updateData.nextDueAt = computeNextEndTimeDueAt(new Date(), endTime, timezone);
+    }
 
     return this.prisma.reminderConfig.update({
       where: { userId },

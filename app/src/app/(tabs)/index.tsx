@@ -5,6 +5,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Button, Card, StreakBadge, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import { replyApi, alertApi } from '@/services/api.types';
+import { reportError } from '@/services/errorReporter';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { ReplyStatus } from '@/types';
 
@@ -89,11 +90,11 @@ export default function HomeScreen() {
                 timeline: alertData.timeline,
               });
             }
-          }).catch(() => {});
+          }).catch((e) => reportError(e, { scope: 'home.loadActiveAlert' }));
         } else {
           setActiveAlert(null);
         }
-      }).catch(() => {});
+      }).catch((e) => reportError(e, { scope: 'home.loadStatus' }));
       return () => { cancelled = true; };
     }, [setTodayStatus, setReminder, setStreak, setActiveAlert]),
   );
