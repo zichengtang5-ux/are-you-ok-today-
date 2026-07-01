@@ -4,6 +4,7 @@ import { useStore } from '@/store/useStore';
 import { authApi, replyApi } from '@/services/api.types';
 import { reportError } from '@/services/errorReporter';
 import { realtime } from '@/services/realtime';
+import { syncTimezoneIfChanged } from '@/services/timezone';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoadingState } from '@/components/ui/States';
 import {
@@ -51,6 +52,10 @@ export default function RootLayout() {
             }
           });
           void realtime.connect();
+
+          // 出差/跨时区：若设备时区与后端记录不同，同步到后端，
+          // 使提醒按用户当前所在时区触发（后端引擎已按 timezone 计算）
+          void syncTimezoneIfChanged((userData as any).reminderConfig?.timezone);
 
           if (userData.isOnboarded) {
             router.replace('/(tabs)');

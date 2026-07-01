@@ -24,6 +24,7 @@ export interface ReminderConfig {
   startTime: string; // "20:00"
   endTime: string;   // "22:00"
   gracePeriodMin: number; // 30
+  timezone?: string; // IANA 时区，如 "Asia/Shanghai"
 }
 
 export type ReplyStatus =

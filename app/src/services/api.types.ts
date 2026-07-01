@@ -128,6 +128,7 @@ export interface ReminderConfigResponse {
   startTime: string;
   endTime: string;
   gracePeriodMin: number;
+  timezone?: string;
 }
 
 export const reminderApi = {
