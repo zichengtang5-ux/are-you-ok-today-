@@ -17,15 +17,41 @@ permissions:
 
 jobs:
   test:
-    name: Backend Test
+    name: Backend Test (Postgres + Redis)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
       run:
         working-directory: server
     env:
-      DATABASE_URL: file:./ci-test.db
+      DATABASE_URL: postgresql://todayok:todayok@localhost:5432/today_ok_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
       NODE_ENV: test
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: todayok
+          POSTGRES_PASSWORD: todayok
+          POSTGRES_DB: today_ok_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U todayok -d today_ok_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
@@ -44,8 +70,20 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      # 对真实 PostgreSQL 跑迁移：验证 migration 与 schema 一致（防 schema 漂移），
+      # 同时为集成测试准备数据库
+      - name: Apply migrations (real Postgres)
+        run: npx prisma migrate deploy
+
+      # 校验 schema 与已应用迁移无差异（迁移完整性）
+      - name: Verify migrations are in sync
+        run: npx prisma migrate status
+
       - name: Run unit tests
         run: npm test -- --ci --reporters=default
+
+      - name: Run integration tests (real Postgres + Redis)
+        run: npm run test:integration -- --ci --reporters=default
 
       - name: Build
         run: npm run build
