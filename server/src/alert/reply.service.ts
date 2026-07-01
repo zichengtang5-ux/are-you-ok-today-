@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 
 function todayString(): string {
   const now = new Date();
@@ -28,7 +29,10 @@ function isAfterWindowEnd(reminderConfig: { endTime: string } | null): boolean {
 
 @Injectable()
 export class ReplyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsService,
+  ) {}
 
   async replyToday(userId: string) {
     const guardStatus = await this.prisma.guardStatus.findUnique({ where: { userId } });
@@ -98,6 +102,12 @@ export class ReplyService {
         where: { id: activeAlert.id },
         data: { status: 'resolved', resolvedAt: now },
       });
+    }
+
+    // 实时通知（子女端/本人其它设备）：回复确认，若同时解除了告警则额外广播
+    await this.events.publish({ userId, type: 'reply_confirmed' });
+    if (activeAlert) {
+      await this.events.publish({ userId, type: 'alert_resolved' });
     }
 
     return {

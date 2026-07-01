@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { NotificationQueueService } from '../notification/notification-queue.service';
 import { ObservabilityService } from '../observability/observability.module';
+import { EventsService } from '../events/events.service';
 import { getLocalDateParts } from './reminder-schedule.util';
 
 /**
@@ -32,6 +33,7 @@ describe('ReminderCronService', () => {
   const mockPush = { sendCareReminder: jest.fn().mockResolvedValue(true) };
   const mockNotificationQueue = { enqueueAlert: jest.fn().mockResolvedValue(undefined) };
   const mockObservability = { metric: jest.fn(), captureException: jest.fn() };
+  const mockEvents = { publish: jest.fn().mockResolvedValue(undefined) };
   const mockConfig = { get: (key: string, def: unknown) => def };
 
   function due(config: Record<string, unknown>) {
@@ -49,6 +51,7 @@ describe('ReminderCronService', () => {
         { provide: PushService, useValue: mockPush },
         { provide: NotificationQueueService, useValue: mockNotificationQueue },
         { provide: ObservabilityService, useValue: mockObservability },
+        { provide: EventsService, useValue: mockEvents },
         { provide: ConfigService, useValue: mockConfig },
       ],
     }).compile();

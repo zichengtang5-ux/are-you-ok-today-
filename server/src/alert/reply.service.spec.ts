@@ -36,6 +36,7 @@ describe('ReplyService', () => {
       providers: [
         ReplyService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: require('../events/events.service').EventsService, useValue: { publish: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

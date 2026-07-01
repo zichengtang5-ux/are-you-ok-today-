@@ -11,6 +11,7 @@ import Redis from 'ioredis';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler.storage';
 import { ObservabilityModule } from './observability/observability.module';
 import { AllExceptionsFilter } from './observability/all-exceptions.filter';
+import { EventsModule } from './events/events.module';
 import { NotificationModule } from './notification/notification.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -60,6 +61,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     PrismaModule,
     RedisModule,
     ObservabilityModule,
+    EventsModule,
     NotificationModule,
     SmsModule,
     PushModule,

@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { NotificationQueueService } from '../notification/notification-queue.service';
 import { ObservabilityService } from '../observability/observability.module';
+import { EventsService } from '../events/events.service';
 import {
   computeGraceDeadlineDueAt,
   computeNextEndTimeDueAt,
@@ -28,6 +29,7 @@ export class ReminderCronService {
     private pushService: PushService,
     private notificationQueue: NotificationQueueService,
     private observability: ObservabilityService,
+    private events: EventsService,
     config: ConfigService,
   ) {
     this.shardIndex = config.get<number>('SCHEDULER_SHARD_INDEX', 0);
@@ -229,6 +231,8 @@ export class ReminderCronService {
       await this.pushService.sendCareReminder(device.token, user.nickname);
     }
     this.logger.log(`Care reminder sent for user ${user.id} (window ended at ${endTime})`);
+    // 实时推送状态变化，前端无需轮询即可切到 grace 态
+    await this.events.publish({ userId: user.id, type: 'status_changed', payload: { status: 'grace' } });
   }
 
   private async triggerAlert(
@@ -294,5 +298,7 @@ export class ReminderCronService {
       `Alert triggered for user ${user.id}, enqueued notifications for ${user.contacts.length} contacts (round ${round})`,
     );
     this.observability.metric('alert.triggered', 1, { round: String(round) });
+    // 实时推送告警，子女端/本人端立即感知
+    await this.events.publish({ userId: user.id, type: 'alert_triggered', payload: { round } });
   }
 }
