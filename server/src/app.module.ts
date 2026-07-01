@@ -6,7 +6,9 @@ import { BullModule } from '@nestjs/bullmq';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
-import { RedisModule } from './redis/redis.module';
+import { RedisModule, REDIS_CLIENT } from './redis/redis.module';
+import Redis from 'ioredis';
+import { RedisThrottlerStorage } from './common/throttler/redis-throttler.storage';
 import { ObservabilityModule } from './observability/observability.module';
 import { AllExceptionsFilter } from './observability/all-exceptions.filter';
 import { NotificationModule } from './notification/notification.module';
@@ -29,10 +31,16 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{
-      ttl: 60_000,
-      limit: 30,
-    }]),
+    ThrottlerModule.forRootAsync({
+      inject: [REDIS_CLIENT],
+      useFactory: (redis: Redis) => ({
+        // 默认档：常规接口 100 次/分钟。敏感接口（验证码/登录）在 controller 上
+        // 用 @Throttle 覆盖为更严格的档位（见 auth.controller）。
+        throttlers: [{ name: 'default', ttl: 60_000, limit: 100 }],
+        // 用 Redis 存储限流计数，保证多实例一致
+        storage: new RedisThrottlerStorage(redis),
+      }),
+    }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

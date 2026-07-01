@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SendCodeDto } from './dto/send-code.dto';
@@ -14,6 +15,8 @@ export class AuthController {
 
   @Public()
   @Post('send-code')
+  // 严格限流：防短信轰炸/刷验证码 —— 每分钟最多 3 次，超限封禁 5 分钟
+  @Throttle({ default: { limit: 3, ttl: 60_000, blockDuration: 5 * 60_000 } })
   @ApiOperation({ summary: '发送短信验证码' })
   async sendCode(@Body() dto: SendCodeDto) {
     return this.authService.sendCode(dto.phone);
@@ -22,6 +25,8 @@ export class AuthController {
   @Public()
   @Post('verify-code')
   @HttpCode(200)
+  // 防暴力破解验证码：每分钟最多 10 次
+  @Throttle({ default: { limit: 10, ttl: 60_000, blockDuration: 5 * 60_000 } })
   @ApiOperation({ summary: '验证码校验 + 自动注册/登录' })
   async verifyCode(@Body() dto: VerifyCodeDto) {
     return this.authService.verifyCode(dto.phone, dto.code);
