@@ -244,9 +244,6 @@ interface UndoReplyResponse {
 | `app/src/types/index.ts` | 核心领域类型 |
 | `app/src/theme/index.ts` | 设计 tokens |
 | `app/src/components/ui/index.ts` | UI 组件 barrel export |
-| `BACKEND-ALIGNMENT-REPLY.md` | 后端逐项回复原文 |
-| `HANDOFF-TO-FRONTEND.md` | 后端交接给前端的摘要 |
-| `server/PLANNING-SPEC-backend-alignment.md` | 后端实现规划 |
 | `PROJECT-STATUS.md` | **本文档** |
 
 ---
