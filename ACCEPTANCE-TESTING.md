@@ -1,166 +1,212 @@
-# 今天还好 - 产品验收测试指南
+# 验收测试指南
 
-> 协调员专用：在本机 Mac + iOS 模拟器（或真机）上跑通完整用户流程。
+适用于本地模拟器、真机开发构建、EAS internal build 的人工验收。
 
-## 一、环境准备
+## 环境准备
 
-### 1. 后端（已在运行）
-后端 NestJS 服务运行在 `http://localhost:3000`，SQLite + Mock 短信 / Mock APNs / Mock IAP。
+### 后端
 
-如需重启：
+需要 PostgreSQL + Redis。
+
 ```bash
 cd server
+cp .env.example .env
+docker compose up -d --build
+```
+
+或本机已有 PostgreSQL / Redis 时：
+
+```bash
+cd server
+cp .env.example .env
+npm install
+npm run prisma:generate
+npm run prisma:deploy
 npm run start:dev
 ```
 
-> Mock 模式下 `send-code` 返回的 JSON 包含 `mockCode` 字段，即真实验证码，直接用即可。
+Swagger：`http://localhost:3000/api/docs`
 
-日志：`/tmp/today-ok-server.log`
+开发环境下：
 
-### 2. 前端（Expo SDK 56）
+- `SMS_PROVIDER=mock` 时验证码和短信只写日志
+- `VOICE_PROVIDER=mock` 时语音电话只写日志
+- `APNS_PROVIDER=mock` 时推送只写日志
+- `NODE_ENV=development` 时 IAP 使用开发降级逻辑
+
+### 前端
+
 ```bash
 cd app
-npm start         # 启动 Expo Dev Server
-```
-启动后会出现二维码，三种运行方式任选其一：
-
-| 方式 | 命令 | 说明 |
-|------|------|------|
-| iOS 模拟器（推荐） | 在 Expo 终端按 `i` | 自动启动 iPhone 16，localhost 可直通后端 |
-| 真机 Expo Go | 手机扫码 | **需改 API 地址**（见下方） |
-| 真机开发构建 | `npx expo run:ios` | 需 Xcode + Apple 开发者账号 |
-
-### 3. 真机测试时的 API 地址修改
-`app/src/services/api.ts` 第 4 行当前为 `http://localhost:3000/api`。
-真机测试请临时改成 Mac 局域网 IP：
-
-```ts
-const API_BASE_URL = 'http://10.78.46.115:3000/api';
+cp .env.example .env
+npm install
+npx expo start
 ```
 
-> 当前 Mac IP: `10.78.46.115`（以 `ifconfig` 为准）
+模拟器可以使用：
 
----
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3000/api
+```
 
-## 二、完整用户流程（验收路径）
+真机必须使用 Mac 局域网 IP 或公网 HTTPS 后端：
 
-按下面 12 步走完所有 S1–S7 功能，每一步对应一个需求模块。
+```env
+EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
+```
 
-### ✅ S1 注册登录
+## 验收主流程
 
-1. **App 启动** → 进入登录页 `/onboarding/login`
-2. 输入任意 11 位手机号（如 `13800001111`）→ 点「获取验证码」
-   - 后端日志会打印 `mockCode=XXXXXX`，或查看 `server/prisma/dev.db` 的 VerificationCode 表
-3. 输入验证码 → 完成登录
+### 1. 登录与引导
 
-### ✅ S2 引导流程（5 步）
+1. 打开 App，进入登录页。
+2. 输入 11 位手机号，获取验证码。
+3. 从后端日志读取 mock 验证码，完成登录。
+4. 完成协议确认、基本信息、联系人、提醒时间、通知授权。
+5. 引导完成后进入首页。
 
-依次完成：
-1. **协议同意** → 点「同意并继续」
-2. **基础信息** → 填昵称、年龄段
-3. **紧急联系人** → 添加至少 1 位（姓名 + 手机号）
-4. **提醒时间** → 选开始/结束时间（如 08:00 – 22:00）
-5. **通知权限** → 点「开启通知」（iOS 会弹权限对话框，选允许）
+通过标准：
 
-完成后自动跳首页。
+- 用户可登录
+- `auth/me` 返回当前用户
+- 首页显示正确守护状态
+- 本地 token 可持久化，重启后仍能恢复登录态
 
-### ✅ S3 每日打卡（首页）
+### 2. 每日确认
 
-- 首页显示「今天还好吗？」卡片
-- 点「我很好」 → 卡片变绿，今日已确认
-- 后端日志可看到 `DailyRecord` 创建、`GuardStatus` 更新
+1. 首页点击“我很好”。
+2. 状态变为已确认。
+3. 刷新或重启 App。
 
-### ✅ S4 提醒引擎（自动）
+通过标准：
 
-- 后端 `reminder-cron.service` 每分钟扫描一次
-- 当到达结束时间 + 宽限期仍未回复 → 自动：
-  - 发送 Mock APNs 推送（日志 `PushService: sendCareReminder`）
-  - 宽限期过后发 Mock 短信给紧急联系人（日志 `SmsService: sendAlert`）
+- 后端创建或更新 `DailyRecord`
+- `GuardStatus.status` 变为 `replied`
+- 首页保持已确认状态
 
-> 要快速触发，可临时把 `reminder.endTime` 改到当前时间前，或手动调用 `POST /api/reply` 后再等待下一轮 cron。
+### 3. 宽限期与告警
 
-### ✅ S5 紧急求助 + 守护中心
+1. 将提醒结束时间设为当前时间之前。
+2. 等待 reminder cron 扫描，或在测试环境中触发到期检查。
+3. 用户未回复时进入 `grace`。
+4. 宽限期后进入 `alert`。
 
-- 首页/Tab 进入「紧急求助」页：
-  - 显示当前定位（模拟器：Features → Location → 自选坐标）
-  - 点「拨打 120」→ 模拟器拨号
-  - 点「联系 XXX」→ 拨打紧急联系人
-- 设置页 → 「守护中心 →」进入子女端页面：
-  - 创建守护关系（输入被守护人手机号，不同于自己）
-  - 生成 8 位邀请码
-  - 模拟子女端：退出登录 → 用另一手机号登录 → 输入邀请码接受
+通过标准：
 
-### ✅ S6 订阅（IAP Mock）
+- `grace` 时发送关怀提醒
+- `alert` 时创建 `AlertEvent`
+- 通知任务进入 BullMQ
+- mock SMS / voice / APNs 日志可见
+- 前端通过 SSE 或刷新拿到状态变化
 
-- 设置页 → 「升级守护版」进入订阅页
-- Mock 模式下点「立即订阅」→ 直接成功（NODE_ENV=development 自动 mock）
-- 状态变成「守护版 · 月付/年付」
+### 4. 告警联系人处理
 
-### ✅ S7 暂停 / 删除账号
+当前状态：前端已声明联系人处理接口，但后端尚未实现 `/api/alert/:id/confirm` 和 `/api/alert/:id/help`。这项是 P0 契约缺口，补齐前只能验收告警生成和 `/api/alert/active` 展示。
 
-- 设置页 → 「暂停守护」→ 选天数（1/3/7 天或自定义）
-  - 暂停期间不打提醒、不判定异常
-  - 支持「提前恢复」
-- 设置页 → 「删除我的数据」→ 输入「确认删除」→ 所有数据清空
-- 设置页 → 「删除账号」→ 级联删除（后端 `UserController.deleteAccount`）
+1. 打开告警联系人链接或告警处理页。
+2. 选择“确认安全”。
+3. 重新触发告警后选择“需要帮助”。
 
----
+通过标准：
 
-## 三、常用调试命令
+- 后端已补齐对应接口
+- `AlertAction` 被记录
+- `AlertEvent.status` 正确流转
+- 首页告警态展示对应结果
+
+### 5. 子女守护
+
+1. 用户 A 创建守护邀请。
+2. 用户 B 用邀请码绑定。
+3. 用户 B 查看守护列表和看板。
+4. 用户 B 代确认。
+
+通过标准：
+
+- `GuardianRelation.isBound=true`
+- 守护列表展示被守护人
+- 看板显示可用统计
+- 代确认成功后被守护人状态同步更新
+
+### 6. 暂停与恢复
+
+1. 在设置页暂停守护。
+2. 首页状态变为 `paused`。
+3. 执行恢复。
+
+通过标准：
+
+- 暂停期内 reminder cron 不触发告警
+- 恢复后状态回到可继续守护的状态
+
+### 7. 删除账号
+
+1. 进入设置页。
+2. 点击删除账号。
+3. 输入确认文本并提交。
+
+通过标准：
+
+- 后端执行 `DELETE /api/user/account`
+- 本地 `access_token`、`refresh_token` 被清除
+- Zustand 状态重置
+- App 返回登录页
+
+### 8. 订阅
+
+开发环境先验收 UI 与后端状态：
+
+1. 进入订阅页。
+2. 选择月付或年付。
+3. 子女端进入代付订阅页。
+
+上线前必须补充真实 StoreKit sandbox 验收：
+
+- App Store Connect 订阅产品已创建
+- sandbox Apple ID 可购买
+- 后端 `POST /api/subscription/verify` 校验通过
+- `GET /api/subscription/status` 返回 active
+
+### 9. 紧急求助
+
+1. 进入紧急求助页。
+2. 授权定位。
+3. 提交求助。
+
+通过标准：
+
+- 有定位权限时提交经纬度
+- 定位失败时可回退保存地址
+- 后端创建 `HelpRequest`
+- 联系人收到 mock 通知日志
+
+## 自动化检查
+
+提交前至少跑：
 
 ```bash
-# 重置数据库
-rm server/prisma/dev.db && cd server && npx prisma migrate deploy
+cd app
+npx tsc --noEmit
+npm test -- --runInBand
+npm run lint
 
-# 查看数据表
-cd server && npx prisma studio    # 打开 http://localhost:5555
-
-# 查看后端日志
-tail -f /tmp/today-ok-server.log
-
-# 手动调接口
-curl -X POST http://localhost:3000/api/auth/send-code \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"13800001111"}'
+cd ../server
+npm test -- --runInBand
+npm run build
 ```
 
----
+有 PostgreSQL + Redis 时再跑：
 
-## 四、验收检查清单
-
-| # | 检查项 | 期望 |
-|---|--------|------|
-| 1 | 首次启动进登录页 | ✅ |
-| 2 | 验证码 60s 冷却 | ✅ |
-| 3 | 引导 5 步完整走完 | ✅ |
-| 4 | 首页 6 种状态机切换正常 | ✅ 默认/已确认/超时预警/异常/暂停/求助 |
-| 5 | 通知权限已请求 | ✅ |
-| 6 | 通讯录导入能用（iOS） | ✅ |
-| 7 | 提醒窗口结束后收到推送（Mock 日志可见） | ✅ |
-| 8 | 宽限期过后紧急联系人收到短信（Mock） | ✅ |
-| 9 | 紧急求助页能拨号 | ✅ |
-| 10 | 守护关系能建立（邀请码 8 位） | ✅ |
-| 11 | 订阅 Mock 下单成功 | ✅ |
-| 12 | 暂停守护生效 | ✅ |
-| 13 | 删除账号级联清除 | ✅ |
-
----
-
-## 五、常见问题
-
-**Q: 模拟器无法访问 localhost?**
-A: 正常 iOS 模拟器的 localhost 指向 Mac，应能直连。如不行改用 Mac 局域网 IP。
-
-**Q: 收不到通知？**
-A: 后端用 Mock APNs，仅打印日志，不弹 iOS 通知。验收时看 `server.log` 的 `PushService` 输出即可。
-
-**Q: StoreKit 订阅不生效？**
-A: `NODE_ENV=development` 下 IAP 自动走 mock，不会触发真实 Apple 支付。
-
-**Q: 想重头再测一遍？**
-A: 删数据库 + App 数据：
 ```bash
-rm server/prisma/dev.db
-cd server && npx prisma migrate deploy
-# 模拟器：Device → Erase All Content and Settings
+cd server
+npm run test:integration
 ```
+
+## 上线前真机重点
+
+- APNs token 是否能成功上报
+- 真机定位授权与地址回退
+- 深链 `todayok://` 是否能打开邀请
+- SSE 在锁屏/切后台/恢复后是否能重连
+- StoreKit sandbox 购买、恢复购买、过期降级
+- 删除账号后再次登录是否是干净状态

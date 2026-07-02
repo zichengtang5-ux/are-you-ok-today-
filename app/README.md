@@ -1,62 +1,123 @@
-# 今天还好 · 前端（app）
+# 今天还好 · 前端
 
-「今天还好」独居守护 App 的前端，基于 **Expo (React Native) + Expo Router**，主打 iOS。
-
-> 后端见仓库根目录的 [`server/`](../server)。整体介绍见[根 README](../README.md)。
+Expo / React Native iOS App，负责独居用户每日确认、告警处理、子女守护、订阅和紧急求助流程。
 
 ## 技术栈
 
-- **Expo 56 / React Native 0.85 / React 19**
-- **Expo Router**（文件路由）
-- **Zustand**（状态管理，AsyncStorage 持久化）
-- **Axios**（含 token 注入 + 401 自动刷新拦截）
-- **SSE 实时通道**（`services/realtime.ts`，替代轮询）
-- **Apple IAP / StoreKit 2**（订阅，`services/iap*.ts`）
+- Expo 56
+- React Native 0.85
+- React 19
+- Expo Router
+- Zustand + AsyncStorage
+- Axios
+- SSE 实时通道
+- Expo Notifications
+- Expo Location
+- react-native-iap / StoreKit 2
 
 ## 目录
 
-```
+```text
 src/
-├── app/            # Expo Router 路由
-│   ├── onboarding/ #   注册引导（登录→协议→信息→联系人→提醒→授权→完成）
-│   ├── (tabs)/     #   首页(状态机) / 看板 / 设置
-│   ├── alert/      #   告警处理
-│   ├── guardian/   #   子女端（守护列表 / 看板 / 邀请 / 代确认）
-│   ├── subscription/ # 订阅（选择 / 代付 / 成功）
-│   └── help/       #   紧急求助
-├── store/          # Zustand 全局状态
-├── services/       # api / notifications / iap / deepLink / realtime / timezone / errorReporter
-├── components/ui/  # 可复用 UI 组件
-├── theme/          # 设计 tokens
-└── types/          # 领域类型
+├── app/              # Expo Router 页面
+│   ├── onboarding/   # 注册与引导
+│   ├── (tabs)/       # 首页、看板、设置
+│   ├── alert/        # 告警联系人处理
+│   ├── guardian/     # 子女端守护关系
+│   ├── subscription/ # 本人订阅与子女代付
+│   └── help/         # 紧急求助
+├── components/       # UI 组件
+├── services/         # API、SSE、通知、IAP、深链、配置
+├── store/            # Zustand 状态
+├── theme/            # 设计 token
+└── types/            # 领域类型
 ```
 
-## 开发
+## 本地开发
 
 ```bash
 npm install
-npx expo start        # 按提示在 iOS 模拟器 / Expo Go 打开
+cp .env.example .env
+npx expo start
 ```
 
-常用脚本：
+常用命令：
 
 ```bash
-npm run ios           # 直接开 iOS 模拟器
-npm test              # Jest 单元 / 流程集成测试
-npx tsc --noEmit      # 类型检查
-npm run lint          # ESLint
+npm run ios
+npm test -- --runInBand
+npx tsc --noEmit
+npm run lint
+npx expo-doctor
 ```
 
 ## 环境变量
 
-| 变量 | 说明 | 默认 |
-|------|------|------|
-| `EXPO_PUBLIC_API_URL` | 后端 API 地址 | `http://localhost:3000/api` |
-| `EXPO_PUBLIC_APP_STORE_URL` | App Store 下载链接 | — |
-| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN（可选，配置后启用错误上报） | — |
+`.env.example` 是当前模板：
 
-## 测试
+| 变量 | 用途 | 默认行为 |
+|------|------|----------|
+| `EXPO_PUBLIC_API_URL` | 后端 API 地址 | 不配置时使用 `http://localhost:3000/api` |
+| `EXPO_PUBLIC_APP_STORE_URL` | 邀请链接中的 App Store 地址 | 不配置时使用占位 App Store URL |
+| `EXPO_PUBLIC_TERMS_URL` | 用户协议 URL | 不配置时设置页会提示未配置 |
+| `EXPO_PUBLIC_PRIVACY_URL` | 隐私政策 URL | 不配置时设置页会提示未配置 |
+| `EXPO_PUBLIC_SENTRY_DSN` | 前端错误上报 DSN | 空值时不启用 |
 
-单元 / 流程集成测试位于 `src/**/__tests__`，覆盖 store（100%）、api 拦截器、通知、IAP、深链、SSE 解析、时区、关键用户流程。
+真机测试不能使用 `localhost` 访问 Mac 后端，需要改成局域网地址：
 
-> 组件 DOM 渲染 / 真机 E2E：当前 React 19 + jest-expo 环境下 RTL 适配成本较高，真机级 E2E 建议在 Mac + EAS Build 上用 Detox / Maestro 补充。
+```env
+EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
+```
+
+## EAS Build
+
+已提供 `eas.json`：
+
+- `preview`：internal distribution，iOS simulator build
+- `production`：App Store production build，自动递增版本号
+
+常用命令：
+
+```bash
+npx eas build --platform ios --profile preview
+npx eas build --platform ios --profile production
+npx eas submit --platform ios --profile production
+```
+
+生产构建前必须确认：
+
+- Apple Developer Program 已开通
+- App Store Connect 已创建 App
+- bundle id 与 `app.json` 中的 `com.todayok.app` 一致
+- `EXPO_PUBLIC_API_URL` 指向 HTTPS 生产 API
+- `EXPO_PUBLIC_TERMS_URL` 和 `EXPO_PUBLIC_PRIVACY_URL` 可公开访问
+- App Store Connect 已创建 IAP 订阅产品
+
+## 当前功能
+
+- 手机号验证码登录
+- 引导流程：协议、基础信息、联系人、提醒时间、通知授权
+- 首页状态机：`idle / waiting / replied / grace / alert / paused`
+- 今日确认与告警状态展示
+- 紧急联系人告警处理
+- 子女端：创建邀请、接受邀请、守护列表、看板、代确认
+- 设置：提醒时间、地址、联系人、暂停守护、删除账号
+- 订阅：本人购买、子女代付、订阅成功页
+- 紧急求助：定位、地址回退、通知联系人
+- SSE 实时状态同步
+
+## 验证记录
+
+最近一次完整验证：
+
+- `npx tsc --noEmit` 通过
+- `npm test -- --runInBand` 通过
+- `npm run lint` 0 errors，仍有少量 warnings
+- `npx expo install --check` 通过
+- `npx expo-doctor` 通过
+- `npm audit --audit-level=moderate` 0 vulnerabilities
+- `npx expo export --platform ios` 成功
+
+## 注意
+
+`app/AGENTS.md` 要求写前端代码前先查 Expo 56 官方文档。升级 Expo 或改原生插件时必须重新验证 `expo-doctor` 和 iOS bundle。

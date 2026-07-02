@@ -1,107 +1,182 @@
-# 今天还好 — 后端部署指南
+# 后端部署指南
+
+后端是 NestJS + Prisma + PostgreSQL + Redis + BullMQ。生产环境不要使用 SQLite，当前 schema 只面向 PostgreSQL。
 
 ## 前置要求
 
-- Docker 20.10+
-- Docker Compose v2+
-- （可选）Node.js 20+ 用于本地开发
+- Node.js 20+
+- PostgreSQL 16+
+- Redis 7+
+- Docker / Docker Compose v2（可选）
 
-## 环境变量
-
-复制 `.env.example` 为 `.env`，根据环境修改：
+## 本地 Docker 启动
 
 ```bash
+cd server
 cp .env.example .env
-```
-
-**生产环境必须修改的项**：
-
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `JWT_SECRET` | JWT 签名密钥（≥32 字符随机字符串） | `openssl rand -base64 48` |
-| `NODE_ENV` | 运行环境 | `production` |
-| `DATABASE_URL` | PostgreSQL 连接串 | `postgresql://user:pass@host:5432/today_ok?schema=public` |
-| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Redis 连接（缓存 / 限流 / BullMQ 队列） | `redis.internal` / `6379` / `<强密码>` |
-| `SCHEDULER_SHARD_INDEX` / `SCHEDULER_SHARD_TOTAL` | 多实例调度分片（各实例不同 INDEX） | `0` / `4` |
-
-## Docker 部署（推荐）
-
-### 构建并启动
-
-```bash
-# 构建镜像 + 启动容器（后台运行）
 docker compose up -d --build
-
-# 查看日志
-docker compose logs -f api
-
-# 停止
-docker compose down
 ```
 
-### 数据持久化
+服务：
 
-`docker compose` 会启动三个服务：`api`、`postgres`、`redis`。
-- PostgreSQL 数据存储在 volume `pg-data`（容器内 `/var/lib/postgresql/data`）。
-- Redis（AOF 持久化）存储在 volume `redis-data`。
+- API：`http://localhost:3000`
+- Swagger：`http://localhost:3000/api/docs`
+- PostgreSQL：容器内 `postgres:5432`
+- Redis：容器内 `redis:6379`
 
-备份数据库：
-```bash
-docker compose exec postgres pg_dump -U todayok today_ok > ./backup-$(date +%Y%m%d).sql
-```
-
-### 数据库迁移
-
-容器启动时自动执行 `prisma migrate deploy`，无需手动操作。
-
-如需手动迁移：
-```bash
-docker compose exec api npx prisma migrate deploy
-```
-
-## 本地开发
+## 本地非 Docker 启动
 
 ```bash
-# 安装依赖
+cd server
+cp .env.example .env
 npm install
-
-# 生成 Prisma Client
-npx prisma generate
-
-# 运行迁移
-npx prisma migrate dev
-
-# 启动开发服务器（热重载）
+npm run prisma:generate
+npm run prisma:deploy
 npm run start:dev
 ```
 
-API 文档：http://localhost:3000/api/docs
+如果要创建新 migration：
+
+```bash
+npm run prisma:migrate
+```
+
+## 生产环境变量
+
+以 `server/.env.example` 为模板。
+
+### 必填
+
+| 变量 | 说明 |
+|------|------|
+| `NODE_ENV=production` | 生产模式 |
+| `PORT` | API 端口 |
+| `DATABASE_URL` | PostgreSQL 连接串 |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Redis 连接 |
+| `JWT_SECRET` | 至少 32 字符的随机密钥 |
+| `JWT_ACCESS_EXPIRES_IN` | access token 有效期 |
+| `JWT_REFRESH_EXPIRES_IN` | refresh token 有效期 |
+
+### 调度分片
+
+| 变量 | 说明 |
+|------|------|
+| `SCHEDULER_SHARD_INDEX` | 当前实例编号，从 0 开始 |
+| `SCHEDULER_SHARD_TOTAL` | 总实例数 |
+
+单实例：
+
+```env
+SCHEDULER_SHARD_INDEX=0
+SCHEDULER_SHARD_TOTAL=1
+```
+
+多实例时每个实例必须使用不同 `SCHEDULER_SHARD_INDEX`，避免重复触发提醒。
+
+### 通知 provider
+
+开发环境可以使用 mock：
+
+```env
+SMS_PROVIDER=mock
+VOICE_PROVIDER=mock
+APNS_PROVIDER=mock
+```
+
+生产环境建议：
+
+```env
+SMS_PROVIDER=aliyun
+VOICE_PROVIDER=aliyun
+APNS_PROVIDER=apns
+```
+
+需要同时配置：
+
+- `ALIYUN_ACCESS_KEY_ID`
+- `ALIYUN_ACCESS_KEY_SECRET`
+- `ALIYUN_SMS_SIGN_NAME`
+- `ALIYUN_SMS_VERIFY_TEMPLATE_CODE`
+- `ALIYUN_SMS_ALERT_TEMPLATE_CODE`
+- `ALIYUN_VOICE_ALERT_TEMPLATE_CODE`
+- `APNS_KEY_ID`
+- `APNS_TEAM_ID`
+- `APNS_KEY_PATH`
+- `APNS_BUNDLE_ID`
+
+### Apple IAP
+
+生产订阅校验需要：
+
+- `APPLE_IAP_ISSUER_ID`
+- `APPLE_IAP_KEY_ID`
+- `APPLE_IAP_KEY_PATH`
+
+## 部署步骤
+
+1. 创建 PostgreSQL 数据库。
+2. 创建 Redis 实例。
+3. 配置 `.env`。
+4. 生成 Prisma Client。
+5. 执行 migration。
+6. 启动 API。
+
+```bash
+npm ci
+npm run prisma:generate
+npm run prisma:deploy
+npm run build
+npm run start:prod
+```
+
+Docker 部署时容器启动命令应保证先执行：
+
+```bash
+npx prisma migrate deploy
+node dist/main
+```
 
 ## 健康检查
 
-生产容器内置健康检查，访问 `/api/docs` 端点。
+当前 Docker Compose 使用 Swagger 端点作为健康检查：
 
-手动验证：
 ```bash
 curl http://localhost:3000/api/docs
 ```
 
-## 生产环境建议
+生产环境建议增加独立 `/health` 接口，便于负载均衡器检查。
 
-1. **数据库**：使用托管 PostgreSQL（如阿里云 RDS），配置主从读写分离与连接池；热点表（DailyRecord/AlertEvent）按用户分区
-2. **Redis**：使用托管 Redis（如阿里云 Tair），承载缓存、限流计数与 BullMQ 队列；开启持久化与高可用
-3. **多实例调度**：水平扩展时每个实例设置不同 `SCHEDULER_SHARD_INDEX`，避免 cron 重复触发
-4. **反向代理**：建议在前面加 Nginx/Caddy 做 TLS 终止
-5. **日志收集**：接入 CloudWatch / 阿里云 SLS
-6. **监控**：接入 Sentry（应用错误）+ 阿里云云监控（资源），对告警触发量与通知送达率单独建看板
-7. **备份**：每日自动 `pg_dump`
-8. **短信/推送**：上线前配置阿里云 SMS 和 APNs 真实凭证
+## CI
 
-## 端口映射
+`.github/workflows/backend-ci.yml` 会在 pull request 和 `main` push 时运行：
 
-默认映射 `3000:3000`，可通过 `.env` 中 `PORT` 修改：
+1. `npm ci`
+2. `npx prisma generate`
+3. `npx prisma migrate deploy`
+4. `npx prisma migrate status`
+5. `npm test`
+6. `npm run test:integration`
+7. `npm run build`
+
+CI 使用真实 PostgreSQL 和 Redis service 容器。
+
+## 生产建议
+
+- PostgreSQL 使用托管数据库，开启自动备份。
+- Redis 使用托管实例，开启持久化和访问控制。
+- API 前面放 HTTPS 反向代理或云负载均衡。
+- APNs `.p8` key 不要放进仓库。
+- 阿里云 AccessKey 使用最小权限 RAM 用户。
+- 接入 Sentry 或同类错误上报。
+- 建立通知送达率、告警触发量、任务失败率看板。
+- 定期验证短信、语音、APNs、IAP 的真实链路。
+
+## 备份
+
+Docker 本地备份示例：
+
 ```bash
-PORT=8080  # .env 中修改
+docker compose exec postgres pg_dump -U todayok today_ok > backup-$(date +%Y%m%d).sql
 ```
 
-然后 docker-compose.yml 中对应修改端口映射，或直接使用 `HOST_PORT:3000` 模式。
+生产建议使用云数据库自动备份，保留至少 7 天。

@@ -1,38 +1,40 @@
 # 今天还好 · are you ok today
 
-面向独居人群的安全守护 App：用户每天确认一次"平安"，若在设定时段结束后仍未确认，系统会在宽限期后自动通过短信 / 语音电话 / 推送通知其紧急联系人与子女。
+面向独居人群的安全守护 App。用户每天确认一次“平安”；若在提醒窗口结束后仍未确认，系统会进入宽限期，并在超时后通过推送、短信、语音电话通知紧急联系人或子女。
 
-- **前端**：Expo (React Native) + Expo Router，主打 iOS，App Store 分发
-- **后端**：NestJS + Prisma + PostgreSQL + Redis + BullMQ
-- **商业模式**：子女代付订阅（守护版），Apple IAP
+## 当前状态
 
----
+- 前端：Expo 56 / React Native 0.85 / Expo Router，主打 iOS 与 App Store 分发
+- 后端：NestJS 11 / Prisma / PostgreSQL / Redis / BullMQ
+- 实时能力：SSE + Redis pub/sub，状态变化不再依赖 30 秒轮询
+- 通知能力：APNs、阿里云短信、阿里云语音电话，开发环境可用 mock provider
+- 订阅能力：Apple IAP / StoreKit 2，支持本人订阅和子女代付
+- 发布配置：已提供 `app/eas.json`、`app/.env.example`、`server/.env.example`
 
 ## 目录结构
 
-```
+```text
 .
-├── app/                  # 前端（Expo / React Native）
-│   ├── src/app/          #   Expo Router 文件路由（onboarding / tabs / alert / guardian / subscription / help）
-│   ├── src/store/        #   Zustand 状态（含 persist）
-│   ├── src/services/     #   api / 通知 / IAP / 深链 / 实时(SSE) / 时区 / 错误上报
-│   └── src/components/   #   UI 组件 + 主题
-├── server/               # 后端（NestJS）
-│   ├── src/reminder/     #   提醒触发引擎（按 nextDueAt 索引扫描 + 分片）
-│   ├── src/notification/ #   BullMQ 异步通知投递（重试 / 死信 / 回执）
-│   ├── src/events/       #   SSE + Redis pub/sub 实时通道
-│   ├── src/auth|user|contact|guardian|subscription|pause|help/  # 业务模块
-│   ├── src/common/       #   守卫 / 装饰器 / Redis 限流
-│   └── prisma/           #   schema + migrations（PostgreSQL）
-└── docs（根目录）        # 产品 PRD、竞品研究、原型、验收、状态总览
+├── app/                  # Expo / React Native 前端
+│   ├── src/app/          # Expo Router 页面路由
+│   ├── src/services/     # API、SSE、通知、IAP、深链、错误上报
+│   ├── src/store/        # Zustand 全局状态
+│   └── src/components/   # UI 组件与主题
+├── server/               # NestJS 后端
+│   ├── src/              # auth、reply、reminder、alert、guardian、subscription 等模块
+│   ├── prisma/           # PostgreSQL schema 与 migrations
+│   └── docker-compose.yml
+└── *.md                  # 产品、状态、验收与研究文档
 ```
 
 ## 核心链路
 
-1. **提醒调度**：`ReminderConfig.nextDueAt` 建索引，cron 每分钟只扫「到期」记录（负载与到期用户数成正比，而非总用户数），支持多实例分片 + 时区感知。
-2. **状态机**：`idle → grace → alert`；用户回复则 `replied`。
-3. **告警投递**：进入 alert 后，通知任务入 BullMQ，独立 worker 投递短信/语音，带重试 + 死信 + 送达回执，不阻塞调度。
-4. **实时同步**：状态变化经 Redis pub/sub 广播，前端通过 SSE (`/api/events/stream`) 实时接收，替代轮询。
+1. 用户完成注册、协议确认、联系人、提醒时间和通知授权。
+2. `ReminderConfig.nextDueAt` 驱动每分钟调度，只扫描已到期记录。
+3. 未确认用户进入 `grace`，发送关怀提醒。
+4. 宽限期后仍未确认则进入 `alert`，异步通知紧急联系人。
+5. 状态变化通过 Redis pub/sub 与 SSE 推给前端。
+6. 子女端可绑定被守护人、查看看板、代确认、代付订阅。
 
 ## 快速开始
 
@@ -40,50 +42,83 @@
 
 ```bash
 cd server
-cp .env.example .env          # 配置 DATABASE_URL / REDIS_* / JWT_SECRET 等
-docker compose up -d          # 起 api + postgres + redis
-# 或本地开发：
+cp .env.example .env
 npm install
-npx prisma generate
-npx prisma migrate deploy
+npm run prisma:generate
+npm run prisma:deploy
 npm run start:dev
 ```
 
-API 文档：`http://localhost:3000/api/docs`
+本地依赖 PostgreSQL 与 Redis。也可以直接使用 Docker Compose：
+
+```bash
+cd server
+cp .env.example .env
+docker compose up -d --build
+```
+
+Swagger 地址：`http://localhost:3000/api/docs`
 
 ### 前端
 
 ```bash
 cd app
+cp .env.example .env
 npm install
-npx expo start                # 按提示在 iOS 模拟器 / Expo Go 打开
+npx expo start
 ```
 
-## 测试
+真机测试时把 `EXPO_PUBLIC_API_URL` 改为局域网可访问的后端地址，例如：
+
+```env
+EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
+```
+
+## 验证命令
 
 ```bash
-# 后端单测
-cd server && npm test
-# 后端集成测试（需 Postgres + Redis，见 CI）
-npm run test:integration
-# 前端
-cd app && npm test
+# app
+cd app
+npx tsc --noEmit
+npm test -- --runInBand
+npm run lint
+npx expo-doctor
+npm audit --audit-level=moderate
+
+# server
+cd server
+npm run prisma:generate
+npm test -- --runInBand
+npm run build
+npm audit --audit-level=moderate
 ```
 
-CI（`.github/workflows/backend-ci.yml`）在真实 Postgres + Redis service 容器上跑迁移 + 单测 + 集成测试。
+后端真实集成测试需要 PostgreSQL + Redis：
 
-## 部署
+```bash
+cd server
+npm run test:integration
+```
 
-见 [`server/DEPLOYMENT.md`](server/DEPLOYMENT.md)。生产建议：托管 PostgreSQL（主从）+ 托管 Redis、多实例调度分片、Sentry 监控、告警送达率看板。
+GitHub Actions 的 Backend CI 会在真实 PostgreSQL + Redis service 容器中跑迁移、单测、集成测试和构建。
+
+## 发布入口
+
+- iOS 构建：`cd app && npx eas build --platform ios --profile production`
+- iOS 提交：`cd app && npx eas submit --platform ios --profile production`
+- 后端部署：见 [server/DEPLOYMENT.md](server/DEPLOYMENT.md)
 
 ## 文档索引
 
-| 文档 | 说明 |
+| 文档 | 用途 |
 |------|------|
-| [PROJECT-STATUS.md](PROJECT-STATUS.md) | 开发过程状态总览与上线 checklist |
-| [独居提醒-PRD-Phase1-v2.0.md](独居提醒-PRD-Phase1-v2.0.md) | 最新产品需求文档 |
-| [独居提醒-产品探索文档.md](独居提醒-产品探索文档.md) | 产品定位与探索 |
-| [competitor-research-reminder-apps.md](competitor-research-reminder-apps.md) | 竞品研究 |
-| [ACCEPTANCE-TESTING.md](ACCEPTANCE-TESTING.md) | 验收测试用例 |
-| [server/SPEC-S1-auth.md](server/SPEC-S1-auth.md) · [SPEC-S3-reminder-engine.md](server/SPEC-S3-reminder-engine.md) | 后端技术规范 |
-| [server/DEPLOYMENT.md](server/DEPLOYMENT.md) | 部署指南 |
+| [PROJECT-STATUS.md](PROJECT-STATUS.md) | 当前进度、剩余上线事项、风险 |
+| [ACCEPTANCE-TESTING.md](ACCEPTANCE-TESTING.md) | 人工验收流程 |
+| [app/README.md](app/README.md) | 前端开发、环境变量、EAS 构建 |
+| [server/API.md](server/API.md) | 当前后端 API 索引 |
+| [server/DEPLOYMENT.md](server/DEPLOYMENT.md) | 后端部署与生产配置 |
+| [独居提醒-PRD-Phase1-v2.0.md](独居提醒-PRD-Phase1-v2.0.md) | 当前保留的产品需求文档 |
+| [独居提醒-产品探索文档.md](独居提醒-产品探索文档.md) | 产品方向与边界 |
+| [competitor-research-personal-reminder-apps.md](competitor-research-personal-reminder-apps.md) | 竞品研究 |
+
+历史 PRD、变更记录、阶段规划和已过期 SPEC 已删除，避免继续误导开发。
