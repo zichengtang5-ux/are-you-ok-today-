@@ -13,7 +13,8 @@ import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Card, Input, Button, Banner } from '@/components/ui';
 import { guardianApi, type CreateGuardianResponse } from '@/services/api.types';
-import { Colors, FontSizes, FontWeights, Spacing, Radius, Shadows } from '@/theme';
+import { APP_STORE_URL } from '@/services/config';
+import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 const RELATIONS = [
   { label: '子女', value: '子女' },
@@ -23,8 +24,6 @@ const RELATIONS = [
   { label: '朋友', value: '朋友' },
   { label: '其他', value: '其他' },
 ];
-
-const APP_STORE_URL = 'https://apps.apple.com/app/today-ok/id000000000';
 
 function validatePhone(phone: string): boolean {
   return /^1[3-9]\d{9}$/.test(phone);
@@ -86,7 +85,7 @@ export default function CreateGuardianScreen() {
       await Share.share({
         message: `我在「今天还好」为你开通了守护，下载 App 后打开以下链接即可绑定：\n${result.inviteLink}\n\nApp 下载：${APP_STORE_URL}`,
       });
-    } catch (e) {
+    } catch {
       Alert.alert('分享失败', '请稍后重试');
     }
   };
@@ -179,7 +178,7 @@ export default function CreateGuardianScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.previewTitle}>远程守护家人</Text>
               <Text style={styles.previewDesc}>
-                家人每天回复"今天还好"，你即可在 App 中查看 TA 的平安状态
+                家人每天回复「今天还好」，你即可在 App 中查看 TA 的平安状态
               </Text>
             </View>
           </View>

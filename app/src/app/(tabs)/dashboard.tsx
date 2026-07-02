@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Button, StreakBadge } from '@/components/ui';
+import { Card, Button } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
@@ -93,7 +93,7 @@ export default function DashboardScreen() {
         {/* Proxy confirm */}
         {guardian.status !== 'replied' && (
           <Button variant="primary" onPress={() => {}}>
-            代确认"TA没事"
+            代确认「TA没事」
           </Button>
         )}
 

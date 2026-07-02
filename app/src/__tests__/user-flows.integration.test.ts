@@ -6,6 +6,9 @@
  * 因此以"页面所依赖的 store + service 编排"为单元做流程级集成测试——
  * 覆盖页面行为背后的真实状态流转逻辑，稳定可靠。
  */
+import { useStore } from '@/store/useStore';
+import type { RealtimeEvent } from '@/services/realtime';
+
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
@@ -13,9 +16,6 @@ jest.mock('@/services/api.types', () => ({
   subscriptionApi: { getStatus: jest.fn() },
 }));
 jest.mock('@/services/errorReporter', () => ({ reportError: jest.fn() }));
-
-import { useStore } from '@/store/useStore';
-import type { RealtimeEvent } from '@/services/realtime';
 
 const mockSubscriptionApi = (jest.requireMock('@/services/api.types') as {
   subscriptionApi: { getStatus: jest.Mock };

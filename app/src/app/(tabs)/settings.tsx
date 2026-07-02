@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Card, Button, Banner, Dialog } from '@/components/ui';
+import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Card, Button, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
-import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+import { userApi } from '@/services/api.types';
+import { PRIVACY_URL, TERMS_URL } from '@/services/config';
+import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
 
 const PLAN_LABEL: Record<string, string> = {
@@ -48,10 +52,10 @@ export default function SettingsScreen() {
     contacts,
     subscription,
     refreshSubscription,
-    notificationAuthorized,
+    resetAppState,
   } = useStore();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // 进入设置时刷新订阅态（轻量 GET /subscription/status）
   useEffect(() => {
@@ -60,17 +64,32 @@ export default function SettingsScreen() {
     }
   }, [user, refreshSubscription]);
 
-  const status = subscription?.status ?? 'none';
   const isPremium = !!subscription?.isPremium;
   const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
   const endLabel = formatEnd(subscription?.currentPeriodEnd);
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
-  const handleDeleteData = () => {
-    if (deleteConfirmText === '确认删除') {
-      // TODO: Call API to delete user data
-      console.log('Deleting user data...');
+  const openLegalUrl = async (url: string, label: string) => {
+    if (!url) {
+      Alert.alert(`${label}未配置`, '请先配置对应的 EXPO_PUBLIC 环境变量。');
+      return;
+    }
+    await Linking.openURL(url);
+  };
+
+  const handleDeleteData = async () => {
+    if (deleteLoading) return;
+    setDeleteLoading(true);
+    try {
+      await userApi.deleteAccount('确认删除');
+      await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+      resetAppState();
       setDeleteDialogVisible(false);
-      setDeleteConfirmText('');
+      router.replace('/onboarding/login');
+    } catch (e: any) {
+      Alert.alert('删除失败', e?.response?.data?.message ?? '请稍后重试');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -149,10 +168,18 @@ export default function SettingsScreen() {
 
         {/* Legal & data */}
         <Card title="法律与数据" style={styles.card}>
-          <Pressable style={styles.linkRow}>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => openLegalUrl(TERMS_URL, '用户协议')}
+            accessibilityLabel="查看用户协议"
+          >
             <Text style={styles.linkText}>查看协议</Text>
           </Pressable>
-          <Pressable style={styles.linkRow}>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => openLegalUrl(PRIVACY_URL, '隐私政策')}
+            accessibilityLabel="查看隐私政策"
+          >
             <Text style={styles.linkText}>隐私政策</Text>
           </Pressable>
           <Pressable
@@ -211,7 +238,7 @@ export default function SettingsScreen() {
         </Card>
 
         {/* Version */}
-        <Text style={styles.version}>今天还好 v1.0</Text>
+        <Text style={styles.version}>今天还好 v{appVersion}</Text>
       </ScrollView>
 
       {/* Delete confirmation dialog */}
@@ -219,13 +246,12 @@ export default function SettingsScreen() {
         visible={deleteDialogVisible}
         title="确定删除所有数据吗？"
         message="删除后无法恢复，包括：回复记录、联系人信息、守护设置。你的紧急联系人将不再收到通知。"
-        confirmText="确认删除"
+        confirmText={deleteLoading ? '删除中...' : '确认删除'}
         cancelText="取消"
         variant="danger"
         onConfirm={handleDeleteData}
         onCancel={() => {
           setDeleteDialogVisible(false);
-          setDeleteConfirmText('');
         }}
       />
     </SafeAreaView>
@@ -269,17 +295,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     fontWeight: FontWeights.medium,
     color: Colors.gray900,
-  },
-  freeTag: {
-    backgroundColor: Colors.gray100,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  freeTagText: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray700,
-    fontWeight: FontWeights.medium,
   },
   statusTag: {
     paddingHorizontal: 10,

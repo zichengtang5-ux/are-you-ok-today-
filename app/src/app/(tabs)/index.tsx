@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Button, Card, StreakBadge, Dialog } from '@/components/ui';
@@ -127,6 +127,7 @@ export default function HomeScreen() {
   }, [todayStatus]);
 
   const handleReply = async () => {
+    if (actionLoading) return;
     setActionLoading(true);
     try {
       const result = await replyApi.reply();
@@ -134,7 +135,7 @@ export default function HomeScreen() {
       setTodayStatus(result.guardStatus as ReplyStatus);
     } catch (err: any) {
       const message = err.response?.data?.message || '回复失败，请重试';
-      // silently handle - UI stays in current state
+      reportError(err, { scope: 'home.reply', message });
     } finally {
       setActionLoading(false);
     }
@@ -153,6 +154,7 @@ export default function HomeScreen() {
       setShowUndoButton(false);
     } catch (err: any) {
       const message = err.response?.data?.message || '撤回失败';
+      reportError(err, { scope: 'home.undoReply', message });
     }
   };
 
@@ -214,12 +216,16 @@ export default function HomeScreen() {
           <View style={styles.buttonContainer}>
             <Pressable
               onPress={handleReply}
+              disabled={actionLoading}
               style={({ pressed }) => [
                 styles.confirmButton,
                 pressed && styles.confirmButtonPressed,
+                actionLoading && styles.confirmButtonDisabled,
               ]}
             >
-              <Text style={styles.confirmButtonText}>今天还好 ✓</Text>
+              <Text style={styles.confirmButtonText}>
+                {actionLoading ? '处理中...' : '今天还好 ✓'}
+              </Text>
             </Pressable>
           </View>
         )}
@@ -384,6 +390,9 @@ const styles = StyleSheet.create({
   confirmButtonPressed: {
     transform: [{ scale: 0.93 }],
     backgroundColor: Colors.primaryDark,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.65,
   },
   confirmButtonText: {
     fontSize: FontSizes.lg,

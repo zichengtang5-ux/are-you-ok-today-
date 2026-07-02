@@ -11,7 +11,6 @@
 
 type Extra = Record<string, unknown>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let sentry: any = null;
 let initialized = false;
 
@@ -22,7 +21,6 @@ function ensureInit(): void {
   if (!dsn) return;
   try {
     // 动态加载，避免对未安装的 SDK 形成编译期硬依赖
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Sentry = require('@sentry/react-native');
     Sentry.init({ dsn, environment: __DEV__ ? 'development' : 'production' });
     sentry = Sentry;
@@ -39,7 +37,6 @@ function ensureInit(): void {
 export function reportError(error: unknown, context?: Extra): void {
   ensureInit();
   if (__DEV__) {
-    // eslint-disable-next-line no-console
     console.warn('[reportError]', context?.scope ?? '', error, context ?? '');
   }
   if (sentry) {

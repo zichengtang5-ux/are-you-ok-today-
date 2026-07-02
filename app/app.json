@@ -28,8 +28,15 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "data": [{ "scheme": "todayok" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "todayok"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -56,7 +63,9 @@
           "color": "#2D9B6E",
           "sounds": []
         }
-      ]
+      ],
+      "expo-sharing",
+      "react-native-iap"
     ],
     "experiments": {
       "typedRoutes": true,

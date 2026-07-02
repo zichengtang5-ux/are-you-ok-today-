@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Button, Card, Banner, LoadingState, ErrorState } from '@/components/ui';
-import { alertApi, type ActiveAlertResponse, type AlertConfirmResponse } from '@/services/api.types';
+import { alertApi, type ActiveAlertResponse } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 function maskPhone(phone: string): string {
@@ -33,13 +33,12 @@ function formatDate(isoString: string): string {
 
 export default function AlertContactScreen() {
   const router = useRouter();
-  const { alertId, contactId } = useLocalSearchParams<{ alertId?: string; contactId?: string }>();
+  const { contactId } = useLocalSearchParams<{ contactId?: string }>();
 
   const [alert, setAlert] = useState<ActiveAlertResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
-  const [confirmResult, setConfirmResult] = useState<AlertConfirmResponse | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -73,7 +72,6 @@ export default function AlertContactScreen() {
     setConfirming(true);
     try {
       const result = await alertApi.confirm(alert.id, contactId);
-      setConfirmResult(result);
       router.push({
         pathname: '/alert/confirm',
         params: {

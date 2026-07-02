@@ -2,6 +2,8 @@
  * useStore 测试 —— 覆盖所有同步 action 的状态变更 + refreshSubscription 异步分支。
  */
 // zustand persist 依赖 AsyncStorage 原生模块，测试环境用官方 mock 替代
+import { useStore } from '../useStore';
+
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
@@ -16,8 +18,6 @@ const mockSubscriptionApi = (
 const mockReportError = (
   jest.requireMock('@/services/errorReporter') as { reportError: jest.Mock }
 ).reportError;
-
-import { useStore } from '../useStore';
 
 // 初始状态快照，用于每个测试前重置
 const INITIAL = {

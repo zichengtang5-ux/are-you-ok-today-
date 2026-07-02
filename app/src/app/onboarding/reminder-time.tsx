@@ -9,8 +9,8 @@ import { reminderApi, userApi } from '@/services/api.types';
 
 export default function ReminderTimeScreen() {
   const router = useRouter();
-  const [startTime, setStartTime] = useState('20:00');
-  const [endTime, setEndTime] = useState('22:00');
+  const [startTime] = useState('20:00');
+  const [endTime] = useState('22:00');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Card, Button, Timeline, LoadingState } from '@/components/ui';
-import { alertApi, type ActiveAlertResponse } from '@/services/api.types';
+import { alertApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { AlertTimelineItem } from '@/types';
 
@@ -21,7 +21,7 @@ function formatDateTime(isoString: string): { date: string; time: string } {
 
 export default function AlertConfirmScreen() {
   const router = useRouter();
-  const { alertId, resolvedAt } = useLocalSearchParams<{ alertId?: string; resolvedAt?: string }>();
+  const { resolvedAt } = useLocalSearchParams<{ resolvedAt?: string }>();
 
   const [timeline, setTimeline] = useState<AlertTimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,7 @@ export default function AlertConfirmScreen() {
         }
       })
       .finally(() => setLoading(false));
-  }, [alertId, resolvedAt]);
+  }, [resolvedAt]);
 
   const handleDone = () => {
     router.replace('/(tabs)');
