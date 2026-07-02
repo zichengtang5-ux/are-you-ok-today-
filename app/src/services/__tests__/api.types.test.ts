@@ -2,6 +2,14 @@
  * api.types 封装方法测试 —— 验证每个 api 包装把正确的 HTTP method + URL + payload
  * 透传给底层 api 客户端（契约正确性）。mock 掉 ./api 单例。
  */
+import {
+  authApi,
+  contactApi,
+  replyApi,
+  subscriptionApi,
+  pauseApi,
+} from '../api.types';
+
 jest.mock('../api', () => ({
   api: {
     get: jest.fn().mockResolvedValue({}),
@@ -13,14 +21,6 @@ jest.mock('../api', () => ({
 }));
 
 const mockApi = (jest.requireMock('../api') as { api: Record<string, jest.Mock> }).api;
-
-import {
-  authApi,
-  contactApi,
-  replyApi,
-  subscriptionApi,
-  pauseApi,
-} from '../api.types';
 
 describe('api.types wrappers', () => {
   beforeEach(() => jest.clearAllMocks());

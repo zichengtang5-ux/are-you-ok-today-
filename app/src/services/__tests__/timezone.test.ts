@@ -1,6 +1,12 @@
 /**
  * timezone.ts 测试 —— 出差/跨时区同步逻辑。
  */
+import {
+  getDeviceTimezone,
+  timezoneChanged,
+  syncTimezoneIfChanged,
+} from '../timezone';
+
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
@@ -8,12 +14,6 @@ jest.mock('../api.types', () => ({
   reminderApi: { updateConfig: jest.fn().mockResolvedValue({}) },
 }));
 jest.mock('../errorReporter', () => ({ reportError: jest.fn() }));
-
-import {
-  getDeviceTimezone,
-  timezoneChanged,
-  syncTimezoneIfChanged,
-} from '../timezone';
 
 const mockReminderApi = (jest.requireMock('../api.types') as {
   reminderApi: { updateConfig: jest.Mock };

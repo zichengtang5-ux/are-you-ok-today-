@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card } from '@/components/ui';
 import { useStore } from '@/store/useStore';
-import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import { useRouter } from 'expo-router';
 
 export default function CompleteScreen() {
@@ -40,7 +40,7 @@ export default function CompleteScreen() {
         {/* Auth status banner */}
         <Card variant="info" style={styles.banner}>
           <Text style={styles.bannerText}>
-            今晚 8 点，你会收到第一条"今天还好吗？"
+            今晚 8 点，你会收到第一条「今天还好吗？」
           </Text>
         </Card>
 

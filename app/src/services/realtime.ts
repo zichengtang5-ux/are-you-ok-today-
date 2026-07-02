@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reportError } from './errorReporter';
-
-const API_BASE_URL = 'http://localhost:3000/api';
+import { API_BASE_URL } from './config';
 
 export type RealtimeEventType =
   | 'status_changed'

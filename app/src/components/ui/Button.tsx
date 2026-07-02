@@ -1,6 +1,5 @@
-import React from 'react';
-import { Pressable, Text, StyleSheet, ActivityIndicator, View, type ViewStyle } from 'react-native';
-import { Colors, Radius, Spacing, FontSizes, FontWeights } from '@/theme';
+import { Pressable, Text, StyleSheet, ActivityIndicator, type ViewStyle } from 'react-native';
+import { Colors, Radius, FontSizes, FontWeights } from '@/theme';
 
 type Variant = 'primary' | 'warm' | 'danger' | 'outline' | 'ghost';
 type Size = 'sm' | 'md' | 'lg';

@@ -11,14 +11,13 @@ import { PlanCard } from '@/components/ui/PlanCard';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing, Radius, Shadows } from '@/theme';
 import { guardianApi, subscriptionApi } from '@/services/api.types';
-import type { GuardianWardResponse } from '@/services/api.types';
+import type { GuardianWardResponse, SubscriptionPlan } from '@/services/api.types';
 import {
   initIap,
   getProducts,
   purchasePlan,
   type ProductPrice,
 } from '@/services/iap';
-import type { SubscriptionPlan } from '@/services/api.types';
 
 export default function ProxySubscribeScreen() {
   const router = useRouter();

@@ -4,6 +4,16 @@
  * 用 jest.mock 工厂整体替换 expo-notifications/expo-device/expo-constants，
  * 通过 jest.requireMock 拿到同一 mock 实例来控制返回值（避免 ES namespace 只读问题）。
  */
+import {
+  isReplyOkAction,
+  isOpenAppAction,
+  requestNotificationPermission,
+  scheduleDailyReminder,
+  cancelAllScheduledReminders,
+  registerDeviceToken,
+  getNotificationStatus,
+} from '../notifications';
+
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn(),
   requestPermissionsAsync: jest.fn(),
@@ -37,16 +47,6 @@ const mockNotifications = jest.requireMock('expo-notifications') as {
   getExpoPushTokenAsync: jest.Mock;
 };
 const mockDevice = jest.requireMock('expo-device') as { isDevice: boolean };
-
-import {
-  isReplyOkAction,
-  isOpenAppAction,
-  requestNotificationPermission,
-  scheduleDailyReminder,
-  cancelAllScheduledReminders,
-  registerDeviceToken,
-  getNotificationStatus,
-} from '../notifications';
 
 describe('notifications', () => {
   beforeEach(() => {

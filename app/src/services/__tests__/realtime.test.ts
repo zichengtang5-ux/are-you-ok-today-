@@ -1,9 +1,9 @@
 // realtime.ts 顶层 import 了 AsyncStorage，测试环境需 mock 其原生模块
+import { parseSseBuffer } from '../realtime';
+
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
-
-import { parseSseBuffer } from '../realtime';
 
 /**
  * SSE 帧解析测试 —— 实时通道的核心解析逻辑（替代轮询）。

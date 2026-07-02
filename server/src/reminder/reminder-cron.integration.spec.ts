@@ -1,6 +1,18 @@
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReminderCronService } from './reminder-cron.service';
+import { getLocalDateParts } from './reminder-schedule.util';
+
+function shanghaiHhmm(minutesOfDay: number): string {
+  const hh = String(Math.floor(minutesOfDay / 60)).padStart(2, '0');
+  const mm = String(minutesOfDay % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function shanghaiEndTimeJustPassed(): string {
+  const { minutesOfDay } = getLocalDateParts(new Date(), 'Asia/Shanghai');
+  return shanghaiHhmm(Math.max(0, minutesOfDay - 1));
+}
 
 /**
  * 提醒引擎端到端集成测试 —— 使用真实 PostgreSQL（CI service 容器 / 本地 docker-compose）。
@@ -59,12 +71,13 @@ describe('ReminderCron (integration, real Postgres)', () => {
   });
 
   it('idle user past endTime → grace + care reminder + nextDueAt advanced', async () => {
-    // endTime 设为 00:00（今天必然已过），nextDueAt 设为过去 → 会被扫到
+    const endTime = shanghaiEndTimeJustPassed();
+    // endTime 动态设为刚刚过去，确保仍处在 grace 期内；nextDueAt 设为过去 → 会被扫到
     await prisma.reminderConfig.create({
       data: {
         userId,
         startTime: '00:00',
-        endTime: '00:00',
+        endTime,
         gracePeriodMin: 30,
         timezone: 'Asia/Shanghai',
         nextDueAt: new Date(Date.now() - 60_000),

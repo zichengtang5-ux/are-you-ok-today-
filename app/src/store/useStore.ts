@@ -14,6 +14,20 @@ import type {
 import { subscriptionApi } from '@/services/api.types';
 import { reportError } from '@/services/errorReporter';
 
+const initialState = {
+  user: null,
+  isOnboarded: false,
+  onboardingStep: 'login' as OnboardingStep,
+  contacts: [],
+  reminder: { startTime: '20:00', endTime: '22:00', gracePeriodMin: 30 },
+  todayStatus: 'idle' as ReplyStatus,
+  streak: 0,
+  activeAlert: null,
+  guardians: [],
+  notificationAuthorized: false,
+  subscription: null,
+};
+
 interface AppState {
   /* Auth */
   user: User | null;
@@ -60,22 +74,13 @@ interface AppState {
   setNotificationAuthorized: (v: boolean) => void;
   setSubscription: (sub: Subscription | null) => void;
   refreshSubscription: () => Promise<void>;
+  resetAppState: () => void;
 }
 
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      user: null,
-      isOnboarded: false,
-      onboardingStep: 'login',
-      contacts: [],
-      reminder: { startTime: '20:00', endTime: '22:00', gracePeriodMin: 30 },
-      todayStatus: 'idle',
-      streak: 0,
-      activeAlert: null,
-      guardians: [],
-      notificationAuthorized: false,
-      subscription: null,
+      ...initialState,
 
       setUser: (user) => set({ user }),
       completeOnboarding: () => set({ isOnboarded: true }),
@@ -108,6 +113,7 @@ export const useStore = create<AppState>()(
       setGuardians: (guardians) => set({ guardians }),
       setNotificationAuthorized: (v) => set({ notificationAuthorized: v }),
       setSubscription: (subscription) => set({ subscription }),
+      resetAppState: () => set(initialState),
       refreshSubscription: async () => {
         try {
           const status = await subscriptionApi.getStatus();

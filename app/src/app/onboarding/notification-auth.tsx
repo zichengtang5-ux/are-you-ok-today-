@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Button, Card, Banner, Dialog } from '@/components/ui';
+import { Button, Banner, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { reportError } from '@/services/errorReporter';
-import { requestNotificationPermission, scheduleDailyReminder, getNotificationStatus, registerDeviceToken } from '@/services/notifications';
+import { requestNotificationPermission, scheduleDailyReminder, registerDeviceToken } from '@/services/notifications';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function NotificationAuthScreen() {
@@ -96,7 +96,7 @@ export default function NotificationAuthScreen() {
           <Text style={styles.illustration}>🔔</Text>
           <Text style={styles.title}>允许发送提醒消息</Text>
           <Text style={styles.description}>
-            我们需要通知权限，才能在每天设定的时间询问你"今天还好吗？"
+            我们需要通知权限，才能在每天设定的时间询问你「今天还好吗？」
           </Text>
         </View>
 

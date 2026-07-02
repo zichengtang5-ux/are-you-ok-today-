@@ -1,5 +1,7 @@
 // mock expo-linking.parse —— 在测试环境中 expo-linking 依赖 Constants.hostUri。
 // 模拟其对自定义 scheme 的契约：todayok://alert/abc → path='alert/abc'（host 并入 path）。
+import { parseDeepLink } from '../deepLink';
+
 jest.mock('expo-linking', () => ({
   parse: (url: string) => {
     const withoutScheme = url.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, '');
@@ -15,8 +17,6 @@ jest.mock('expo-linking', () => ({
     return { hostname: null, path, queryParams };
   },
 }));
-
-import { parseDeepLink } from '../deepLink';
 
 /**
  * 深链解析是守护链路的关键入口：从短信/推送点开 todayok://alert/:id 必须

@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Card, Input, Button, Banner } from '@/components/ui';
 import { guardianApi } from '@/services/api.types';
-import { Colors, FontSizes, FontWeights, Spacing, Radius, Shadows } from '@/theme';
+import { Colors, FontSizes, FontWeights, Spacing, Shadows } from '@/theme';
 
 type Stage = 'input' | 'submitting' | 'success' | 'error';
 
@@ -16,14 +16,7 @@ export default function InviteScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [guardianName, setGuardianName] = useState('');
 
-  useEffect(() => {
-    if (initialCode && initialCode.length >= 6) {
-      setCode(initialCode);
-      acceptInvite(initialCode);
-    }
-  }, [initialCode]);
-
-  const acceptInvite = async (codeToUse: string) => {
+  const acceptInvite = useCallback(async (codeToUse: string) => {
     setStage('submitting');
     setErrorMsg('');
     try {
@@ -35,7 +28,14 @@ export default function InviteScreen() {
       setErrorMsg(msg);
       setStage('error');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (initialCode && initialCode.length >= 6) {
+      setCode(initialCode);
+      acceptInvite(initialCode);
+    }
+  }, [initialCode, acceptInvite]);
 
   const handleSubmit = () => {
     const trimmed = code.trim().toUpperCase();
@@ -74,7 +74,7 @@ export default function InviteScreen() {
             <Card variant="info" style={styles.infoCard}>
               <Text style={styles.infoTitle}>接下来会发生什么</Text>
               <Text style={styles.infoItem}>
-                • 每晚在提醒时间段内回复"今天还好"，{guardianName} 可在 App 中看到你平安
+                • 每晚在提醒时间段内回复「今天还好」，{guardianName} 可在 App 中看到你平安
               </Text>
               <Text style={styles.infoItem}>
                 • 如果你超时未回复，TA 会收到通知（前提是 TA 已升级守护版）
@@ -127,10 +127,10 @@ export default function InviteScreen() {
             <Card style={styles.howCard}>
               <Text style={styles.howTitle}>如何获取邀请码？</Text>
               <Text style={styles.howItem}>
-                1. 家人在「今天还好」App 中点击"添加守护"
+                1. 家人在「今天还好」App 中点击「添加守护」
               </Text>
               <Text style={styles.howItem}>
-                2. 选择"生成邀请"并把链接发给你
+                2. 选择「生成邀请」并把链接发给你
               </Text>
               <Text style={styles.howItem}>
                 3. 你点击链接会自动进入本页面，或手动输入 9 位邀请码

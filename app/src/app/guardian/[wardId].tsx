@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -217,7 +217,7 @@ export default function WardDashboardScreen() {
             onPress={handleProxy}
             loading={proxyLoading}
           >
-            代确认"TA 没事"
+            代确认「TA 没事」
           </Button>
         )}
 

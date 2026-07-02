@@ -8,9 +8,12 @@
  * client.interceptors 上的 fulfilled/rejected 函数后直接调用断言。
  * mock 工厂内部创建所有状态，外部通过 requireMock 获取（规避 hoist/TDZ）。
  */
+// 触发 ApiClient 构造（注册拦截器）
+import '../api';
+
 jest.mock('axios', () => {
-  const requestInterceptors: Array<(c: unknown) => unknown> = [];
-  const responseHandlers: Array<{ ok: (r: unknown) => unknown; err: (e: unknown) => unknown }> = [];
+  const requestInterceptors: ((c: unknown) => unknown)[] = [];
+  const responseHandlers: { ok: (r: unknown) => unknown; err: (e: unknown) => unknown }[] = [];
   const stubClient: jest.Mock & { interceptors?: unknown; get?: jest.Mock; post?: jest.Mock } =
     jest.fn((config: unknown) => Promise.resolve({ data: 'retried', config }));
   stubClient.interceptors = {
@@ -50,13 +53,10 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   };
 });
 
-// 触发 ApiClient 构造（注册拦截器）
-import '../api';
-
 const axiosMock = jest.requireMock('axios') as {
   __test: {
-    requestInterceptors: Array<(c: unknown) => unknown>;
-    responseHandlers: Array<{ err: (e: unknown) => unknown }>;
+    requestInterceptors: ((c: unknown) => unknown)[];
+    responseHandlers: { err: (e: unknown) => unknown }[];
     post: jest.Mock;
   };
 };

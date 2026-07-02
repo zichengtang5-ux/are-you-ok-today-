@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
 import { Button, Input, Card } from '@/components/ui';
 import { useStore } from '@/store/useStore';
-import { authApi, type SendCodeResponse } from '@/services/api.types';
+import { authApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

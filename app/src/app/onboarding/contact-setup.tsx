@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card, Input } from '@/components/ui';
-import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { contactApi, userApi } from '@/services/api.types';
