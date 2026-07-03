@@ -101,6 +101,36 @@ export class ContactService {
     return { message: '联系人已删除' };
   }
 
+  async reorder(userId: string, ids: string[]) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('联系人顺序不能为空');
+    }
+
+    const contacts = await this.prisma.emergencyContact.findMany({ where: { userId } });
+    const ownedIds = new Set(contacts.map((contact) => contact.id));
+    const uniqueIds = new Set(ids);
+
+    if (uniqueIds.size !== ids.length || contacts.length !== ids.length) {
+      throw new BadRequestException('联系人顺序不完整');
+    }
+
+    const hasUnknownId = ids.some((id) => !ownedIds.has(id));
+    if (hasUnknownId) {
+      throw new ForbiddenException('无权操作此联系人');
+    }
+
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.emergencyContact.update({
+          where: { id },
+          data: { priority: index + 1 },
+        }),
+      ),
+    );
+
+    return this.list(userId);
+  }
+
   async sendVerificationCode(userId: string, contactId: string) {
     const contact = await this.prisma.emergencyContact.findUnique({ where: { id: contactId } });
 

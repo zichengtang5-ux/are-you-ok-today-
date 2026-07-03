@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, Button, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
-import { userApi } from '@/services/api.types';
+import { pauseApi, userApi, type PauseStatusResponse } from '@/services/api.types';
 import { PRIVACY_URL, TERMS_URL } from '@/services/config';
+import { openExternalUrl } from '@/services/linking';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
 
@@ -53,14 +54,20 @@ export default function SettingsScreen() {
     subscription,
     refreshSubscription,
     resetAppState,
+    setTodayStatus,
   } = useStore();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [pauseStatus, setPauseStatus] = useState<PauseStatusResponse | null>(null);
+  const [pauseLoading, setPauseLoading] = useState(false);
 
   // 进入设置时刷新订阅态（轻量 GET /subscription/status）
   useEffect(() => {
     if (user) {
       refreshSubscription();
+      pauseApi.getStatus()
+        .then(setPauseStatus)
+        .catch(() => setPauseStatus(null));
     }
   }, [user, refreshSubscription]);
 
@@ -74,7 +81,40 @@ export default function SettingsScreen() {
       Alert.alert(`${label}未配置`, '请先配置对应的 EXPO_PUBLIC 环境变量。');
       return;
     }
-    await Linking.openURL(url);
+    await openExternalUrl(url);
+  };
+
+  const handlePause = async (days: number) => {
+    if (pauseLoading) return;
+    setPauseLoading(true);
+    try {
+      const res = await pauseApi.pause({ days, reason: '用户在设置页手动暂停' });
+      setPauseStatus({
+        isPaused: true,
+        pauseEndAt: res.pauseEndAt,
+        daysRemaining: res.days,
+        reason: '用户在设置页手动暂停',
+      });
+      setTodayStatus('paused');
+    } catch (e: any) {
+      Alert.alert('暂停失败', e?.response?.data?.message ?? '请稍后重试');
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
+  const handleResume = async () => {
+    if (pauseLoading) return;
+    setPauseLoading(true);
+    try {
+      const res = await pauseApi.resume();
+      setPauseStatus({ isPaused: false });
+      setTodayStatus(res.guardStatus as any);
+    } catch (e: any) {
+      Alert.alert('恢复失败', e?.response?.data?.message ?? '请稍后重试');
+    } finally {
+      setPauseLoading(false);
+    }
   };
 
   const handleDeleteData = async () => {
@@ -138,6 +178,44 @@ export default function SettingsScreen() {
               </Text>
               <Text style={styles.settingValue}>{endLabel}</Text>
             </View>
+          )}
+        </Card>
+
+        <Card title="临时暂停" style={styles.card}>
+          {pauseStatus?.isPaused ? (
+            <>
+              <View style={styles.settingRow}>
+                <Text style={styles.settingLabel}>当前状态</Text>
+                <Text style={styles.settingValue}>已暂停</Text>
+              </View>
+              {pauseStatus.pauseEndAt && (
+                <View style={styles.settingRow}>
+                  <Text style={styles.settingLabel}>暂停至</Text>
+                  <Text style={styles.settingValue}>{formatEnd(pauseStatus.pauseEndAt)}</Text>
+                </View>
+              )}
+              <Button variant="primary" onPress={handleResume} loading={pauseLoading}>
+                恢复守护
+              </Button>
+            </>
+          ) : (
+            <>
+              <Text style={styles.pauseHint}>
+                出差、住院或短期不方便回复时可暂停守护，暂停期间不会触发告警。
+              </Text>
+              <View style={styles.pauseRow}>
+                {[1, 3, 7].map((days) => (
+                  <Pressable
+                    key={days}
+                    disabled={pauseLoading}
+                    onPress={() => handlePause(days)}
+                    style={[styles.pauseButton, pauseLoading && styles.pauseButtonDisabled]}
+                  >
+                    <Text style={styles.pauseButtonText}>暂停 {days} 天</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
           )}
         </Card>
 
@@ -208,7 +286,7 @@ export default function SettingsScreen() {
               ) : (
                 <Pressable
                   onPress={() =>
-                    Linking.openURL(
+                    openExternalUrl(
                       'https://apps.apple.com/account/subscriptions',
                     )
                   }
@@ -314,6 +392,33 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     color: Colors.primary,
     fontWeight: FontWeights.medium,
+  },
+  pauseHint: {
+    fontSize: FontSizes.sm,
+    color: Colors.gray600,
+    lineHeight: 20,
+  },
+  pauseRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  pauseButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xs,
+  },
+  pauseButtonDisabled: {
+    opacity: 0.6,
+  },
+  pauseButtonText: {
+    fontSize: FontSizes.sm,
+    color: Colors.primaryDark,
+    fontWeight: FontWeights.semibold,
+    textAlign: 'center',
   },
   dangerLinkRow: {
     paddingVertical: Spacing.sm,

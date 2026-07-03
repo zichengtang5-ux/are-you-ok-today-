@@ -17,6 +17,13 @@ import {
 /** 单批处理的最大记录数，避免一次性把整张表拉进内存 */
 const BATCH_SIZE = 500;
 
+function formatLocalHhmm(date: Date, timezone: string): string {
+  const local = getLocalDateParts(date, timezone);
+  const hours = String(Math.floor(local.minutesOfDay / 60)).padStart(2, '0');
+  const minutes = String(local.minutesOfDay % 60).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 @Injectable()
 export class ReminderCronService {
   private readonly logger = new Logger(ReminderCronService.name);
@@ -174,7 +181,7 @@ export class ReminderCronService {
     // 已在 grace/alert：到达 grace deadline 则触发（或重复）告警
     if (guardStatus === 'grace' || guardStatus === 'alert') {
       if (local.minutesOfDay >= graceDeadlineMin) {
-        await this.triggerAlert(user, date, now, config.endTime);
+        await this.triggerAlert(user, date, now, config.endTime, config.timezone);
       }
       // 推进到下一个检查点：未到 deadline → deadline；已触发 → 明天
       const nextDue =
@@ -246,6 +253,7 @@ export class ReminderCronService {
     date: string,
     now: Date,
     endTime: string,
+    timezone: string,
   ): Promise<void> {
     const guardStatus = await this.prisma.guardStatus.upsert({
       where: { userId: user.id },
@@ -262,17 +270,18 @@ export class ReminderCronService {
     const lastReplyAt = user.guardStatus?.lastReplyAt?.toISOString() ?? '从未回复';
     const nickname = user.nickname ?? '用户';
 
-    const existingAlert = await this.prisma.alertEvent.findFirst({
+    let activeAlert = await this.prisma.alertEvent.findFirst({
       where: { userId: user.id, status: 'active' },
+      orderBy: { triggeredAt: 'desc' },
     });
 
-    if (!existingAlert) {
+    if (!activeAlert) {
       const contactIds = JSON.stringify(user.contacts.map((c) => c.id));
       const timeline = JSON.stringify([
         { time: `${date} ${endTime}`, action: '发送了每日提醒' },
-        { time: now.toISOString(), action: '通知了紧急联系人', isCurrent: true },
+        { time: formatLocalHhmm(now, timezone), action: '通知了紧急联系人', isCurrent: true },
       ]);
-      await this.prisma.alertEvent.create({
+      activeAlert = await this.prisma.alertEvent.create({
         data: {
           userId: user.id,
           guardStatusId: guardStatus.id,
@@ -286,9 +295,14 @@ export class ReminderCronService {
 
     // 通知投递改为异步：入 BullMQ 队列，由独立 worker 投递（重试+死信+回执）。
     // cron 不再被阿里云 API 延迟/超时阻塞，单分钟吞吐与通知服务解耦。
-    const round = existingAlert ? 2 : 1;
+    const round = activeAlert.smsRounds + 1;
+    await this.prisma.alertEvent.update({
+      where: { id: activeAlert.id },
+      data: { smsRounds: round },
+    });
     await this.notificationQueue.enqueueAlert({
       contacts: user.contacts.map((c) => ({ id: c.id, phone: c.phone })),
+      alertId: activeAlert.id,
       nickname,
       lastReplyAt,
       round,

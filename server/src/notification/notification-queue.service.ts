@@ -11,6 +11,7 @@ interface AlertContact {
 
 interface EnqueueAlertParams {
   contacts: AlertContact[];
+  alertId: string;
   nickname: string;
   lastReplyAt: string;
   round: number;
@@ -36,7 +37,7 @@ export class NotificationQueueService {
   ) {}
 
   async enqueueAlert(params: EnqueueAlertParams): Promise<void> {
-    const { contacts, nickname, lastReplyAt, round } = params;
+    const { contacts, alertId, nickname, lastReplyAt, round } = params;
     const message = `【今天还好】${nickname}今天没有回复平安，最后回复时间：${lastReplyAt}，请及时联系确认。`;
 
     for (const contact of contacts) {
@@ -45,7 +46,7 @@ export class NotificationQueueService {
         channel: 'sms',
         round,
         phone: contact.phone,
-        message,
+        message: `${message} 打开处理：todayok://alert/${alertId}?contactId=${contact.id}`,
       });
       await this.enqueueOne({
         contactId: contact.id,

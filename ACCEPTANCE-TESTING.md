@@ -71,17 +71,21 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
 - `auth/me` 返回当前用户
 - 首页显示正确守护状态
 - 本地 token 可持久化，重启后仍能恢复登录态
+- 提醒时间页可在 18:00-20:00、20:00-22:00、21:00-23:00 三个预设间切换
 
 ### 2. 每日确认
 
 1. 首页点击“我很好”。
 2. 状态变为已确认。
-3. 刷新或重启 App。
+3. 执行撤销确认。
+4. 刷新或重启 App。
 
 通过标准：
 
 - 后端创建或更新 `DailyRecord`
 - `GuardStatus.status` 变为 `replied`
+- 撤销后状态回到 `waiting`
+- `GET /api/reply/streak` 返回连续确认天数
 - 首页保持已确认状态
 
 ### 3. 宽限期与告警
@@ -101,18 +105,18 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
 
 ### 4. 告警联系人处理
 
-当前状态：前端已声明联系人处理接口，但后端尚未实现 `/api/alert/:id/confirm` 和 `/api/alert/:id/help`。这项是 P0 契约缺口，补齐前只能验收告警生成和 `/api/alert/active` 展示。
-
-1. 打开告警联系人链接或告警处理页。
+1. 通过短信链接或测试深链打开告警联系人页。
 2. 选择“确认安全”。
 3. 重新触发告警后选择“需要帮助”。
+4. 在求助建议页尝试拨打用户、120 或其他联系人。
 
 通过标准：
 
-- 后端已补齐对应接口
+- `GET /api/alert/:id?contactId=...` 返回指定告警
 - `AlertAction` 被记录
-- `AlertEvent.status` 正确流转
-- 首页告警态展示对应结果
+- 确认安全后 `AlertEvent.status=confirmed`，首页状态同步为已确认
+- 需要帮助后 `AlertEvent.status=help_needed`，页面展示拨打用户、120、其他联系人建议
+- 模拟器无法拨号时显示普通提示，不出现红屏
 
 ### 5. 子女守护
 
@@ -130,7 +134,7 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
 
 ### 6. 暂停与恢复
 
-1. 在设置页暂停守护。
+1. 在设置页选择暂停 1、3 或 7 天。
 2. 首页状态变为 `paused`。
 3. 执行恢复。
 
@@ -138,6 +142,7 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
 
 - 暂停期内 reminder cron 不触发告警
 - 恢复后状态回到可继续守护的状态
+- 设置页可看到暂停截止日期和恢复按钮
 
 ### 7. 删除账号
 
@@ -172,6 +177,7 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
 1. 进入紧急求助页。
 2. 授权定位。
 3. 提交求助。
+4. 尝试快捷拨打 120 / 110。
 
 通过标准：
 
@@ -179,6 +185,30 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api
 - 定位失败时可回退保存地址
 - 后端创建 `HelpRequest`
 - 联系人收到 mock 通知日志
+- 模拟器无法拨号时显示普通提示，不出现红屏
+
+## 2026-07-03 模拟器回归记录
+
+环境：iPhone 16 Pro / iOS 18.6，Expo Go，后端连接本机 PostgreSQL 16 + Redis，通知、短信、语音、IAP 均使用 mock provider。
+
+已覆盖：
+
+- 手机号验证码登录、协议勾选、基本信息、联系人验证、提醒时间、通知授权
+- 首页每日签到、连续天数更新、撤销签到
+- 人工构造 `waiting`、`alert` 状态后的首页和告警页展示
+- 告警联系人确认安全，告警解除并同步首页状态
+- 告警联系人选择需要帮助，进入行动建议页
+- SOS 主动求助，mock 短信发送给联系人
+- 子女守护邀请创建和 iOS 分享面板
+- mock 月付订阅购买、订阅成功页、设置页订阅态展示
+- 设置页暂停 1 天、恢复守护
+- 提醒时间三个预设切换
+- 电话链接在模拟器不可拨号时的错误兜底
+
+限制：
+
+- Expo Go 不接管项目自定义 `todayok://` scheme；模拟器使用 `exp://.../--/alert/contact?...` 验证页面和参数。生产前必须用 EAS dev/internal build 在真机验证 `todayok://invite/...` 与 `todayok://alert/...`。
+- StoreKit 真实购买、APNs 真机 token、短信/语音真实送达仍需 Apple Developer Program、App Store Connect、APNs、阿里云模板配置完成后验证。
 
 ## 自动化检查
 
@@ -191,6 +221,7 @@ npm test -- --runInBand
 npm run lint
 
 cd ../server
+npm run prisma:generate
 npm test -- --runInBand
 npm run build
 ```
@@ -206,7 +237,7 @@ npm run test:integration
 
 - APNs token 是否能成功上报
 - 真机定位授权与地址回退
-- 深链 `todayok://` 是否能打开邀请
+- 深链 `todayok://` 是否能打开邀请和告警联系人页
 - SSE 在锁屏/切后台/恢复后是否能重连
 - StoreKit sandbox 购买、恢复购买、过期降级
 - 删除账号后再次登录是否是干净状态

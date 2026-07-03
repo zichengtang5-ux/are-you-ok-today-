@@ -23,6 +23,7 @@ describe('ContactService', () => {
     subscription: {
       findUnique: jest.fn(),
     },
+    $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 
   const mockSms = { sendVerificationCode: jest.fn().mockResolvedValue(true) };
@@ -109,6 +110,46 @@ describe('ContactService', () => {
       mockPrisma.verificationCode.findFirst.mockResolvedValue(null);
 
       await expect(service.verify('u1', 'c1', '000000')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('reorder', () => {
+    it('updates priorities in the requested order', async () => {
+      mockPrisma.emergencyContact.findMany
+        .mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }])
+        .mockResolvedValueOnce([
+          { id: 'c2', priority: 1 },
+          { id: 'c1', priority: 2 },
+        ]);
+      mockPrisma.emergencyContact.update.mockResolvedValue({});
+
+      const result = await service.reorder('u1', ['c2', 'c1']);
+
+      expect(mockPrisma.emergencyContact.update).toHaveBeenCalledWith({
+        where: { id: 'c2' },
+        data: { priority: 1 },
+      });
+      expect(mockPrisma.emergencyContact.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { priority: 2 },
+      });
+      expect(result).toEqual([
+        { id: 'c2', priority: 1 },
+        { id: 'c1', priority: 2 },
+      ]);
+    });
+
+    it('rejects incomplete or duplicated ids', async () => {
+      mockPrisma.emergencyContact.findMany.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }]);
+
+      await expect(service.reorder('u1', ['c1'])).rejects.toThrow(BadRequestException);
+      await expect(service.reorder('u1', ['c1', 'c1'])).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects contacts owned by another user', async () => {
+      mockPrisma.emergencyContact.findMany.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }]);
+
+      await expect(service.reorder('u1', ['c1', 'c3'])).rejects.toThrow(ForbiddenException);
     });
   });
 });

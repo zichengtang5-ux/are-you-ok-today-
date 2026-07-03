@@ -5,6 +5,7 @@
 import {
   authApi,
   contactApi,
+  alertApi,
   replyApi,
   subscriptionApi,
   pauseApi,
@@ -51,6 +52,10 @@ describe('api.types wrappers', () => {
       contactApi.create(payload);
       expect(mockApi.post).toHaveBeenCalledWith(expect.stringContaining('contact'), payload);
     });
+    it('reorder → PUT /contacts/reorder', () => {
+      contactApi.reorder(['c2', 'c1']);
+      expect(mockApi.put).toHaveBeenCalledWith('/contacts/reorder', { ids: ['c2', 'c1'] });
+    });
   });
 
   describe('replyApi', () => {
@@ -61,6 +66,25 @@ describe('api.types wrappers', () => {
     it('getStatus → GET /reply/status', () => {
       replyApi.getStatus();
       expect(mockApi.get.mock.calls[0][0]).toContain('reply');
+    });
+    it('getStreak → GET /reply/streak', () => {
+      replyApi.getStreak();
+      expect(mockApi.get).toHaveBeenCalledWith('/reply/streak');
+    });
+  });
+
+  describe('alertApi', () => {
+    it('getById → GET /alert/:id with contactId query', () => {
+      alertApi.getById('a1', 'c1');
+      expect(mockApi.get).toHaveBeenCalledWith('/alert/a1', { params: { contactId: 'c1' } });
+    });
+    it('confirm → POST /alert/:id/confirm', () => {
+      alertApi.confirm('a1', 'c1');
+      expect(mockApi.post).toHaveBeenCalledWith('/alert/a1/confirm', { contactId: 'c1' });
+    });
+    it('needHelp → POST /alert/:id/help', () => {
+      alertApi.needHelp('a1', 'c1');
+      expect(mockApi.post).toHaveBeenCalledWith('/alert/a1/help', { contactId: 'c1' });
     });
   });
 

@@ -42,6 +42,7 @@ Authorization: Bearer <accessToken>
 | `DELETE` | `/api/contacts/:id` | 删除联系人 |
 | `POST` | `/api/contacts/:id/send-code` | 发送联系人验证短信 |
 | `POST` | `/api/contacts/:id/verify` | 验证联系人手机号 |
+| `PUT` | `/api/contacts/reorder` | 按联系人 id 数组重排优先级 |
 
 ## Reminder / Reply
 
@@ -52,6 +53,7 @@ Authorization: Bearer <accessToken>
 | `POST` | `/api/reply/today` | 今日确认平安 |
 | `DELETE` | `/api/reply/today` | 撤销今日确认 |
 | `GET` | `/api/reply/status` | 当前守护状态 |
+| `GET` | `/api/reply/streak` | 当前连续确认天数 |
 
 状态值：
 
@@ -64,13 +66,11 @@ idle | waiting | replied | grace | alert | paused
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/api/alert/active` | 当前活跃告警详情，无活跃告警返回 `null` |
+| `GET` | `/api/alert/:id` | 指定告警详情，联系人链接可带 `?contactId=` |
+| `POST` | `/api/alert/:id/confirm` | 联系人确认用户安全，解除告警 |
+| `POST` | `/api/alert/:id/help` | 联系人标记联系不上，返回求助建议 |
 
-当前后端尚未暴露联系人处理告警的写接口。前端类型里存在以下调用，但后端 controller 还没有实现：
-
-- `POST /api/alert/:id/confirm`
-- `POST /api/alert/:id/help`
-
-上线前需要补齐后端接口，或调整前端不再调用这些路径。
+告警短信会携带 `todayok://alert/:id?contactId=...`。生产前需要在真机构建中验证 scheme 打开和参数传递。
 
 ## Device
 
@@ -132,14 +132,4 @@ idle | waiting | replied | grace | alert | paused
 - 具体 DTO 和响应字段以 Swagger 为准。
 - 自动化测试优先参考 `server/src/**/*.spec.ts`。
 - 前端类型定义位于 `app/src/services/api.types.ts`。
-
-## 已知契约缺口
-
-前端当前还声明了少量后端未暴露的路径：
-
-| 前端路径 | 状态 | 建议 |
-|----------|------|------|
-| `POST /api/alert/:id/confirm` | 后端未实现 | P0 补接口 |
-| `POST /api/alert/:id/help` | 后端未实现 | P0 补接口 |
-| `PUT /api/contacts/reorder` | 后端未实现 | 补接口或移除前端调用 |
-| `GET /api/reply/streak` | 后端未实现 | 补接口或由 status/dashboard 返回 |
+- 当前前端声明的 API 已与后端 controller 对齐。新增前端接口时同步更新本文件和对应 controller/service 测试。

@@ -260,4 +260,27 @@ describe('ReplyService', () => {
       expect(result.status).toBe('paused');
     });
   });
+
+  describe('getStreak', () => {
+    it('counts consecutive replied days ending today', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-03T04:00:00Z'));
+      mockPrisma.dailyRecord.findMany.mockResolvedValue([
+        { date: '2026-07-03' },
+        { date: '2026-07-02' },
+        { date: '2026-06-30' },
+      ]);
+
+      await expect(service.getStreak('u1')).resolves.toEqual({ streak: 2 });
+    });
+
+    it('returns zero when today is not replied', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-03T04:00:00Z'));
+      mockPrisma.dailyRecord.findMany.mockResolvedValue([
+        { date: '2026-07-02' },
+        { date: '2026-07-01' },
+      ]);
+
+      await expect(service.getStreak('u1')).resolves.toEqual({ streak: 0 });
+    });
+  });
 });

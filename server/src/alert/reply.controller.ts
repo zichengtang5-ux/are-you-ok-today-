@@ -27,4 +27,10 @@ export class ReplyController {
   async getStatus(@CurrentUser('id') userId: string) {
     return this.replyService.getStatus(userId);
   }
+
+  @Get('streak')
+  @ApiOperation({ summary: '获取连续平安天数' })
+  async getStreak(@CurrentUser('id') userId: string) {
+    return this.replyService.getStreak(userId);
+  }
 }

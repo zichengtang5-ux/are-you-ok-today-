@@ -28,6 +28,10 @@ const initialState = {
   subscription: null,
 };
 
+const SUBSCRIPTION_REFRESH_COOLDOWN_MS = 30_000;
+let subscriptionRefreshPromise: Promise<void> | null = null;
+let lastSubscriptionRefreshAt = 0;
+
 interface AppState {
   /* Auth */
   user: User | null;
@@ -115,24 +119,40 @@ export const useStore = create<AppState>()(
       setSubscription: (subscription) => set({ subscription }),
       resetAppState: () => set(initialState),
       refreshSubscription: async () => {
-        try {
-          const status = await subscriptionApi.getStatus();
-          const user = get().user;
-          set({
-            subscription: {
-              plan: status.plan ?? 'free',
-              status: status.status,
-              currentPeriodEnd: status.currentPeriodEnd,
-              isPremium: status.isPremium,
-            },
-            user: user
-              ? { ...user, isPremium: status.isPremium }
-              : user,
-          });
-        } catch (e) {
-          // 订阅态刷新失败不阻断主流程，但需上报以便观测（不再静默吞掉）
-          reportError(e, { scope: 'refreshSubscription' });
+        if (subscriptionRefreshPromise) {
+          return subscriptionRefreshPromise;
         }
+
+        const now = Date.now();
+        if (get().subscription && now - lastSubscriptionRefreshAt < SUBSCRIPTION_REFRESH_COOLDOWN_MS) {
+          return;
+        }
+
+        subscriptionRefreshPromise = (async () => {
+          try {
+            const status = await subscriptionApi.getStatus();
+            const user = get().user;
+            set({
+              subscription: {
+                plan: status.plan ?? 'free',
+                status: status.status,
+                currentPeriodEnd: status.currentPeriodEnd,
+                isPremium: status.isPremium,
+              },
+              user: user
+                ? { ...user, isPremium: status.isPremium }
+                : user,
+            });
+            lastSubscriptionRefreshAt = Date.now();
+          } catch (e) {
+            // 订阅态刷新失败不阻断主流程，但需上报以便观测（不再静默吞掉）
+            reportError(e, { scope: 'refreshSubscription' });
+          } finally {
+            subscriptionRefreshPromise = null;
+          }
+        })();
+
+        return subscriptionRefreshPromise;
       },
     }),
     {

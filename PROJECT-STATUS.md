@@ -1,8 +1,8 @@
 # 项目状态总览
 
-最后更新：2026-07-02
+最后更新：2026-07-03
 当前主分支：`main`
-最新合入：`0854a50` / PR #27
+最新验证：前端交互全流程模拟器回归 + 前后端单测
 
 ## 总体结论
 
@@ -16,6 +16,7 @@
 - SSE 实时状态同步
 - Apple IAP 代码与 EAS Build 配置
 - PostgreSQL + Redis + BullMQ 后端基础设施
+- 告警联系人确认/求助、联系人排序、连续天数等前后端契约已对齐
 
 当前不再维护旧的阶段协作文档、历史 PRD 版本和过期 SPEC。开发以本文档、根 README、`app/README.md`、`server/API.md`、`server/DEPLOYMENT.md` 为准。
 
@@ -28,7 +29,11 @@
 - `eas.json` 已创建，包含 preview 与 production profile
 - API、App Store、用户协议、隐私政策 URL 已改为环境变量配置
 - 设置页删除账号已接入后端，并清理 token、重置本地状态、跳回登录页
+- 设置页临时暂停/恢复已接入后端
 - 用户协议和隐私政策入口已从配置读取 URL
+- 告警联系人页支持 `alertId + contactId` 深链场景，可确认安全或进入求助建议页
+- 提醒时间改为 18-20、20-22、21-23 三个预设
+- 电话、App Store、协议、隐私政策等外部链接已统一失败兜底
 - 版本号从 Expo config 读取
 - 废弃 `ConfirmButton`、`Tag`、`mock.ts` 已删除
 - 前端 `npm audit --audit-level=moderate` 为 0 vulnerabilities
@@ -41,6 +46,9 @@
 - 通知投递进入 BullMQ，支持重试和死信
 - APNs、阿里云短信、阿里云语音电话服务已接入
 - Apple IAP receipt / transaction 校验服务已接入
+- `GET /alert/:id`、`POST /alert/:id/confirm`、`POST /alert/:id/help` 已补齐
+- `PUT /contacts/reorder` 与 `GET /reply/streak` 已补齐
+- 告警通知短信包含 `todayok://alert/:id?contactId=...` 链接
 - 后端 `npm audit --audit-level=moderate` 为 0 vulnerabilities
 - Backend CI 在真实 PostgreSQL + Redis 上通过
 
@@ -61,11 +69,12 @@ npx expo export --platform ios --output-dir /tmp/expo-export
 结果：
 
 - 类型检查通过
-- 10 个 test suites / 83 个 tests 通过
+- 10 个 test suites / 88 个 tests 通过
 - lint 0 errors，仍有少量 warnings
 - Expo 依赖检查通过
 - iOS export 成功
 - audit 0 vulnerabilities
+- iPhone 16 Pro / iOS 18.6 模拟器完成登录引导、每日签到/撤销、告警确认、告警求助、SOS、邀请分享、mock 订阅、暂停/恢复、提醒时间预设、电话兜底回归
 
 ### 后端
 
@@ -79,17 +88,16 @@ npm audit --audit-level=moderate
 结果：
 
 - Prisma Client 生成通过
-- 19 个 test suites / 135 个 tests 通过
+- 20 个 test suites / 145 个 tests 通过
 - 构建通过
 - audit 0 vulnerabilities
 
-GitHub PR #27 的 `Backend Test (Postgres + Redis)` 已通过。
+本地回归使用真实 PostgreSQL 16 + Redis 运行迁移、后端服务和前端模拟器。
 
 ## 上线前剩余事项
 
 | 优先级 | 事项 | 负责人 | 状态 |
 |--------|------|--------|------|
-| P0 | 对齐前后端接口缺口：`/alert/:id/confirm`、`/alert/:id/help`、`/contacts/reorder`、`/reply/streak` | 前后端 | 待修 |
 | P0 | 注册 Apple Developer Program | 产品/运营 | 待办 |
 | P0 | 创建 App Store Connect App 与 bundle id `com.todayok.app` | 产品/运营 | 待办 |
 | P0 | 配置真实隐私政策 URL 与用户协议 URL | 产品/法务 | 待办 |
@@ -107,12 +115,12 @@ GitHub PR #27 的 `Backend Test (Postgres + Redis)` 已通过。
 
 | 风险 | 影响 | 处理 |
 |------|------|------|
-| 前端仍调用少量后端未实现接口 | 告警联系人处理、联系人排序、连续天数可能失败 | 优先补后端接口或移除前端调用 |
 | Apple 开发者账号未完成 | 无法提交 App Store | 先完成个人/公司账号注册与付款 |
 | 用户协议/隐私政策无公开 URL | App Store 审核会卡 | 先托管到可公开访问页面 |
 | 阿里云短信/语音模板未审核 | 真实告警链路不可用 | 提前申请模板并准备备用话术 |
 | APNs 凭证未配置 | 真机推送不可用 | 准备 `.p8` key、Key ID、Team ID、Bundle ID |
 | IAP 产品未创建 | 订阅无法真实购买 | App Store Connect 创建月/年订阅并联调 |
+| Expo Go 不接管自定义 `todayok://` scheme | 模拟器里无法完整验证生产深链 | 用 EAS dev/internal build 在真机验证邀请和告警链接 |
 
 ## 建议下一步
 

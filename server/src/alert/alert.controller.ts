@@ -1,63 +1,49 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { PrismaService } from '../prisma/prisma.service';
+import { AlertService } from './alert.service';
 
 @ApiTags('告警')
 @ApiBearerAuth()
 @Controller('alert')
 export class AlertController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly alertService: AlertService) {}
 
   @Get('active')
   @ApiOperation({ summary: '获取当前活跃告警' })
   async getActiveAlert(@CurrentUser('id') userId: string) {
-    const activeAlert = await this.prisma.alertEvent.findFirst({
-      where: { userId, status: 'active' },
-      include: {
-        guardStatus: {
-          select: { lastReplyAt: true },
-        },
-      },
-    });
+    return this.alertService.getActiveAlert(userId);
+  }
 
-    if (!activeAlert) {
-      return null;
-    }
+  @Get(':id')
+  @ApiOperation({ summary: '获取指定告警详情' })
+  async getAlert(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Query('contactId') contactId?: string,
+  ) {
+    return this.alertService.getAlert(userId, id, contactId);
+  }
 
-    const contacts = await this.prisma.emergencyContact.findMany({
-      where: { userId },
-      orderBy: { priority: 'asc' },
-    });
+  @Post(':id/confirm')
+  @HttpCode(200)
+  @ApiOperation({ summary: '联系人确认安全并解除告警' })
+  async confirm(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() body: { contactId: string },
+  ) {
+    return this.alertService.confirm(userId, id, body.contactId);
+  }
 
-    let contactsNotifiedIds: string[] = [];
-    try {
-      contactsNotifiedIds = JSON.parse(activeAlert.contactsNotified);
-    } catch {
-      contactsNotifiedIds = [];
-    }
-
-    const contactsNotified = contacts
-      .filter((c) => contactsNotifiedIds.includes(c.id))
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        phone: c.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'),
-      }));
-
-    let timeline: Array<{ time: string; action: string; isCurrent?: boolean }> = [];
-    try {
-      timeline = JSON.parse(activeAlert.timeline);
-    } catch {
-      timeline = [];
-    }
-
-    return {
-      id: activeAlert.id,
-      triggeredAt: activeAlert.triggeredAt.toISOString(),
-      lastReplyAt: activeAlert.guardStatus.lastReplyAt?.toISOString() ?? null,
-      contactsNotified,
-      timeline,
-    };
+  @Post(':id/help')
+  @HttpCode(200)
+  @ApiOperation({ summary: '联系人标记需要帮助' })
+  async needHelp(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() body: { contactId: string },
+  ) {
+    return this.alertService.needHelp(userId, id, body.contactId);
   }
 }

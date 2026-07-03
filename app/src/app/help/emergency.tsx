@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Linking,
   StyleSheet,
   ActivityIndicator,
   Animated,
@@ -14,6 +13,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Card, Button, Banner } from '@/components/ui';
 import { helpApi, type EmergencyHelpResponse } from '@/services/api.types';
+import { openExternalUrl } from '@/services/linking';
 import { Colors, FontSizes, FontWeights, Spacing, Radius, Shadows } from '@/theme';
 
 type Stage = 'preparing' | 'ready' | 'sending' | 'sent' | 'error';
@@ -209,7 +209,7 @@ export default function EmergencyHelpScreen() {
                   </View>
                 </View>
                 <Pressable
-                  onPress={() => Linking.openURL(`tel:${c.phone}`)}
+                  onPress={() => void openExternalUrl(`tel:${c.phone}`, '当前设备无法拨打电话')}
                   style={styles.callButton}
                 >
                   <Text style={styles.callButtonText}>拨打</Text>
@@ -222,7 +222,7 @@ export default function EmergencyHelpScreen() {
         {/* Quick actions */}
         <Card title="快捷拨号" style={styles.quickCard}>
           <Pressable
-            onPress={() => Linking.openURL('tel:120')}
+            onPress={() => void openExternalUrl('tel:120', '当前设备无法拨打电话')}
             style={styles.quickRow}
           >
             <Text style={styles.quickIcon}>🚑</Text>
@@ -234,7 +234,7 @@ export default function EmergencyHelpScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => Linking.openURL('tel:110')}
+            onPress={() => void openExternalUrl('tel:110', '当前设备无法拨打电话')}
             style={styles.quickRow}
           >
             <Text style={styles.quickIcon}>🚔</Text>

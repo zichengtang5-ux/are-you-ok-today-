@@ -33,6 +33,7 @@ describe('NotificationQueueService', () => {
         { id: 'c1', phone: '138' },
         { id: 'c2', phone: '139' },
       ],
+      alertId: 'a1',
       nickname: '小李',
       lastReplyAt: '从未回复',
       round: 1,
@@ -62,6 +63,7 @@ describe('NotificationQueueService', () => {
   it('passes round through to logs (round 2 for repeat alerts)', async () => {
     await service.enqueueAlert({
       contacts: [{ id: 'c1', phone: '138' }],
+      alertId: 'a1',
       nickname: '小李',
       lastReplyAt: '从未回复',
       round: 2,

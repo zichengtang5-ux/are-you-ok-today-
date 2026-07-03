@@ -99,25 +99,29 @@ npx eas submit --platform ios --profile production
 - 引导流程：协议、基础信息、联系人、提醒时间、通知授权
 - 首页状态机：`idle / waiting / replied / grace / alert / paused`
 - 今日确认与告警状态展示
-- 紧急联系人告警处理
+- 紧急联系人告警处理：确认安全、需要帮助、行动建议
 - 子女端：创建邀请、接受邀请、守护列表、看板、代确认
-- 设置：提醒时间、地址、联系人、暂停守护、删除账号
+- 设置：提醒时间、地址、联系人、暂停/恢复守护、删除账号
 - 订阅：本人购买、子女代付、订阅成功页
 - 紧急求助：定位、地址回退、通知联系人
+- 外部链接：电话、App Store、协议、隐私政策失败兜底
 - SSE 实时状态同步
 
 ## 验证记录
 
-最近一次完整验证：
+最近一次完整验证（2026-07-03）：
 
 - `npx tsc --noEmit` 通过
-- `npm test -- --runInBand` 通过
+- `npm test -- --runInBand` 通过，10 个 suites / 88 个 tests
 - `npm run lint` 0 errors，仍有少量 warnings
 - `npx expo install --check` 通过
 - `npx expo-doctor` 通过
 - `npm audit --audit-level=moderate` 0 vulnerabilities
 - `npx expo export --platform ios` 成功
+- iPhone 16 Pro / iOS 18.6 模拟器覆盖登录引导、每日签到/撤销、告警确认/求助、SOS、邀请分享、mock 订阅、暂停/恢复、提醒时间预设、电话兜底
 
 ## 注意
 
 `app/AGENTS.md` 要求写前端代码前先查 Expo 56 官方文档。升级 Expo 或改原生插件时必须重新验证 `expo-doctor` 和 iOS bundle。
+
+Expo Go 不接管项目自定义 `todayok://` scheme。邀请和告警深链需要用 EAS dev/internal build 在真机验证。

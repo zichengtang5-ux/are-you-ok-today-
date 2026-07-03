@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ContactService } from './contact.service';
@@ -47,6 +48,12 @@ export class ContactController {
   @ApiOperation({ summary: '删除联系人' })
   async remove(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.contactService.remove(userId, id);
+  }
+
+  @Put('reorder')
+  @ApiOperation({ summary: '调整联系人优先级' })
+  async reorder(@CurrentUser('id') userId: string, @Body() body: { ids: string[] }) {
+    return this.contactService.reorder(userId, body.ids);
   }
 
   @Post(':id/send-code')

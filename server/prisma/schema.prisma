@@ -98,7 +98,7 @@ model GuardStatus {
   consecutiveTimeouts Int       @default(0)
   updatedAt           DateTime  @updatedAt
 
-  activeAlert AlertEvent?
+  alertEvents AlertEvent[]
 }
 
 // ─── 告警事件 ───
@@ -119,7 +119,7 @@ model AlertEvent {
 
   actions AlertAction[]
 
-  @@unique([guardStatusId])
+  @@index([guardStatusId])
 }
 
 // ─── 告警处理记录 ───

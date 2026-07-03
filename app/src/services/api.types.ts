@@ -222,7 +222,7 @@ export interface AlertContactNotified {
 export interface ActiveAlertResponse {
   id: string;
   triggeredAt: string;
-  lastReplyAt: string;
+  lastReplyAt: string | null;
   contactsNotified: AlertContactNotified[];
   smsRounds: number;
   timeline: AlertTimelineItem[];
@@ -257,6 +257,11 @@ export interface AlertHelpResponse {
 export const alertApi = {
   getActive: () =>
     api.get<ActiveAlertResponse | null>('/alert/active'),
+
+  getById: (alertId: string, contactId?: string) =>
+    api.get<ActiveAlertResponse>(`/alert/${alertId}`, {
+      params: contactId ? { contactId } : undefined,
+    }),
 
   confirm: (alertId: string, contactId: string) =>
     api.post<AlertConfirmResponse>(`/alert/${alertId}/confirm`, { contactId }),

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Linking, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Card, Button, LoadingState, ErrorState } from '@/components/ui';
 import { alertApi, type AlertHelpResponse, type SuggestedAction } from '@/services/api.types';
+import { openExternalUrl } from '@/services/linking';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 const ACTION_EMOJI: Record<string, string> = {
@@ -65,7 +66,7 @@ function renderAction(action: SuggestedAction): ActionItemProps | null {
         detail: action.phone ? maskPhone(action.phone) : undefined,
         actionLabel: ACTION_BUTTON_LABEL.call_user,
         onPress: () => {
-          if (action.phone) Linking.openURL(`tel:${action.phone}`);
+          if (action.phone) void openExternalUrl(`tel:${action.phone}`, '当前设备无法拨打电话');
         },
       };
 
@@ -76,7 +77,7 @@ function renderAction(action: SuggestedAction): ActionItemProps | null {
         detail: action.address ?? undefined,
         actionLabel: ACTION_BUTTON_LABEL.call_120,
         actionColor: Colors.danger,
-        onPress: () => Linking.openURL('tel:120'),
+        onPress: () => void openExternalUrl('tel:120', '当前设备无法拨打电话'),
       };
 
     case 'call_contact':
@@ -87,7 +88,7 @@ function renderAction(action: SuggestedAction): ActionItemProps | null {
         actionLabel: ACTION_BUTTON_LABEL.call_contact,
         onPress: () => {
           const first = action.contacts?.[0];
-          if (first?.phone) Linking.openURL(`tel:${first.phone}`);
+          if (first?.phone) void openExternalUrl(`tel:${first.phone}`, '当前设备无法拨打电话');
         },
       };
 
@@ -173,7 +174,7 @@ export default function AlertHelpScreen() {
               label="拨打 120 急救"
               actionLabel="拨号 →"
               actionColor={Colors.danger}
-              onPress={() => Linking.openURL('tel:120')}
+              onPress={() => void openExternalUrl('tel:120', '当前设备无法拨打电话')}
             />
           </Card>
         )}

@@ -230,4 +230,28 @@ export class ReplyService {
       },
     };
   }
+
+  async getStreak(userId: string) {
+    const records = await this.prisma.dailyRecord.findMany({
+      where: {
+        userId,
+        status: 'replied',
+      },
+      orderBy: { date: 'desc' },
+      select: { date: true },
+    });
+
+    const repliedDates = new Set(records.map((record) => record.date));
+    let cursor = todayString();
+    let streak = 0;
+
+    while (repliedDates.has(cursor)) {
+      streak += 1;
+      const date = new Date(`${cursor}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() - 1);
+      cursor = date.toISOString().slice(0, 10);
+    }
+
+    return { streak };
+  }
 }

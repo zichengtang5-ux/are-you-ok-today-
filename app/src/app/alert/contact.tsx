@@ -13,7 +13,8 @@ function maskPhone(phone: string): string {
   return phone;
 }
 
-function formatTime(isoString: string): string {
+function formatTime(isoString?: string | null): string {
+  if (!isoString) return '';
   try {
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -22,7 +23,8 @@ function formatTime(isoString: string): string {
   }
 }
 
-function formatDate(isoString: string): string {
+function formatDate(isoString?: string | null): string {
+  if (!isoString) return '';
   try {
     const date = new Date(isoString);
     return date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
@@ -31,9 +33,18 @@ function formatDate(isoString: string): string {
   }
 }
 
+function formatTimelineTime(value: string): string {
+  if (/^\d{2}:\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+  return value;
+}
+
 export default function AlertContactScreen() {
   const router = useRouter();
-  const { contactId } = useLocalSearchParams<{ contactId?: string }>();
+  const { alertId, contactId } = useLocalSearchParams<{ alertId?: string; contactId?: string }>();
 
   const [alert, setAlert] = useState<ActiveAlertResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +57,11 @@ export default function AlertContactScreen() {
       setLoading(true);
       setError('');
 
-      alertApi.getActive()
+      const request = alertId
+        ? alertApi.getById(alertId, contactId)
+        : alertApi.getActive();
+
+      request
         .then((data) => {
           if (!cancelled) {
             setAlert(data);
@@ -63,7 +78,7 @@ export default function AlertContactScreen() {
         });
 
       return () => { cancelled = true; };
-    }, []),
+    }, [alertId, contactId]),
   );
 
   const handleConfirmSafe = async () => {
@@ -111,6 +126,7 @@ export default function AlertContactScreen() {
 
   const lastReplyDate = formatDate(alert.lastReplyAt);
   const lastReplyTime = formatTime(alert.lastReplyAt);
+  const lastReplyLabel = alert.lastReplyAt ? `${lastReplyDate} ${lastReplyTime}` : '从未回复';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -125,7 +141,7 @@ export default function AlertContactScreen() {
           <Text style={styles.appName}>今天还好 · 安全提醒</Text>
           <Text style={styles.alertMessage}>对方今天没有回复平安</Text>
           <Text style={styles.alertDetail}>
-            最后回复时间：{lastReplyDate} {lastReplyTime}
+            最后回复时间：{lastReplyLabel}
           </Text>
         </Card>
 
@@ -151,7 +167,7 @@ export default function AlertContactScreen() {
               {alert.timeline.map((item, index) => (
                 <View key={index} style={styles.timelineItem}>
                   <View style={[styles.dot, item.isCurrent && styles.dotCurrent]} />
-                  <Text style={styles.timelineTime}>{item.time}</Text>
+                  <Text style={styles.timelineTime}>{formatTimelineTime(item.time)}</Text>
                   <Text style={[styles.timelineAction, item.isCurrent && styles.timelineCurrent]}>
                     {item.action}
                   </Text>

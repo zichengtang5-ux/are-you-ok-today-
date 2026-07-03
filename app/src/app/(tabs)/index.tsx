@@ -84,7 +84,7 @@ export default function HomeScreen() {
                 id: alertData.id,
                 triggeredAt: alertData.triggeredAt,
                 status: 'active',
-                lastReplyAt: alertData.lastReplyAt,
+                lastReplyAt: alertData.lastReplyAt ?? undefined,
                 contactsNotified: alertData.contactsNotified,
                 smsRounds: alertData.smsRounds,
                 timeline: alertData.timeline,

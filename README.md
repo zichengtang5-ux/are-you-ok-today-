@@ -10,6 +10,7 @@
 - 通知能力：APNs、阿里云短信、阿里云语音电话，开发环境可用 mock provider
 - 订阅能力：Apple IAP / StoreKit 2，支持本人订阅和子女代付
 - 发布配置：已提供 `app/eas.json`、`app/.env.example`、`server/.env.example`
+- 当前前后端契约已覆盖告警处理、联系人排序、连续确认天数、暂停恢复等前端调用
 
 ## 目录结构
 
@@ -33,8 +34,9 @@
 2. `ReminderConfig.nextDueAt` 驱动每分钟调度，只扫描已到期记录。
 3. 未确认用户进入 `grace`，发送关怀提醒。
 4. 宽限期后仍未确认则进入 `alert`，异步通知紧急联系人。
-5. 状态变化通过 Redis pub/sub 与 SSE 推给前端。
-6. 子女端可绑定被守护人、查看看板、代确认、代付订阅。
+5. 联系人通过告警链接确认安全或进入求助建议页。
+6. 状态变化通过 Redis pub/sub 与 SSE 推给前端。
+7. 子女端可绑定被守护人、查看看板、代确认、代付订阅。
 
 ## 快速开始
 
@@ -101,6 +103,12 @@ npm run test:integration
 ```
 
 GitHub Actions 的 Backend CI 会在真实 PostgreSQL + Redis service 容器中跑迁移、单测、集成测试和构建。
+
+最近一次本地回归覆盖：
+
+- `app`: `npx tsc --noEmit`、`npm test -- --runInBand`、模拟器全流程交互
+- `server`: `npm run prisma:generate`、`npm test -- --runInBand`、`npm run build`
+- 模拟器流程：登录引导、每日签到/撤销、告警确认/求助、SOS、邀请分享、mock 订阅、暂停/恢复、提醒时间预设、电话兜底
 
 ## 发布入口
 

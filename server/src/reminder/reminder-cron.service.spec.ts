@@ -27,7 +27,7 @@ describe('ReminderCronService', () => {
     reminderConfig: { findMany: jest.fn(), update: jest.fn().mockResolvedValue({}) },
     dailyRecord: { findUnique: jest.fn(), upsert: jest.fn().mockResolvedValue({}) },
     guardStatus: { upsert: jest.fn() },
-    alertEvent: { findFirst: jest.fn(), create: jest.fn() },
+    alertEvent: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     notificationLog: { create: jest.fn().mockResolvedValue({}) },
   };
   const mockPush = { sendCareReminder: jest.fn().mockResolvedValue(true) };
@@ -61,6 +61,7 @@ describe('ReminderCronService', () => {
     mockPrisma.reminderConfig.update.mockResolvedValue({});
     mockPrisma.dailyRecord.upsert.mockResolvedValue({});
     mockPrisma.notificationLog.create.mockResolvedValue({});
+    mockPrisma.alertEvent.update.mockResolvedValue({});
   });
 
   function baseUser(overrides: Record<string, unknown> = {}) {
@@ -193,13 +194,17 @@ describe('ReminderCronService', () => {
     mockPrisma.dailyRecord.findUnique.mockResolvedValue({ status: 'grace' });
     mockPrisma.guardStatus.upsert.mockResolvedValue({ id: 'gs1', status: 'alert' });
     mockPrisma.alertEvent.findFirst.mockResolvedValue(null);
-    mockPrisma.alertEvent.create.mockResolvedValue({});
+    mockPrisma.alertEvent.create.mockResolvedValue({ id: 'ae1', smsRounds: 0 });
 
     await service.checkDueReminders();
     expect(mockPrisma.alertEvent.create).toHaveBeenCalled();
+    expect(mockPrisma.alertEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'ae1' }, data: { smsRounds: 1 } }),
+    );
     expect(mockNotificationQueue.enqueueAlert).toHaveBeenCalledWith(
       expect.objectContaining({
         contacts: [{ id: 'c1', phone: '13800001111' }],
+        alertId: 'ae1',
         nickname: '小李',
         round: 1,
       }),
@@ -219,13 +224,16 @@ describe('ReminderCronService', () => {
     );
     mockPrisma.dailyRecord.findUnique.mockResolvedValue({ status: 'grace' });
     mockPrisma.guardStatus.upsert.mockResolvedValue({ id: 'gs1', status: 'alert' });
-    mockPrisma.alertEvent.findFirst.mockResolvedValue({ id: 'ae1', status: 'active' });
+    mockPrisma.alertEvent.findFirst.mockResolvedValue({ id: 'ae1', status: 'active', smsRounds: 1 });
 
     await service.checkDueReminders();
     expect(mockPrisma.alertEvent.create).not.toHaveBeenCalled();
+    expect(mockPrisma.alertEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'ae1' }, data: { smsRounds: 2 } }),
+    );
     // 已有活跃告警 → round 2，仍重新投递通知
     expect(mockNotificationQueue.enqueueAlert).toHaveBeenCalledWith(
-      expect.objectContaining({ round: 2 }),
+      expect.objectContaining({ alertId: 'ae1', round: 2 }),
     );
   });
 });
