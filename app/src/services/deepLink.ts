@@ -28,24 +28,11 @@ export function parseDeepLink(url: string): DeepLinkRoute | null {
     return { path: '/(tabs)' as Href };
   }
 
-  if (segments[0] === 'invite' && segments[1]) {
-    return {
-      path: '/guardian/invite' as Href,
-      params: { inviteCode: segments[1] },
-    };
-  }
-
   if (segments[0] === 'settings') {
     return { path: '/(tabs)/settings' as Href };
   }
 
   if (segments[0] === 'subscription') {
-    if (segments[1] === 'proxy') {
-      return {
-        path: '/subscription/proxy' as Href,
-        params: queryParams as Record<string, string>,
-      };
-    }
     return { path: '/subscription' as Href };
   }
 

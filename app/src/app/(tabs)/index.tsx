@@ -36,7 +36,7 @@ const statusConfig: Record<ReplyStatus, { illustration: string; title: string; s
   paused: {
     illustration: '⏸️',
     title: '守护已暂停',
-    subtitle: '点击恢复守护',
+    subtitle: '可在设置中恢复提醒',
   },
 };
 
@@ -250,18 +250,11 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* Quick action shortcuts */}
-        <View style={styles.quickRow}>
-          <Pressable
-            onPress={() => router.push('/guardian')}
-            style={styles.quickBtn}
-          >
-            <Text style={styles.quickIcon}>👨‍👩‍👧</Text>
-            <Text style={styles.quickLabel}>守护中心</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/help/emergency')}
-            style={[styles.quickBtn, styles.quickBtnDanger]}
+	        {/* Quick action shortcuts */}
+	        <View style={styles.quickRow}>
+	          <Pressable
+	            onPress={() => router.push('/help/emergency')}
+	            style={[styles.quickBtn, styles.quickBtnDanger]}
           >
             <Text style={styles.quickIcon}>🆘</Text>
             <Text style={[styles.quickLabel, styles.quickLabelDanger]}>紧急求助</Text>
@@ -426,7 +419,6 @@ const styles = StyleSheet.create({
   },
   quickRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
     marginTop: Spacing.lg,
   },
   quickBtn: {

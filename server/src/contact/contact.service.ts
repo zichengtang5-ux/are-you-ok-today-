@@ -50,11 +50,12 @@ export class ContactService {
       data: {
         userId,
         name: data.name,
-        phone: data.phone,
-        relation: data.relation ?? '家人',
-        priority,
-      },
-    });
+	        phone: data.phone,
+	        relation: data.relation ?? '家人',
+	        priority,
+	        verified: true,
+	      },
+	    });
   }
 
   async update(userId: string, contactId: string, data: { name?: string; phone?: string; relation?: string; priority?: number }) {
@@ -71,7 +72,7 @@ export class ContactService {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.phone !== undefined) {
       updateData.phone = data.phone;
-      updateData.verified = false;
+      updateData.verified = true;
     }
     if (data.relation !== undefined) updateData.relation = data.relation;
     if (data.priority !== undefined) updateData.priority = data.priority;
@@ -142,7 +143,11 @@ export class ContactService {
     }
 
     const recent = await this.prisma.verificationCode.findFirst({
-      where: { phone: contact.phone },
+      where: {
+        phone: contact.phone,
+        usedAt: null,
+        expiresAt: { gte: new Date() },
+      },
       orderBy: { createdAt: 'desc' },
     });
 

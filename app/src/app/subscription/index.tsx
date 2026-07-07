@@ -117,12 +117,12 @@ export default function SubscriptionScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.hero}>
-          <Text style={styles.heroTitle}>守护版</Text>
-          <Text style={styles.heroSubtitle}>
-            让关心你的人更安心
-          </Text>
-        </View>
+	        <View style={styles.hero}>
+	          <Text style={styles.heroTitle}>守护版</Text>
+	          <Text style={styles.heroSubtitle}>
+	            增强紧急联系人和告警通知
+	          </Text>
+	        </View>
 
         {/* Plan cards */}
         <View style={styles.plans} accessibilityRole="radiogroup">

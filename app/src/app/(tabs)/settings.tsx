@@ -6,7 +6,11 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, Button, Dialog } from '@/components/ui';
 import { useStore } from '@/store/useStore';
-import { pauseApi, userApi, type PauseStatusResponse } from '@/services/api.types';
+import {
+  pauseApi,
+  userApi,
+  type PauseStatusResponse,
+} from '@/services/api.types';
 import { PRIVACY_URL, TERMS_URL } from '@/services/config';
 import { openExternalUrl } from '@/services/linking';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
@@ -138,8 +142,7 @@ export default function SettingsScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>设置</Text>
 
-        {/* Guard settings */}
-        <Card title="守护设置" style={styles.card}>
+        <Card title="提醒设置" style={styles.card}>
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>提醒时间</Text>
             <Text style={styles.settingValue}>
@@ -195,13 +198,13 @@ export default function SettingsScreen() {
                 </View>
               )}
               <Button variant="primary" onPress={handleResume} loading={pauseLoading}>
-                恢复守护
+                恢复提醒
               </Button>
             </>
           ) : (
             <>
               <Text style={styles.pauseHint}>
-                出差、住院或短期不方便回复时可暂停守护，暂停期间不会触发告警。
+                出差、住院或短期不方便回复时可暂停每日提醒，暂停期间不会触发告警。
               </Text>
               <View style={styles.pauseRow}>
                 {[1, 3, 7].map((days) => (
@@ -217,31 +220,6 @@ export default function SettingsScreen() {
               </View>
             </>
           )}
-        </Card>
-
-        {/* Family settings */}
-        <Card title="家庭设置" style={styles.card}>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/subscription/proxy')}
-            accessibilityLabel="为家人开通守护"
-          >
-            <Text style={styles.linkText}>为家人开通守护 →</Text>
-          </Pressable>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/subscription')}
-            accessibilityLabel="升级守护版"
-          >
-            <Text style={styles.linkText}>升级守护版 →</Text>
-          </Pressable>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/guardian')}
-            accessibilityLabel="守护中心"
-          >
-            <Text style={styles.linkText}>守护中心 →</Text>
-          </Pressable>
         </Card>
 
         {/* Legal & data */}
@@ -306,13 +284,6 @@ export default function SettingsScreen() {
               {subscription?.status === 'expired' ? '重新开通守护版' : '升级守护版'}
             </Button>
           )}
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/guardian')}
-            accessibilityLabel="守护中心"
-          >
-            <Text style={[styles.linkText, { textAlign: 'center' }]}>守护中心 →</Text>
-          </Pressable>
         </Card>
 
         {/* Version */}
@@ -323,7 +294,7 @@ export default function SettingsScreen() {
       <Dialog
         visible={deleteDialogVisible}
         title="确定删除所有数据吗？"
-        message="删除后无法恢复，包括：回复记录、联系人信息、守护设置。你的紧急联系人将不再收到通知。"
+        message="删除后无法恢复，包括：回复记录、联系人信息、提醒设置。你的紧急联系人将不再收到通知。"
         confirmText={deleteLoading ? '删除中...' : '确认删除'}
         cancelText="取消"
         variant="danger"

@@ -1,6 +1,6 @@
 # 项目状态总览
 
-最后更新：2026-07-03
+最后更新：2026-07-07
 当前主分支：`main`
 最新验证：前端交互全流程模拟器回归 + 前后端单测
 
@@ -8,11 +8,11 @@
 
 项目已经具备 Phase 1 的核心产品闭环：
 
-- 注册登录、引导、联系人、提醒时间、通知授权
+- 注册登录、引导、地址定位/填写、联系人、提醒时间、通知授权
 - 每日确认、撤销、暂停/恢复、删除账号
 - `idle / waiting / replied / grace / alert / paused` 状态链路
 - 关怀提醒、超时告警、短信、语音电话、APNs 推送
-- 子女端绑定、看板、代确认、代付订阅
+- 本期前端保持极简：家庭守护、关怀看板、代确认、代付订阅入口已下线
 - SSE 实时状态同步
 - Apple IAP 代码与 EAS Build 配置
 - PostgreSQL + Redis + BullMQ 后端基础设施
@@ -32,7 +32,10 @@
 - 设置页临时暂停/恢复已接入后端
 - 用户协议和隐私政策入口已从配置读取 URL
 - 告警联系人页支持 `alertId + contactId` 深链场景，可确认安全或进入求助建议页
-- 提醒时间改为 18-20、20-22、21-23 三个预设
+- 地址页支持定位填充地址
+- 紧急联系人引导不再要求填写联系人验证码
+- 提醒时间改为开始/结束整点滚动选择
+- 底部 tab、守护中心、关怀看板、家庭守护入口已移除
 - 电话、App Store、协议、隐私政策等外部链接已统一失败兜底
 - 版本号从 Expo config 读取
 - 废弃 `ConfirmButton`、`Tag`、`mock.ts` 已删除
@@ -74,7 +77,7 @@ npx expo export --platform ios --output-dir /tmp/expo-export
 - Expo 依赖检查通过
 - iOS export 成功
 - audit 0 vulnerabilities
-- iPhone 16 Pro / iOS 18.6 模拟器完成登录引导、每日签到/撤销、告警确认、告警求助、SOS、邀请分享、mock 订阅、暂停/恢复、提醒时间预设、电话兜底回归
+- iPhone 16 Pro / iOS 18.6 模拟器完成登录引导、每日签到/撤销、告警确认、告警求助、SOS、mock 订阅、暂停/恢复、电话兜底回归；本期不再验收家庭守护和关怀看板
 
 ### 后端
 
@@ -120,7 +123,7 @@ npm audit --audit-level=moderate
 | 阿里云短信/语音模板未审核 | 真实告警链路不可用 | 提前申请模板并准备备用话术 |
 | APNs 凭证未配置 | 真机推送不可用 | 准备 `.p8` key、Key ID、Team ID、Bundle ID |
 | IAP 产品未创建 | 订阅无法真实购买 | App Store Connect 创建月/年订阅并联调 |
-| Expo Go 不接管自定义 `todayok://` scheme | 模拟器里无法完整验证生产深链 | 用 EAS dev/internal build 在真机验证邀请和告警链接 |
+| Expo Go 不接管自定义 `todayok://` scheme | 模拟器里无法完整验证生产深链 | 用 EAS dev/internal build 在真机验证告警链接 |
 
 ## 建议下一步
 

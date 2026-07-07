@@ -12,16 +12,12 @@ export default function ContactSetupScreen() {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [relation, setRelation] = useState('');
-  const [verifyCode, setVerifyCode] = useState('');
-  const [contactId, setContactId] = useState<string | null>(null);
-  const [codeSent, setCodeSent] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const { addContact, setOnboardingStep } = useStore();
 
-  const handleSendCode = async () => {
+  const handleSubmit = async () => {
     if (!contactName.trim()) {
       setError('请输入联系人姓名');
       return;
@@ -40,54 +36,13 @@ export default function ContactSetupScreen() {
         phone: contactPhone,
         relation: relation || '家人',
       });
-      setContactId(contact.id);
-
-      const sendResult = await contactApi.sendVerifyCode(contact.id);
-      setCodeSent(true);
-      setCountdown(60);
-
-      // 开发环境：自动填充 mockCode
-      if (sendResult.mockCode) {
-        setVerifyCode(sendResult.mockCode);
-      }
-
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } catch (err: any) {
-      const message = err.response?.data?.message || '发送验证码失败';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (!verifyCode || verifyCode.length < 4) {
-      setError('请输入验证码');
-      return;
-    }
-    if (!contactId) return;
-
-    setError('');
-    setLoading(true);
-
-    try {
-      const result = await contactApi.verify(contactId, verifyCode);
-      const verified = result.contact;
       addContact({
-        id: verified.id,
-        name: verified.name,
-        phone: verified.phone,
-        relation: verified.relation,
-        priority: verified.priority,
-        verified: verified.verified,
+        id: contact.id,
+        name: contact.name,
+        phone: contact.phone,
+        relation: contact.relation,
+        priority: contact.priority,
+        verified: contact.verified,
       });
 
       await userApi.updateOnboarding({
@@ -98,7 +53,7 @@ export default function ContactSetupScreen() {
       setOnboardingStep('reminder-time');
       router.replace('/onboarding/reminder-time');
     } catch (err: any) {
-      const message = err.response?.data?.message || '验证码错误';
+      const message = err.response?.data?.message || '保存联系人失败';
       setError(message);
     } finally {
       setLoading(false);
@@ -120,13 +75,13 @@ export default function ContactSetupScreen() {
           <Input
             label="联系人姓名"
             value={contactName}
-            onChangeText={(text) => {
-              setContactName(text);
-              setError('');
-            }}
-            placeholder="如：妈妈"
-            error={!codeSent ? error : undefined}
-          />
+	            onChangeText={(text) => {
+	              setContactName(text);
+	              setError('');
+	            }}
+	            placeholder="如：妈妈"
+	            error={error}
+	          />
           <Input
             label="手机号"
             value={contactPhone}
@@ -147,42 +102,16 @@ export default function ContactSetupScreen() {
             }}
             placeholder="母亲 / 父亲 / 朋友 / 其他"
           />
-          <Button
-            variant="primary"
-            size="md"
-            onPress={handleSendCode}
-            loading={loading && !codeSent}
-            disabled={countdown > 0}
-          >
-            {countdown > 0 ? `重新发送 (${countdown}s)` : '发送验证码'}
-          </Button>
-
-          {codeSent && (
-            <>
-              <Input
-                label="验证码"
-                value={verifyCode}
-                onChangeText={(text) => {
-                  setVerifyCode(text.replace(/\D/g, ''));
-                  setError('');
-                }}
-                placeholder="请输入验证码"
-                keyboardType="numeric"
-                maxLength={6}
-                error={codeSent ? error : undefined}
-              />
-              <Button
-                variant="primary"
-                size="md"
-                onPress={handleVerify}
-                loading={loading && codeSent}
-                disabled={!verifyCode || verifyCode.length < 4}
-              >
-                验证并继续
-              </Button>
-            </>
-          )}
-        </Card>
+	          <Button
+	            variant="primary"
+	            size="md"
+	            onPress={handleSubmit}
+	            loading={loading}
+	            disabled={loading || !contactName.trim() || contactPhone.length !== 11}
+	          >
+	            保存并继续
+	          </Button>
+	        </Card>
 
         {/* Free tier hint */}
         <Card variant="warm" style={styles.hintCard}>

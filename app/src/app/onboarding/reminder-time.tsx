@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card } from '@/components/ui';
@@ -7,11 +7,11 @@ import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { reminderApi, userApi } from '@/services/api.types';
 
-const TIME_PRESETS = [
-  { label: '傍晚', startTime: '18:00', endTime: '20:00' },
-  { label: '晚上', startTime: '20:00', endTime: '22:00' },
-  { label: '睡前', startTime: '21:00', endTime: '23:00' },
-];
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
+
+function getHour(time: string): number {
+  return Number(time.slice(0, 2));
+}
 
 export default function ReminderTimeScreen() {
   const router = useRouter();
@@ -22,7 +22,12 @@ export default function ReminderTimeScreen() {
 
   const { setReminder, setOnboardingStep } = useStore();
 
-  const handleSubmit = async () => {
+	  const handleSubmit = async () => {
+    if (getHour(endTime) <= getHour(startTime)) {
+      setError('结束时间必须晚于开始时间');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -42,11 +47,27 @@ export default function ReminderTimeScreen() {
     } finally {
       setLoading(false);
     }
+	  };
+
+  const handleStartSelect = (time: string) => {
+    const hour = getHour(time);
+    if (hour >= 23) return;
+    setStartTime(time);
+    if (getHour(endTime) <= hour) {
+      setEndTime(HOUR_OPTIONS[hour + 1]);
+    }
+    setError('');
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+  const handleEndSelect = (time: string) => {
+    if (getHour(time) <= getHour(startTime)) return;
+    setEndTime(time);
+    setError('');
+  };
+
+	  return (
+	    <SafeAreaView style={styles.container}>
+	      <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.stepIndicator}>4 / 5</Text>
@@ -57,40 +78,59 @@ export default function ReminderTimeScreen() {
         <Card style={styles.timeCard}>
           <Text style={styles.timeLabel}>提醒时间窗口</Text>
           <View style={styles.timeRow}>
-            <View style={styles.timePicker}>
-              <Text style={styles.timeValue}>{startTime}</Text>
+            <View style={styles.timeColumn}>
               <Text style={styles.timeHint}>开始</Text>
+              <ScrollView style={styles.hourList} showsVerticalScrollIndicator={false}>
+                {HOUR_OPTIONS.slice(0, 23).map((time) => {
+                  const active = time === startTime;
+                  return (
+                    <Pressable
+                      key={time}
+                      onPress={() => handleStartSelect(time)}
+                      style={[styles.hourOption, active && styles.hourOptionActive]}
+                    >
+                      <Text style={[styles.hourText, active && styles.hourTextActive]}>
+                        {time}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             </View>
             <Text style={styles.separator}>至</Text>
-            <View style={styles.timePicker}>
-              <Text style={styles.timeValue}>{endTime}</Text>
+            <View style={styles.timeColumn}>
               <Text style={styles.timeHint}>结束</Text>
+              <ScrollView style={styles.hourList} showsVerticalScrollIndicator={false}>
+                {HOUR_OPTIONS.slice(1).map((time) => {
+                  const disabled = getHour(time) <= getHour(startTime);
+                  const active = time === endTime;
+                  return (
+                    <Pressable
+                      key={time}
+                      onPress={() => handleEndSelect(time)}
+                      disabled={disabled}
+                      style={[
+                        styles.hourOption,
+                        active && styles.hourOptionActive,
+                        disabled && styles.hourOptionDisabled,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.hourText,
+                          active && styles.hourTextActive,
+                          disabled && styles.hourTextDisabled,
+                        ]}
+                      >
+                        {time}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             </View>
           </View>
         </Card>
-
-        <View style={styles.presetRow}>
-          {TIME_PRESETS.map((preset) => {
-            const active = startTime === preset.startTime && endTime === preset.endTime;
-            return (
-              <Pressable
-                key={preset.label}
-                onPress={() => {
-                  setStartTime(preset.startTime);
-                  setEndTime(preset.endTime);
-                }}
-                style={[styles.presetButton, active && styles.presetButtonActive]}
-              >
-                <Text style={[styles.presetLabel, active && styles.presetLabelActive]}>
-                  {preset.label}
-                </Text>
-                <Text style={[styles.presetTime, active && styles.presetTimeActive]}>
-                  {preset.startTime} - {preset.endTime}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
 
         {/* Hint card */}
         <Card variant="info" style={styles.hintCard}>
@@ -145,42 +185,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  presetRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  presetButton: {
-    flex: 1,
-    minHeight: 64,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xs,
-  },
-  presetButtonActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
-  },
-  presetLabel: {
-    fontSize: FontSizes.sm,
-    color: Colors.gray700,
-    fontWeight: FontWeights.semibold,
-    marginBottom: 4,
-  },
-  presetLabelActive: {
-    color: Colors.primaryDark,
-  },
-  presetTime: {
-    fontSize: FontSizes.xs,
-    color: Colors.gray500,
-  },
-  presetTimeActive: {
-    color: Colors.primaryDark,
-  },
   timeLabel: {
     fontSize: FontSizes.base,
     color: Colors.gray700,
@@ -192,22 +196,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  timePicker: {
+  timeColumn: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.primaryLight,
-    borderRadius: Radius.md,
+    gap: Spacing.sm,
   },
-  timeValue: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: FontWeights.bold,
-    color: Colors.primaryDark,
+  hourList: {
+    width: 116,
+    maxHeight: 188,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.white,
   },
   timeHint: {
     fontSize: FontSizes.sm,
+    color: Colors.gray600,
+    fontWeight: FontWeights.medium,
+  },
+  hourOption: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hourOptionActive: {
+    backgroundColor: Colors.primaryLight,
+  },
+  hourOptionDisabled: {
+    opacity: 0.4,
+  },
+  hourText: {
+    fontSize: FontSizes.base,
+    color: Colors.gray700,
+    fontWeight: FontWeights.medium,
+  },
+  hourTextActive: {
     color: Colors.primaryDark,
-    marginTop: Spacing.xs,
+    fontWeight: FontWeights.bold,
+  },
+  hourTextDisabled: {
+    color: Colors.gray400,
   },
   separator: {
     fontSize: FontSizes.lg,

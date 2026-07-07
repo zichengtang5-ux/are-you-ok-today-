@@ -49,9 +49,12 @@ describe('ContactService', () => {
       mockPrisma.subscription.findUnique.mockResolvedValue(null);
       mockPrisma.emergencyContact.create.mockResolvedValue({ id: 'c1', name: '妈妈' });
 
-      const result = await service.create('u1', { name: '妈妈', phone: '13800001111' });
-      expect(result).toEqual({ id: 'c1', name: '妈妈' });
-    });
+	      const result = await service.create('u1', { name: '妈妈', phone: '13800001111' });
+	      expect(result).toEqual({ id: 'c1', name: '妈妈' });
+      expect(mockPrisma.emergencyContact.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ verified: true }),
+      });
+	    });
 
     it('should reject free user adding 2nd contact', async () => {
       mockPrisma.emergencyContact.findMany.mockResolvedValue([{ id: 'c1' }]);

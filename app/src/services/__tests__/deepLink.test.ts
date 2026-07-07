@@ -35,19 +35,6 @@ describe('parseDeepLink', () => {
     expect(parseDeepLink('todayok://reply')).toEqual({ path: '/(tabs)' });
   });
 
-  it('routes invite links with the invite code', () => {
-    expect(parseDeepLink('todayok://invite/CODE99')).toEqual({
-      path: '/guardian/invite',
-      params: { inviteCode: 'CODE99' },
-    });
-  });
-
-  it('routes subscription proxy links and preserves query params', () => {
-    const route = parseDeepLink('todayok://subscription/proxy?wardId=w1');
-    expect(route?.path).toBe('/subscription/proxy');
-    expect(route?.params).toEqual(expect.objectContaining({ wardId: 'w1' }));
-  });
-
   it('routes plain subscription links', () => {
     expect(parseDeepLink('todayok://subscription')).toEqual({ path: '/subscription' });
   });

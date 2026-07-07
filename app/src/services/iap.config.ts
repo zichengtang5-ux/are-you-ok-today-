@@ -25,11 +25,11 @@ export const PLAN_DISPLAY: Record<
     price: '¥0.9',
     period: '/月',
     tagline: '按月灵活开通',
-    features: [
-      { label: '5 位紧急联系人', included: true },
-      { label: '关怀看板完整数据', included: true },
-      { label: '告警语音电话', included: true },
-      { label: '无试用期', included: false },
+	    features: [
+	      { label: '5 位紧急联系人', included: true },
+	      { label: '多联系人告警通知', included: true },
+	      { label: '告警语音电话', included: true },
+	      { label: '无试用期', included: false },
     ],
   },
   yearly: {
@@ -37,11 +37,11 @@ export const PLAN_DISPLAY: Record<
     price: '¥9.9',
     period: '/年',
     tagline: '全年守护 · 推荐',
-    features: [
-      { label: '5 位紧急联系人', included: true },
-      { label: '关怀看板完整数据', included: true },
-      { label: '告警语音电话', included: true },
-      { label: '7 天免费试用', included: true },
+	    features: [
+	      { label: '5 位紧急联系人', included: true },
+	      { label: '多联系人告警通知', included: true },
+	      { label: '告警语音电话', included: true },
+	      { label: '7 天免费试用', included: true },
     ],
   },
 };
