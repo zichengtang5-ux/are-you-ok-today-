@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, StatusBar, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '../../theme';
+
+const headerLogo = require('../../../assets/images/header-logo.png');
 
 type BarVariant = 'primary' | 'warn' | 'danger' | 'white';
 
@@ -19,13 +22,7 @@ const TEXT: Record<BarVariant, string> = {
 };
 
 function HeaderLogo() {
-  return (
-    <View style={styles.headerLogoBadge}>
-      <View style={styles.headerLogoBar} />
-      <View style={styles.headerLogoChevronTop} />
-      <View style={styles.headerLogoChevronBottom} />
-    </View>
-  );
+  return <Image source={headerLogo} style={styles.headerLogo} contentFit="cover" accessibilityLabel="今天还好 logo" />;
 }
 
 export function GreenStatusBar({
@@ -79,46 +76,15 @@ const styles = StyleSheet.create({
   mascot: {
     marginRight: 8,
   },
-  headerLogoBadge: {
+  headerLogo: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Colors.white,
-    position: 'relative',
     shadowColor: Colors.primaryDark,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.24,
     shadowRadius: 3,
     elevation: 3,
-  },
-  headerLogoBar: {
-    position: 'absolute',
-    left: 8,
-    top: 9,
-    width: 3.5,
-    height: 10,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-  },
-  headerLogoChevronTop: {
-    position: 'absolute',
-    left: 16,
-    top: 10,
-    width: 8,
-    height: 3.5,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-    transform: [{ rotate: '-45deg' }],
-  },
-  headerLogoChevronBottom: {
-    position: 'absolute',
-    left: 16,
-    top: 16,
-    width: 8,
-    height: 3.5,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-    transform: [{ rotate: '45deg' }],
   },
   backBtn: {
     position: 'absolute',
