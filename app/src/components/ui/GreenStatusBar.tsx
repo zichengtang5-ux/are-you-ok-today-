@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, StatusBar, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '../../theme';
-import { MascotLogo } from './MascotLogo';
 
 type BarVariant = 'primary' | 'warn' | 'danger' | 'white';
 
@@ -18,6 +17,15 @@ const TEXT: Record<BarVariant, string> = {
   danger: Colors.white,
   white: Colors.gray900,
 };
+
+function HeaderLogo() {
+  return (
+    <View style={styles.headerLogoRing}>
+      <View style={styles.headerLogoBar} />
+      <Text style={styles.headerLogoMark}>{'<'}</Text>
+    </View>
+  );
+}
 
 export function GreenStatusBar({
   variant = 'primary',
@@ -47,7 +55,7 @@ export function GreenStatusBar({
       )}
       {showMascot && variant !== 'white' && (
         <View style={styles.mascot}>
-          <MascotLogo size="sm" colorScheme={variant === 'danger' ? 'red' : 'green'} />
+          <HeaderLogo />
         </View>
       )}
       <Text style={[styles.title, { color: textColor }]}>{title}</Text>
@@ -68,7 +76,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   mascot: {
-    marginRight: 6,
+    marginRight: 8,
+  },
+  headerLogoRing: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2.5,
+    borderColor: Colors.white,
+    position: 'relative',
+  },
+  headerLogoBar: {
+    position: 'absolute',
+    left: 8,
+    top: 9,
+    width: 3.5,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: Colors.white,
+  },
+  headerLogoMark: {
+    position: 'absolute',
+    left: 14,
+    top: 1,
+    color: Colors.white,
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '800',
   },
   backBtn: {
     position: 'absolute',

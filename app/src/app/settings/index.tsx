@@ -83,15 +83,6 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <GreenStatusBar variant="white" title="设置" showMascot={false} onBack={goHome} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Pressable
-          style={({ pressed }) => [styles.homeButton, pressed && styles.homeButtonPressed]}
-          onPress={goHome}
-          accessibilityRole="button"
-          accessibilityLabel="返回首页"
-        >
-          <Text style={styles.homeButtonText}>← 返回首页</Text>
-        </Pressable>
-
         {/* Guard settings */}
         <Card title="守护设置" style={styles.card}>
           <Pressable
@@ -212,15 +203,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.gray50 },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.lg, gap: Spacing.lg },
-  homeButton: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: Colors.primaryLight,
-  },
-  homeButtonPressed: { backgroundColor: Colors.gray200 },
-  homeButtonText: { fontSize: FontSizes.sm, color: Colors.primaryDark, fontWeight: FontWeights.semibold },
   card: { gap: Spacing.sm },
   settingRow: {
     flexDirection: 'row',

@@ -151,7 +151,7 @@ export default function HomeScreen() {
         </Text>
 
         <View style={styles.hero}>
-          <MascotLogo size="lg" variant={(todayStatus === 'waiting' || todayStatus === 'alert') ? 'double-bar' : 'default'} />
+          <MascotLogo size="xl" variant={(todayStatus === 'waiting' || todayStatus === 'alert') ? 'double-bar' : 'default'} />
           <Text style={[styles.title, styles.titleBelowIcon, todayStatus === 'replied' && { color: Colors.primary }]}>{config.title}</Text>
           {renderSubtitle()}
           {todayStatus === 'alert' && activeAlert && (
@@ -267,12 +267,12 @@ const styles = StyleSheet.create({
   alertBannerText: { fontSize: FontSizes.sm, color: Colors.danger, fontWeight: FontWeights.semibold, textAlign: 'center' },
   buttonContainer: { alignItems: 'center', marginTop: Spacing.xl, marginBottom: Spacing.sm },
   confirmButton: {
-    width: 120, height: 120, borderRadius: 60, backgroundColor: Colors.primary,
+    width: 152, height: 152, borderRadius: 76, backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 8,
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8,
   },
   confirmButtonDisabled: { backgroundColor: Colors.gray300, shadowOpacity: 0 },
-  confirmButtonText: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, color: Colors.white, textAlign: 'center' },
+  confirmButtonText: { fontSize: 22, fontWeight: FontWeights.bold, color: Colors.white, textAlign: 'center' },
   confirmButtonTextDisabled: { color: Colors.gray500 },
   buttonHint: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: Spacing.md },
   repliedCard: { alignItems: 'center' },

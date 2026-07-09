@@ -2,11 +2,11 @@ import React, { useEffect, useMemo } from 'react';
 import { View, StyleSheet, Animated, Easing, Image } from 'react-native';
 import { Colors } from '../../theme';
 
-type Size = 'sm' | 'md' | 'lg';
+type Size = 'sm' | 'md' | 'lg' | 'xl';
 type Variant = 'default' | 'double-bar';
 type ColorScheme = 'green' | 'red';
 
-const SIZES: Record<Size, number> = { sm: 28, md: 48, lg: 120 };
+const SIZES: Record<Size, number> = { sm: 28, md: 48, lg: 120, xl: 152 };
 
 const LOGOS: Record<Variant, number> = {
   default: require('../../../assets/images/logo-white-bg.png'),
