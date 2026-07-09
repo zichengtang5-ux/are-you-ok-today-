@@ -90,7 +90,7 @@ function timeToMinutes(time: string): number {
 
 export default function EditReminderScreen() {
   const router = useRouter();
-  const { reminder, setReminder } = useStore();
+  const { reminder, user, setReminder } = useStore();
 
   const [startTime, setStartTime] = useState(() => parseTime(reminder.startTime));
   const [endTime, setEndTime] = useState(() => parseTime(reminder.endTime));
@@ -107,7 +107,7 @@ export default function EditReminderScreen() {
     try {
       await reminderApi.updateConfig({ startTime, endTime });
       setReminder({ ...reminder, startTime, endTime });
-      await scheduleDailyReminder(startTime, endTime);
+      await scheduleDailyReminder(startTime, endTime, user?.nickname);
       router.back();
     } catch (err: any) {
       setError(err.response?.data?.message || '保存失败，请重试');

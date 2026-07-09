@@ -89,6 +89,13 @@ describe('PushService', () => {
 
       expect(result).toBe(true);
       expect(mockSend).toHaveBeenCalled();
+      const note = mockSend.mock.calls[0][0];
+      expect(note.alert).toEqual({
+        title: '「妈妈」今天还好吗？',
+        body: '一键点击，让我知道你今天还好',
+      });
+      expect(note.payload).toEqual({ type: 'daily_reminder', action: 'reply_ok', route: 'home' });
+      expect(note.aps.category).toBe('daily_reminder');
     });
 
     it('should send alert notification via APNs', async () => {

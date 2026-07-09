@@ -14,6 +14,8 @@ import {
   registerDeviceToken,
   setupPushTokenListener,
   isReplyOkAction,
+  isOpenAppAction,
+  isDefaultNotificationAction,
 } from '@/services/notifications';
 import {
   getInitialURL,
@@ -113,6 +115,11 @@ export default function RootLayout() {
             // 快捷回复“今天还好”失败：用户可在 App 内重试，但必须上报（关键签到动作）
             reportError(e, { scope: 'notificationAction.reply' });
           }
+          return;
+        }
+
+        if (isDefaultNotificationAction(actionId) || isOpenAppAction(actionId)) {
+          router.replace('/(tabs)');
         }
       },
     );

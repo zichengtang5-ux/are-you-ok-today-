@@ -6,6 +6,8 @@ const isNative = Platform.OS !== 'web';
 const CATEGORY_ID = 'daily_reminder';
 const ACTION_REPLY_OK = 'reply_ok';
 const ACTION_OPEN_APP = 'open_app';
+const DEFAULT_ACTION_IDENTIFIER = 'expo.modules.notifications.actions.DEFAULT';
+const DAILY_REMINDER_BODY = '一键点击，让我知道你今天还好';
 
 let Notifications: typeof import('expo-notifications') | null = null;
 let Device: typeof import('expo-device') | null = null;
@@ -22,6 +24,11 @@ function parseReminderTime(time: string): { hour: number; minute: number } {
     hour: Math.max(0, Math.min(23, hour)),
     minute: Math.max(0, Math.min(59, minute)),
   };
+}
+
+export function getDailyReminderTitle(userName?: string | null): string {
+  const displayName = userName?.trim() || '你';
+  return `「${displayName}」今天还好吗？`;
 }
 
 async function loadNativeModules(): Promise<boolean> {
@@ -101,6 +108,7 @@ export async function setupNotificationCategories(): Promise<void> {
 export async function scheduleDailyReminder(
   startTime: string,
   endTime: string,
+  userName?: string | null,
 ): Promise<string | null> {
   if (!isNative || !(await loadNativeModules())) return null;
   try {
@@ -110,10 +118,9 @@ export async function scheduleDailyReminder(
 
     const notificationId = await Notifications!.scheduleNotificationAsync({
       content: {
-        title: '今天还好吗？',
-        subtitle: '一键完成今日签到',
-        body: '点“今天还好”，系统会直接记录你今日平安。',
-        data: { type: 'daily_reminder', action: ACTION_REPLY_OK },
+        title: getDailyReminderTitle(userName),
+        body: DAILY_REMINDER_BODY,
+        data: { type: 'daily_reminder', action: ACTION_REPLY_OK, route: 'home' },
         sound: true,
         priority: Notifications!.AndroidNotificationPriority.HIGH,
         categoryIdentifier: CATEGORY_ID,
@@ -199,6 +206,10 @@ export function isReplyOkAction(actionIdentifier: string): boolean {
 
 export function isOpenAppAction(actionIdentifier: string): boolean {
   return actionIdentifier === ACTION_OPEN_APP;
+}
+
+export function isDefaultNotificationAction(actionIdentifier: string): boolean {
+  return actionIdentifier === DEFAULT_ACTION_IDENTIFIER;
 }
 
 /* ──────────────── Device Token Registration ──────────────── */

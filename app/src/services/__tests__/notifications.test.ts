@@ -7,6 +7,8 @@
 import {
   isReplyOkAction,
   isOpenAppAction,
+  isDefaultNotificationAction,
+  getDailyReminderTitle,
   requestNotificationPermission,
   scheduleDailyReminder,
   cancelAllScheduledReminders,
@@ -69,6 +71,14 @@ describe('notifications', () => {
       expect(isOpenAppAction('open_app')).toBe(true);
       expect(isOpenAppAction('reply_ok')).toBe(false);
     });
+    it('isDefaultNotificationAction matches notification card taps', () => {
+      expect(isDefaultNotificationAction('expo.modules.notifications.actions.DEFAULT')).toBe(true);
+      expect(isDefaultNotificationAction('reply_ok')).toBe(false);
+    });
+    it('formats the daily reminder title with the user name', () => {
+      expect(getDailyReminderTitle('小李')).toBe('「小李」今天还好吗？');
+      expect(getDailyReminderTitle('  ')).toBe('「你」今天还好吗？');
+    });
   });
 
   describe('requestNotificationPermission', () => {
@@ -94,10 +104,13 @@ describe('notifications', () => {
     it('parses HH:mm and schedules a daily trigger, returns id', async () => {
       mockNotifications.getAllScheduledNotificationsAsync.mockResolvedValue([]);
       mockNotifications.scheduleNotificationAsync.mockResolvedValue('notif-1');
-      const id = await scheduleDailyReminder('20:30', '22:00');
+      const id = await scheduleDailyReminder('20:30', '22:00', '小李');
       expect(id).toBe('notif-1');
       const arg = mockNotifications.scheduleNotificationAsync.mock.calls[0][0];
       expect(arg.trigger).toEqual(expect.objectContaining({ hour: 20, minute: 30, type: 'daily' }));
+      expect(arg.content.title).toBe('「小李」今天还好吗？');
+      expect(arg.content.body).toBe('一键点击，让我知道你今天还好');
+      expect(arg.content.data).toEqual(expect.objectContaining({ route: 'home' }));
     });
     it('returns null and swallows error on failure', async () => {
       mockNotifications.getAllScheduledNotificationsAsync.mockResolvedValue([]);

@@ -26,15 +26,22 @@ export class PushService implements OnModuleDestroy {
   }
 
   async sendCareReminder(token: string, userNickname?: string | null): Promise<boolean> {
-    const title = '没收到你的回应';
-    const body = '有点担心，看到消息回一下？';
+    const displayName = userNickname?.trim() || '你';
+    const title = `「${displayName}」今天还好吗？`;
+    const body = '一键点击，让我知道你今天还好';
 
     if (this.provider === 'mock') {
       this.logger.log(`[MOCK APNs] 关心提醒 -> ${token}: ${title} - ${body}`);
       return true;
     }
 
-    return this.sendApns(token, title, body, { type: 'care_reminder' });
+    return this.sendApns(
+      token,
+      title,
+      body,
+      { type: 'daily_reminder', action: 'reply_ok', route: 'home' },
+      'daily_reminder',
+    );
   }
 
   async sendAlertNotification(
@@ -58,6 +65,7 @@ export class PushService implements OnModuleDestroy {
     title: string,
     body: string,
     payload: Record<string, string>,
+    category?: string,
   ): Promise<boolean> {
     if (!this.apnProvider) {
       this.logger.error('[APNs] Provider not initialized');
@@ -71,6 +79,9 @@ export class PushService implements OnModuleDestroy {
       note.alert = { title, body };
       note.topic = this.bundleId;
       note.payload = payload;
+      if (category) {
+        note.aps = { ...(note.aps ?? {}), category };
+      }
       note.mutableContent = true;
 
       const result = await this.apnProvider.send(note, token);

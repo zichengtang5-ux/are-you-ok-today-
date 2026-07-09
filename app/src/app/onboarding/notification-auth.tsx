@@ -17,7 +17,8 @@ export default function NotificationAuthScreen() {
   const [authDenied, setAuthDenied] = useState(false);
   const [showDeniedDialog, setShowDeniedDialog] = useState(false);
 
-  const { reminder, setOnboardingStep, setNotificationAuthorized, completeOnboarding } = useStore();
+  const { reminder, user, setOnboardingStep, setNotificationAuthorized, completeOnboarding } = useStore();
+  const notificationTitle = `「${user?.nickname?.trim() || '你'}」今天还好吗？`;
 
   const handleAuthorize = async () => {
     setLoading(true);
@@ -26,7 +27,7 @@ export default function NotificationAuthScreen() {
       if (granted) {
         setNotificationAuthorized(true);
         await userApi.updateProfile({ notificationAuth: true });
-        await scheduleDailyReminder(reminder.startTime, reminder.endTime);
+        await scheduleDailyReminder(reminder.startTime, reminder.endTime, user?.nickname);
         registerDeviceToken().catch(() => {});
         await userApi.updateOnboarding({ step: 'complete', isOnboarded: true });
         completeOnboarding();
@@ -78,7 +79,7 @@ export default function NotificationAuthScreen() {
           <Text style={styles.eyebrow}>系统通知授权</Text>
           <Text style={styles.title}>打开提醒，一键报平安</Text>
           <Text style={styles.description}>
-            到点收到系统通知后，点「今天还好」即可完成当天签到，无需再打开 App。
+            到点收到系统通知后，点通知可回到首页，点「今天还好」即可完成当天签到。
           </Text>
 
           <View style={styles.systemPreview}>
@@ -93,8 +94,8 @@ export default function NotificationAuthScreen() {
                 </View>
                 <Text style={styles.notifTime}>现在</Text>
               </View>
-              <Text style={styles.notifTitle}>今天还好吗？</Text>
-              <Text style={styles.notifBody}>点下面按钮，系统会直接记录你今日平安。</Text>
+              <Text style={styles.notifTitle}>{notificationTitle}</Text>
+              <Text style={styles.notifBody}>一键点击，让我知道你今天还好</Text>
               <View style={styles.notificationActions}>
                 <View style={styles.actionPill}>
                   <Text style={styles.actionPillText}>今天还好</Text>
@@ -125,7 +126,7 @@ export default function NotificationAuthScreen() {
         <Dialog
           visible={showDeniedDialog}
           title="确定不授权吗？"
-          message={'不授权将无法收到每日"今天还好吗？"提醒，也不能通过系统通知一键签到。'}
+          message="不授权将无法收到每日报平安提醒，也不能通过系统通知一键签到。"
           confirmText="去授权"
           cancelText="暂不授权"
           variant="default"
