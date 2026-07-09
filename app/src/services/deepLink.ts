@@ -29,7 +29,7 @@ export function parseDeepLink(url: string): DeepLinkRoute | null {
   }
 
   if (segments[0] === 'settings') {
-    return { path: '/(tabs)/settings' as Href };
+    return { path: '/settings' as Href };
   }
 
   if (segments[0] === 'subscription') {

@@ -6,17 +6,14 @@ import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 export default function SubscriptionSuccessScreen() {
   const router = useRouter();
-  const { plan, status, currentPeriodEnd, wardName, isProxy, isTrial } =
+  const { plan, status, currentPeriodEnd, isTrial } =
     useLocalSearchParams<{
       plan?: string;
       status?: string;
       currentPeriodEnd?: string;
-      wardName?: string;
-      isProxy?: string;
       isTrial?: string;
     }>();
 
-  const proxy = isProxy === 'true';
   const trial = isTrial === 'true';
 
   const formatDate = (iso?: string) => {
@@ -34,9 +31,7 @@ export default function SubscriptionSuccessScreen() {
   const planLabel = plan === 'yearly' ? '年付' : plan === 'monthly' ? '月付' : '—';
   const statusLabel =
     status === 'trial' ? '试用中' : status === 'active' ? '已开通' : status ?? '已开通';
-  const headline = proxy
-    ? `已为 ${wardName ?? '家人'} 开通守护版`
-    : trial
+  const headline = trial
     ? '守护版 · 7 天免费试用已开启'
     : '守护版已开通';
 
@@ -54,9 +49,7 @@ export default function SubscriptionSuccessScreen() {
 
         <Text style={styles.title}>{headline}</Text>
         <Text style={styles.subtitle}>
-          {proxy
-            ? 'TA 的账号已自动解锁守护版全部功能'
-            : '你的账号已解锁守护版全部功能'}
+          你的账号已解锁守护版全部功能
         </Text>
 
         <View style={styles.summary}>

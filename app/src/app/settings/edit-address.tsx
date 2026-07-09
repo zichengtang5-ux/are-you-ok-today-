@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Location from 'expo-location';
 import { Button, Input } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
+import { getCurrentAddress } from '@/services/location';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function EditAddressScreen() {
@@ -23,20 +23,11 @@ export default function EditAddressScreen() {
     setLocating(true);
     setError('');
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setError('需要定位权限来自动填充地址');
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-      if (geo) {
-        const parts = [geo.city, geo.district, geo.street, geo.name].filter(Boolean);
-        setAddress(parts.join(''));
-        setLocationHint('请补充具体门牌号（如 3 号楼 502），方便紧急联系人和救援准确找到你');
-      }
+      const result = await getCurrentAddress();
+      setAddress(result.address);
+      setLocationHint(result.hint);
     } catch (err: any) {
-      setError('定位失败，请手动输入地址');
+      setError(err?.message || '定位失败，请手动输入地址');
     } finally {
       setLocating(false);
     }
@@ -50,8 +41,9 @@ export default function EditAddressScreen() {
     setLoading(true);
     setError('');
     try {
-      await userApi.updateProfile({ address });
-      setUser({ ...user, address } as any);
+      const nextAddress = address.trim();
+      const updatedUser = await userApi.updateProfile({ address: nextAddress });
+      setUser({ ...user, ...updatedUser, address: nextAddress } as any);
       router.back();
     } catch (err: any) {
       setError(err.response?.data?.message || '保存失败，请重试');

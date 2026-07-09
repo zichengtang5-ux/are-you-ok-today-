@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
+import { contactApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
 
@@ -49,7 +50,7 @@ export default function SettingsScreen() {
     reminder,
     contacts,
     subscription,
-    guardians,
+    setContacts,
     refreshSubscription,
   } = useStore();
 
@@ -59,15 +60,37 @@ export default function SettingsScreen() {
     }
   }, [user, refreshSubscription]);
 
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      contactApi.list()
+        .then((latest) => {
+          if (!cancelled) setContacts(latest);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [setContacts]),
+  );
+
   const isPremium = !!subscription?.isPremium;
   const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
   const endLabel = formatEnd(subscription?.currentPeriodEnd);
-  const hasGuardians = guardians.length > 0;
+  const goHome = () => router.replace('/(tabs)');
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="white" title="设置" showMascot={false} />
+      <GreenStatusBar variant="white" title="设置" showMascot={false} onBack={goHome} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <Pressable
+          style={({ pressed }) => [styles.homeButton, pressed && styles.homeButtonPressed]}
+          onPress={goHome}
+          accessibilityRole="button"
+          accessibilityLabel="返回首页"
+        >
+          <Text style={styles.homeButtonText}>← 返回首页</Text>
+        </Pressable>
 
         {/* Guard settings */}
         <Card title="守护设置" style={styles.card}>
@@ -152,14 +175,6 @@ export default function SettingsScreen() {
               </Pressable>
             )}
           </View>
-          {!isPremium && (
-            <Pressable
-              style={styles.subActionRow}
-              onPress={() => router.push('/subscription/proxy')}
-            >
-              <Text style={styles.subActionText}>为家人开通守护 →</Text>
-            </Pressable>
-          )}
           {isPremium && subscription?.status !== 'cancelled' && (
             <Pressable
               style={styles.subActionRow}
@@ -169,46 +184,6 @@ export default function SettingsScreen() {
             </Pressable>
           )}
         </Card>
-
-        {/* Family & guard settings — only when guardians exist */}
-        {hasGuardians && (
-          <Card style={styles.card}>
-            <Pressable
-              style={styles.linkRow}
-              onPress={() => router.push('/guardian')}
-            >
-              <Text style={styles.linkText}>守护中心 →</Text>
-            </Pressable>
-            <Pressable
-              style={styles.linkRow}
-              onPress={() => router.push('/settings/pause-settings')}
-            >
-              <Text style={styles.pauseText}>暂停守护</Text>
-            </Pressable>
-          </Card>
-        )}
-
-        {/* Managed guardians — only when guardians exist */}
-        {hasGuardians && (
-          <Card title="管理的守护者" style={styles.card}>
-            {guardians.map((g, i) => (
-              <View key={g.id || i} style={styles.guardianRow}>
-                <View style={styles.guardianAvatarCircle}>
-                  <Text style={styles.guardianAvatarText}>{g.wardName?.[0] ?? '?'}</Text>
-                </View>
-                <View style={styles.guardianInfo}>
-                  <Text style={styles.guardianName}>{g.wardName}</Text>
-                  <Text style={styles.guardianStatus}>
-                    {g.status === 'replied' ? '正常' : g.status === 'alert' ? '告警中' : g.status} · 最后回复 {g.lastReplyAt ? new Date(g.lastReplyAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  </Text>
-                </View>
-                <Pressable onPress={() => router.push(`/guardian/${g.id}`)}>
-                  <Text style={styles.guardianLink}>看板 →</Text>
-                </Pressable>
-              </View>
-            ))}
-          </Card>
-        )}
 
         {/* Legal & data */}
         <Card title="法律与数据" style={styles.card}>
@@ -237,6 +212,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.gray50 },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.lg, gap: Spacing.lg },
+  homeButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.primaryLight,
+  },
+  homeButtonPressed: { backgroundColor: Colors.gray200 },
+  homeButtonText: { fontSize: FontSizes.sm, color: Colors.primaryDark, fontWeight: FontWeights.semibold },
   card: { gap: Spacing.sm },
   settingRow: {
     flexDirection: 'row',
@@ -281,24 +265,5 @@ const styles = StyleSheet.create({
   linkText: { fontSize: FontSizes.base, color: Colors.primary, fontWeight: FontWeights.medium },
   dangerLinkRow: { paddingVertical: Spacing.sm },
   dangerLinkText: { fontSize: FontSizes.base, color: Colors.danger, fontWeight: FontWeights.semibold },
-  pauseText: { fontSize: FontSizes.base, color: Colors.warmDark, fontWeight: FontWeights.semibold },
   version: { fontSize: FontSizes.sm, color: Colors.gray500, textAlign: 'center', marginTop: Spacing.xl },
-  guardianRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray200,
-  },
-  guardianAvatarCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: Spacing.sm,
-  },
-  guardianAvatarText: { fontSize: 16, fontWeight: FontWeights.bold, color: Colors.primary },
-  guardianInfo: { flex: 1 },
-  guardianName: { fontSize: FontSizes.base, fontWeight: FontWeights.semibold, color: Colors.gray900 },
-  guardianStatus: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: 2 },
-  guardianLink: { fontSize: FontSizes.sm, color: Colors.primary, fontWeight: FontWeights.medium },
 });

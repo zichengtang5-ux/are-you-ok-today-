@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SubscriptionService } from './subscription.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
 jest.mock('fs', () => {
   const actual = jest.requireActual('fs');
@@ -25,12 +25,6 @@ describe('SubscriptionService', () => {
       findUnique: jest.fn(),
       upsert: jest.fn(),
       update: jest.fn(),
-    },
-    guardianRelation: {
-      findFirst: jest.fn(),
-    },
-    user: {
-      findUnique: jest.fn(),
     },
   };
   const mockConfig = {
@@ -118,90 +112,6 @@ describe('SubscriptionService', () => {
           update: expect.objectContaining({ plan: 'yearly', status: 'active' }),
         }),
       );
-    });
-  });
-
-  describe('proxySubscribe', () => {
-    it('should subscribe for ward when guardian is bound', async () => {
-      mockPrisma.guardianRelation.findFirst.mockResolvedValue({
-        id: 'gr1',
-        guardianId: 'g1',
-        wardId: 'w1',
-        isBound: true,
-      });
-      mockPrisma.user.findUnique.mockResolvedValue({
-        id: 'w1',
-        nickname: '妈妈',
-        phone: '13800002222',
-      });
-      mockPrisma.subscription.upsert.mockResolvedValue({
-        id: 's2',
-        userId: 'w1',
-        plan: 'yearly',
-        status: 'active',
-        currentPeriodEnd: new Date(),
-        appleTransactionId: 'txn-proxy',
-        paidBy: 'g1',
-      });
-
-      const result = await service.proxySubscribe('g1', 'w1', 'txn-proxy', 'yearly');
-
-      expect(result.message).toContain('妈妈');
-      expect(result.wardName).toBe('妈妈');
-      expect(result.subscription.status).toBe('active');
-      expect(mockPrisma.subscription.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          create: expect.objectContaining({ paidBy: 'g1' }),
-        }),
-      );
-    });
-
-    it('should reject when no bound guardian relation', async () => {
-      mockPrisma.guardianRelation.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service.proxySubscribe('g1', 'w1', 'txn-proxy', 'yearly'),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should reject when ward does not exist', async () => {
-      mockPrisma.guardianRelation.findFirst.mockResolvedValue({
-        id: 'gr1',
-        guardianId: 'g1',
-        wardId: 'w1',
-        isBound: true,
-      });
-      mockPrisma.user.findUnique.mockResolvedValue(null);
-
-      await expect(
-        service.proxySubscribe('g1', 'w1', 'txn-proxy', 'yearly'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should use phone as wardName when nickname is null', async () => {
-      mockPrisma.guardianRelation.findFirst.mockResolvedValue({
-        id: 'gr1',
-        guardianId: 'g1',
-        wardId: 'w1',
-        isBound: true,
-      });
-      mockPrisma.user.findUnique.mockResolvedValue({
-        id: 'w1',
-        nickname: null,
-        phone: '13800002222',
-      });
-      mockPrisma.subscription.upsert.mockResolvedValue({
-        id: 's2',
-        userId: 'w1',
-        plan: 'monthly',
-        status: 'active',
-        currentPeriodEnd: new Date(),
-      });
-
-      const result = await service.proxySubscribe('g1', 'w1', 'txn-proxy', 'monthly');
-
-      expect(result.wardName).toBe('13800002222');
-      expect(result.message).toContain('13800002222');
     });
   });
 

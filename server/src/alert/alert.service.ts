@@ -210,7 +210,7 @@ export class AlertService {
       suggestedActions: [
         {
           type: 'call_user' as const,
-          label: '拨打被守护人电话',
+          label: '拨打用户本人电话',
           phone: user?.phone,
         },
         {

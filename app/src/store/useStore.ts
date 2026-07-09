@@ -7,7 +7,6 @@ import type {
   ReminderConfig,
   ReplyStatus,
   AlertEvent,
-  Guardian,
   OnboardingStep,
   Subscription,
 } from '@/types';
@@ -23,7 +22,6 @@ const initialState = {
   todayStatus: 'idle' as ReplyStatus,
   streak: 0,
   activeAlert: null,
-  guardians: [],
   notificationAuthorized: false,
   subscription: null,
 };
@@ -49,9 +47,6 @@ interface AppState {
   /* Alert */
   activeAlert: AlertEvent | null;
 
-  /* Guardians (子女端) */
-  guardians: Guardian[];
-
   /* Notification */
   notificationAuthorized: boolean;
 
@@ -74,7 +69,6 @@ interface AppState {
   triggerAlert: (alert: AlertEvent) => void;
   setActiveAlert: (alert: AlertEvent | null) => void;
   resolveAlert: () => void;
-  setGuardians: (guardians: Guardian[]) => void;
   setNotificationAuthorized: (v: boolean) => void;
   setSubscription: (sub: Subscription | null) => void;
   refreshSubscription: () => Promise<void>;
@@ -114,7 +108,6 @@ export const useStore = create<AppState>()(
       triggerAlert: (alert) => set({ activeAlert: alert, todayStatus: 'alert' }),
       setActiveAlert: (alert) => set({ activeAlert: alert }),
       resolveAlert: () => set({ activeAlert: null, todayStatus: 'replied' }),
-      setGuardians: (guardians) => set({ guardians }),
       setNotificationAuthorized: (v) => set({ notificationAuthorized: v }),
       setSubscription: (subscription) => set({ subscription }),
       resetAppState: () => set(initialState),

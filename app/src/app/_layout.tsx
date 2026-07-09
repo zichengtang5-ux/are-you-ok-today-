@@ -21,7 +21,6 @@ import {
   navigateDeepLink,
 } from '@/services/deepLink';
 import { authEvents } from '@/services/authEvents';
-import type { Guardian, ReplyStatus } from '@/types';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -31,7 +30,10 @@ export default function RootLayout() {
   const setUser = useStore((s) => s.setUser);
   const setOnboardingStep = useStore((s) => s.setOnboardingStep);
   const setTodayStatus = useStore((s) => s.setTodayStatus);
-  const setGuardians = useStore((s) => s.setGuardians);
+  const setContacts = useStore((s) => s.setContacts);
+  const setReminder = useStore((s) => s.setReminder);
+  const setNotificationAuthorized = useStore((s) => s.setNotificationAuthorized);
+  const reply = useStore((s) => s.reply);
 
   useEffect(() => {
     const init = async () => {
@@ -44,23 +46,16 @@ export default function RootLayout() {
           const userData = await authApi.getMe();
           setUser(userData);
           setOnboardingStep(userData.onboardingStep as any);
-
-          const guardians: Guardian[] = ((userData as any).guardianOf ?? []).map((g: any) => ({
-            id: g.id,
-            wardName: g.ward?.nickname || g.ward?.phone || '未知',
-            wardPhone: g.ward?.phone || '',
-            relation: g.relation,
-            status: (g.status || 'idle') as ReplyStatus,
-            lastReplyAt: g.lastReplyAt,
-            streak: 0,
-            reminderConfig: g.reminderConfig || {
-              startTime: '20:00',
-              endTime: '22:00',
-              gracePeriodMin: 30,
-            },
-            isBound: g.isBound,
-          }));
-          setGuardians(guardians);
+          if ((userData as any).contacts) {
+            setContacts((userData as any).contacts);
+          }
+          if ((userData as any).reminderConfig) {
+            setReminder((userData as any).reminderConfig);
+          }
+          if ((userData as any).guardStatus?.status) {
+            setTodayStatus((userData as any).guardStatus.status);
+          }
+          setNotificationAuthorized(!!(userData as any).notificationAuth);
 
           void registerDeviceToken();
           isReady.current = true;
@@ -112,9 +107,10 @@ export default function RootLayout() {
         if (isReplyOkAction(actionId)) {
           try {
             const result = await replyApi.reply();
+            reply();
             setTodayStatus(result.guardStatus as any);
           } catch (e) {
-            // 快捷回复"我平安"失败：用户可在 App 内重试，但必须上报（守护链路关键动作）
+            // 快捷回复“今天还好”失败：用户可在 App 内重试，但必须上报（关键签到动作）
             reportError(e, { scope: 'notificationAction.reply' });
           }
         }
@@ -139,7 +135,7 @@ export default function RootLayout() {
       unsubscribeLogout();
       unsubscribePushToken();
     };
-  }, [router, setTodayStatus, setUser]);
+  }, [reply, router, setTodayStatus, setUser]);
 
   if (isLoading) {
     return <LoadingState message="正在加载..." />;
@@ -153,7 +149,7 @@ export default function RootLayout() {
         <Stack.Screen name="alert" />
         <Stack.Screen name="subscription" />
         <Stack.Screen name="help" />
-        <Stack.Screen name="guardian" />
+        <Stack.Screen name="settings" />
       </Stack>
     </ErrorBoundary>
   );

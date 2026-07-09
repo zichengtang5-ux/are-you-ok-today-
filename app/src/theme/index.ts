@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 /* ──────────────────────────── Color Palette ──────────────────────────── */
-// Guardian Green — warm, natural, evokes safety & life
+// Safety Green — warm, natural, evokes safety & life
 export const Colors = {
   primary: '#4CAF50',
   primaryLight: '#E8F5E9',

@@ -104,7 +104,7 @@ export class ReplyService {
       });
     }
 
-    // 实时通知（子女端/本人其它设备）：回复确认，若同时解除了告警则额外广播
+    // 实时通知本人其它设备：回复确认，若同时解除了告警则额外广播
     await this.events.publish({ userId, type: 'reply_confirmed' });
     if (activeAlert) {
       await this.events.publish({ userId, type: 'alert_resolved' });

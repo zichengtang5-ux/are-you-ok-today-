@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -57,61 +57,6 @@ export class SubscriptionService {
         originalTransactionId: transactionId,
         isTrial: false,
       },
-    };
-  }
-
-  async proxySubscribe(guardianId: string, wardId: string, transactionId: string, plan: string) {
-    const guardianRelation = await this.prisma.guardianRelation.findFirst({
-      where: { guardianId, wardId, isBound: true },
-    });
-
-    if (!guardianRelation) {
-      throw new ForbiddenException('无权为该用户开通订阅');
-    }
-
-    const isValid = await this.validateAppleTransaction(transactionId);
-    if (!isValid) {
-      throw new BadRequestException('交易验证失败');
-    }
-
-    const ward = await this.prisma.user.findUnique({ where: { id: wardId } });
-    if (!ward) {
-      throw new BadRequestException('被守护用户不存在');
-    }
-
-    const durationDays = PLAN_DURATION[plan] ?? 30;
-    const currentPeriodEnd = new Date();
-    currentPeriodEnd.setDate(currentPeriodEnd.getDate() + durationDays);
-
-    const subscription = await this.prisma.subscription.upsert({
-      where: { userId: wardId },
-      update: {
-        plan,
-        status: 'active',
-        currentPeriodEnd,
-        appleTransactionId: transactionId,
-        paidBy: guardianId,
-      },
-      create: {
-        userId: wardId,
-        plan,
-        status: 'active',
-        currentPeriodEnd,
-        appleTransactionId: transactionId,
-        paidBy: guardianId,
-      },
-    });
-
-    const wardName = ward.nickname ?? ward.phone;
-
-    return {
-      message: `已为${wardName}开通守护版`,
-      subscription: {
-        plan: subscription.plan,
-        status: subscription.status,
-        currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
-      },
-      wardName,
     };
   }
 

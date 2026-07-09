@@ -9,7 +9,7 @@ import { reminderApi } from '@/services/api.types';
 import { scheduleDailyReminder } from '@/services/notifications';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
@@ -18,19 +18,16 @@ function ScrollPicker({ value, options, onChange, label }: {
   value: string; options: string[]; onChange: (v: string) => void; label: string;
 }) {
   const scrollRef = useRef<ScrollView>(null);
-  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
     const idx = options.indexOf(value);
     if (idx >= 0 && scrollRef.current) {
-      const offset = idx * ITEM_HEIGHT - (PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2);
-      scrollRef.current.scrollTo({ y: Math.max(0, offset), animated: false });
+      scrollRef.current.scrollTo({ y: idx * ITEM_HEIGHT, animated: false });
     }
-  }, []);
+  }, [options, value]);
 
   const handleScroll = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
-    setScrollY(y);
     const idx = Math.round(y / ITEM_HEIGHT);
     const clamped = Math.max(0, Math.min(options.length - 1, idx));
     if (options[clamped] !== value) {
@@ -80,17 +77,28 @@ function ScrollPicker({ value, options, onChange, label }: {
   );
 }
 
+function parseTime(time: string): string {
+  const hour = Number(time.split(':')[0]);
+  if (!Number.isFinite(hour)) return '20:00';
+  return `${String(Math.max(0, Math.min(23, hour))).padStart(2, '0')}:00`;
+}
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
 export default function EditReminderScreen() {
   const router = useRouter();
   const { reminder, setReminder } = useStore();
 
-  const [startTime, setStartTime] = useState(reminder.startTime);
-  const [endTime, setEndTime] = useState(reminder.endTime);
+  const [startTime, setStartTime] = useState(() => parseTime(reminder.startTime));
+  const [endTime, setEndTime] = useState(() => parseTime(reminder.endTime));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSave = async () => {
-    if (startTime >= endTime) {
+    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
       setError('结束时间必须晚于开始时间');
       return;
     }
@@ -147,7 +155,7 @@ const styles = StyleSheet.create({
   pickerLabel: { fontSize: FontSizes.sm, color: Colors.gray600, marginBottom: Spacing.sm },
   pickerWrapper: {
     height: PICKER_HEIGHT,
-    width: 80,
+    width: 96,
     position: 'relative',
     overflow: 'hidden',
   },

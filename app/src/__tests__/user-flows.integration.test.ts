@@ -33,7 +33,6 @@ function resetStore() {
     todayStatus: 'idle',
     streak: 0,
     activeAlert: null,
-    guardians: [],
     notificationAuthorized: false,
     subscription: null,
   });

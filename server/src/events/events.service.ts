@@ -17,7 +17,7 @@ const CHANNEL = 'user-events';
 /**
  * 实时事件服务：用 Redis pub/sub 跨实例广播用户事件，替代前端 30 秒轮询。
  *
- * - publish(): 任一实例（cron / reply / guardian 代确认）产生状态变化时发布
+ * - publish(): 任一实例（cron / reply）产生状态变化时发布
  * - subscribe(): SSE 端点按 userId 订阅，只推送该用户自己的事件
  *
  * 用 Redis pub/sub 保证多实例：无论客户端连在哪个实例、事件在哪个实例产生，

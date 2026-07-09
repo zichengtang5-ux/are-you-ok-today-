@@ -10,7 +10,7 @@ import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 export default function EditContactScreen() {
   const router = useRouter();
-  const { contacts, subscription, removeContact, addContact } = useStore();
+  const { contacts, subscription, removeContact, addContact, updateContact, setContacts } = useStore();
   const isPremium = !!subscription?.isPremium;
   const contact = contacts[0] || null;
 
@@ -21,22 +21,31 @@ export default function EditContactScreen() {
   const [error, setError] = useState('');
 
   const handleSave = async () => {
+    const nextPhone = phone.trim();
     if (!name.trim()) { setError('请输入联系人姓名'); return; }
-    if (phone.length !== 11 || !/^1[3-9]\d{9}$/.test(phone)) {
+    if (nextPhone.length !== 11 || !/^1[3-9]\d{9}$/.test(nextPhone)) {
       setError('请输入正确的手机号');
       return;
     }
     setError('');
     setLoading(true);
     try {
+      const payload = {
+        name: name.trim(),
+        phone: nextPhone,
+        relation: relation.trim() || '家人',
+      };
       if (contact) {
-        await contactApi.update(contact.id, { name, phone, relation: relation || '家人' });
-        removeContact(contact.id);
-        addContact({ ...contact, name, phone, relation: relation || '家人' });
+        const saved = await contactApi.update(contact.id, payload);
+        updateContact(contact.id, saved);
       } else {
-        const newContact = await contactApi.create({ name, phone, relation: relation || '家人' });
+        const newContact = await contactApi.create(payload);
         addContact(newContact);
       }
+      try {
+        const latest = await contactApi.list();
+        setContacts(latest);
+      } catch {}
       router.back();
     } catch (err: any) {
       setError(err.response?.data?.message || '保存失败，请重试');
@@ -56,6 +65,10 @@ export default function EditContactScreen() {
           try {
             await contactApi.delete(contact.id);
             removeContact(contact.id);
+            try {
+              const latest = await contactApi.list();
+              setContacts(latest);
+            } catch {}
             router.back();
           } catch {}
         },

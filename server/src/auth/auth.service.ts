@@ -144,8 +144,6 @@ export class AuthService {
         reminderConfig: true,
         guardStatus: true,
         subscription: true,
-        guardianOf: { include: { ward: { select: { id: true, phone: true, nickname: true } } } },
-        wardOf: { include: { guardian: { select: { id: true, phone: true, nickname: true } } } },
       },
     });
 

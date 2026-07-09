@@ -11,6 +11,19 @@ let Notifications: typeof import('expo-notifications') | null = null;
 let Device: typeof import('expo-device') | null = null;
 let Constants: typeof import('expo-constants').default | null = null;
 
+function parseReminderTime(time: string): { hour: number; minute: number } {
+  const [hourRaw, minuteRaw = '0'] = time.split(':');
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) {
+    throw new Error(`Invalid reminder time: ${time}`);
+  }
+  return {
+    hour: Math.max(0, Math.min(23, hour)),
+    minute: Math.max(0, Math.min(59, minute)),
+  };
+}
+
 async function loadNativeModules(): Promise<boolean> {
   if (Notifications && Device && Constants) return true;
   try {
@@ -64,7 +77,7 @@ export async function setupNotificationCategories(): Promise<void> {
     await Notifications!.setNotificationCategoryAsync(CATEGORY_ID, [
       {
         identifier: ACTION_REPLY_OK,
-        buttonTitle: '今天还好 ✓',
+        buttonTitle: '今天还好',
         options: {
           opensAppToForeground: false,
           isDestructive: false,
@@ -91,23 +104,24 @@ export async function scheduleDailyReminder(
 ): Promise<string | null> {
   if (!isNative || !(await loadNativeModules())) return null;
   try {
-    const [hours, minutes] = startTime.split(':').map(Number);
+    const { hour, minute } = parseReminderTime(startTime);
 
     await cancelAllScheduledReminders();
 
     const notificationId = await Notifications!.scheduleNotificationAsync({
       content: {
         title: '今天还好吗？',
-        body: '点一下告诉关心你的人你没事',
-        data: { type: 'daily_reminder' },
+        subtitle: '一键完成今日签到',
+        body: '点“今天还好”，系统会直接记录你今日平安。',
+        data: { type: 'daily_reminder', action: ACTION_REPLY_OK },
         sound: true,
         priority: Notifications!.AndroidNotificationPriority.HIGH,
         categoryIdentifier: CATEGORY_ID,
       },
       trigger: {
         type: Notifications!.SchedulableTriggerInputTypes.DAILY,
-        hour: hours,
-        minute: minutes,
+        hour,
+        minute,
       },
     });
 
@@ -155,6 +169,17 @@ export function registerNotificationResponseHandler(
   loadNativeModules().then((ok) => {
     if (!ok || !Notifications) return;
     try {
+      const getLastResponse =
+        (Notifications as any).getLastNotificationResponseAsync
+        ?? (Notifications as any).getLastNotificationResponse;
+      Promise.resolve(getLastResponse?.()).then((response) => {
+        const actionId = response?.actionIdentifier;
+        if (actionId) {
+          callback(actionId);
+          (Notifications as any).clearLastNotificationResponseAsync?.();
+        }
+      });
+
       subscription = Notifications.addNotificationResponseReceivedListener(
         (response) => {
           const actionId = response.actionIdentifier;

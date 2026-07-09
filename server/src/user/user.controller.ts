@@ -76,9 +76,6 @@ export class UserController {
       await tx.agreementConsent.deleteMany({ where: { userId } });
       await tx.device.deleteMany({ where: { userId } });
       await tx.subscription.deleteMany({ where: { userId } });
-      await tx.guardianRelation.deleteMany({
-        where: { OR: [{ guardianId: userId }, { wardId: userId }] },
-      });
       await tx.verificationCode.deleteMany({
         where: { phone: user.phone },
       });

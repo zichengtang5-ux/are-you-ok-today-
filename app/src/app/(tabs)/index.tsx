@@ -50,6 +50,10 @@ export default function HomeScreen() {
 
   const [actionLoading, setActionLoading] = useState(false);
   const [graceCountdown, setGraceCountdown] = useState('--:--');
+  const [daysInMonth, setDaysInMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  });
 
   useEffect(() => {
     if (todayStatus !== 'grace') return;
@@ -80,7 +84,10 @@ export default function HomeScreen() {
         if (data.reminderConfig) {
           setReminder({ startTime: data.reminderConfig.startTime, endTime: data.reminderConfig.endTime, gracePeriodMin: data.reminderConfig.gracePeriodMin });
         }
-        if (data.monthlyStats) { setStreak(data.monthlyStats.repliedDays); }
+        if (data.monthlyStats) {
+          setStreak(data.monthlyStats.repliedDays);
+          setDaysInMonth(data.monthlyStats.daysInMonth);
+        }
         if (data.status === 'alert') {
           alertApi.getActive().then((alertData) => {
             if (!cancelled && alertData) {
@@ -114,7 +121,6 @@ export default function HomeScreen() {
   };
 
   const now = new Date();
-  const currentDay = now.getDate();
   const nickname = user?.nickname ?? '';
 
   const confirmBtnBg = todayStatus === 'grace' ? Colors.warm : todayStatus === 'alert' ? Colors.danger : Colors.primary;
@@ -162,7 +168,7 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.monthBadge}>
-          <Text style={styles.monthBadgeText}>本月平安 {streak}/{currentDay} 天</Text>
+          <Text style={styles.monthBadgeText}>本月平安 {streak}/{daysInMonth} 天</Text>
         </View>
 
         {todayStatus !== 'alert' && !notificationAuthorized && (
@@ -217,9 +223,11 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.bottomLinks}>
-          <Pressable onPress={() => router.push('/help/emergency')} accessibilityRole="link" accessibilityLabel="紧急求助">
-            <Text style={[styles.bottomLink, styles.bottomLinkDanger]}>紧急求助</Text>
-          </Pressable>
+          <Text style={styles.bottomCombined}>
+            <Text onPress={() => router.push('/settings')} accessibilityRole="link" style={styles.bottomLink}>设置</Text>
+            <Text style={styles.bottomDivider}>｜</Text>
+            <Text onPress={() => router.push('/help/emergency')} accessibilityRole="link" style={[styles.bottomLink, styles.bottomLinkDanger]}>紧急求助</Text>
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -270,13 +278,13 @@ const styles = StyleSheet.create({
   repliedCard: { alignItems: 'center' },
   nextReminder: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium },
   bottomLinks: {
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     marginTop: Spacing.xs,
-    gap: 8,
   },
-  bottomLink: { fontSize: FontSizes.sm, color: Colors.gray600, padding: 8 },
+  bottomCombined: { textAlign: 'center' },
+  bottomLink: { fontSize: FontSizes.sm, color: Colors.gray600 },
+  bottomDivider: { fontSize: FontSizes.sm, color: Colors.gray300 },
   bottomLinkDanger: { color: Colors.danger },
 });

@@ -18,7 +18,6 @@ import { UserModule } from './user/user.module';
 import { ContactModule } from './contact/contact.module';
 import { ReminderModule } from './reminder/reminder.module';
 import { AlertModule } from './alert/alert.module';
-import { GuardianModule } from './guardian/guardian.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SmsModule } from './sms/sms.module';
 import { PushModule } from './push/push.module';
@@ -74,7 +73,6 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     DeviceModule,
     HelpModule,
     PauseModule,
-    GuardianModule,
     SubscriptionModule,
   ],
   providers: [

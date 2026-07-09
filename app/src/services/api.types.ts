@@ -35,39 +35,6 @@ export interface RefreshTokenResponse {
   refreshToken: string;
 }
 
-/* ──────────────── Guardian Relation (from /auth/me) ──────────────── */
-export interface GuardianRelationResponse {
-  id: string;
-  guardianId: string;
-  wardId: string;
-  relation: string;
-  inviteCode: string | null;
-  isBound: boolean;
-  createdAt: string;
-  updatedAt: string;
-  ward: {
-    id: string;
-    phone: string;
-    nickname: string | null;
-  };
-}
-
-export interface WardOfResponse {
-  id: string;
-  guardianId: string;
-  wardId: string;
-  relation: string;
-  inviteCode: string | null;
-  isBound: boolean;
-  createdAt: string;
-  updatedAt: string;
-  guardian: {
-    id: string;
-    phone: string;
-    nickname: string | null;
-  };
-}
-
 export const authApi = {
   sendCode: (data: SendCodeRequest) =>
     api.post<SendCodeResponse>('/auth/send-code', data),
@@ -86,8 +53,6 @@ export const authApi = {
       reminderConfig: ReminderConfigResponse;
       guardStatus: { status: ReplyStatus };
       subscription: SubscriptionRecord | null;
-      guardianOf: GuardianRelationResponse[];
-      wardOf: WardOfResponse[];
     }>('/auth/me'),
 };
 
@@ -330,76 +295,6 @@ export const helpApi = {
     api.get<HelpAddressResponse>('/help/address'),
 };
 
-/* ──────────────── Guardian (S5) ──────────────── */
-export interface CreateGuardianRequest {
-  wardName: string;
-  wardPhone: string;
-  relation: string;
-}
-
-export interface CreateGuardianResponse {
-  id: string;
-  inviteCode: string;
-  inviteLink: string;
-  isBound: boolean;
-  wardName: string;
-  wardPhone: string;
-}
-
-export interface AcceptInviteResponse {
-  message: string;
-  guardian: {
-    id: string;
-    guardianName: string;
-  };
-}
-
-export interface GuardianWardResponse {
-  id: string;
-  wardName: string;
-  wardPhone: string;
-  relation: string;
-  isBound: boolean;
-  status: ReplyStatus;
-  lastReplyAt?: string;
-  reminderConfig: ReminderConfigResponse;
-}
-
-export interface WardDashboardResponse {
-  wardName: string;
-  status: ReplyStatus;
-  lastReplyAt: string;
-  recentDays: { date: string; replied: boolean }[] | null;
-  monthlyStats: {
-    repliedDays: number;
-    totalDays: number;
-    display: string;
-  } | null;
-  history: { date: string; event: string }[] | null;
-}
-
-export interface ProxyReplyResponse {
-  message: string;
-  guardStatus: string;
-}
-
-export const guardianApi = {
-  create: (data: CreateGuardianRequest) =>
-    api.post<CreateGuardianResponse>('/guardian/create', data),
-
-  acceptInvite: (inviteCode: string) =>
-    api.post<AcceptInviteResponse>('/guardian/accept-invite', { inviteCode }),
-
-  listWards: () =>
-    api.get<GuardianWardResponse[]>('/guardian/wards'),
-
-  getDashboard: (wardId: string) =>
-    api.get<WardDashboardResponse>(`/guardian/wards/${wardId}/dashboard`),
-
-  proxyReply: (wardId: string) =>
-    api.post<ProxyReplyResponse>(`/guardian/wards/${wardId}/proxy-reply`),
-};
-
 /* ──────────────── Subscription (S6) ──────────────── */
 export type SubscriptionPlan = 'monthly' | 'yearly';
 export type SubscriptionProvider = 'apple';
@@ -423,23 +318,6 @@ export interface SubscriptionResponse {
   subscription: SubscriptionRecord;
 }
 
-export interface ProxySubscribeRequest {
-  wardId: string;
-  transactionId: string;
-  plan: SubscriptionPlan;
-  provider?: SubscriptionProvider;
-}
-
-export interface ProxySubscribeResponse {
-  message: string;
-  wardName: string;
-  subscription: {
-    plan: SubscriptionPlan;
-    status: SubscriptionStatusValue;
-    currentPeriodEnd: string;
-  };
-}
-
 export interface SubscriptionStatusResponse {
   plan: SubscriptionPlan | null;
   status: SubscriptionStatusValue;
@@ -450,9 +328,6 @@ export interface SubscriptionStatusResponse {
 export const subscriptionApi = {
   verify: (data: SubscriptionVerifyRequest) =>
     api.post<SubscriptionResponse>('/subscription/verify', data),
-
-  proxySubscribe: (data: ProxySubscribeRequest) =>
-    api.post<ProxySubscribeResponse>('/subscription/proxy-subscribe', data),
 
   getStatus: () =>
     api.get<SubscriptionStatusResponse>('/subscription/status'),

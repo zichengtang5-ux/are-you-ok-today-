@@ -1,6 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
-import Svg, { Circle, Rect, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import React, { useEffect, useMemo } from 'react';
+import { View, StyleSheet, Animated, Easing, Image } from 'react-native';
 import { Colors } from '../../theme';
 
 type Size = 'sm' | 'md' | 'lg';
@@ -9,23 +8,16 @@ type ColorScheme = 'green' | 'red';
 
 const SIZES: Record<Size, number> = { sm: 28, md: 48, lg: 120 };
 
-const GRADIENTS: Record<ColorScheme, { ring: [string, string, string]; eye: [string, string] }> = {
-  green: {
-    ring: ['#A5D6A7', '#66BB6A', '#2E7D32'],
-    eye: ['#66BB6A', '#1B5E20'],
-  },
-  red: {
-    ring: ['#EF9A9A', '#EF5350', '#C62828'],
-    eye: ['#EF5350', '#B71C1C'],
-  },
+const LOGOS: Record<Variant, number> = {
+  default: require('../../../assets/images/logo-white-bg.png'),
+  'double-bar': require('../../../assets/images/logo-double-bar-white-bg.png'),
 };
 
-export function MascotLogo({ size = 'md', pulse = false, variant = 'default', colorScheme = 'green' }: { size?: Size; pulse?: boolean; variant?: Variant; colorScheme?: ColorScheme }) {
+export function MascotLogo({ size = 'md', pulse = false, variant = 'default' }: { size?: Size; pulse?: boolean; variant?: Variant; colorScheme?: ColorScheme }) {
   const dim = SIZES[size];
-  const colors = GRADIENTS[colorScheme];
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.5)).current;
+  const pulseAnim = useMemo(() => new Animated.Value(1), []);
+  const pulseOpacity = useMemo(() => new Animated.Value(0.5), []);
 
   useEffect(() => {
     if (!pulse) return;
@@ -43,7 +35,7 @@ export function MascotLogo({ size = 'md', pulse = false, variant = 'default', co
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [pulse, pulseAnim, pulseOpacity]);
 
   return (
     <View style={{ width: dim + 24, height: dim + 24, alignItems: 'center', justifyContent: 'center' }}>
@@ -63,33 +55,11 @@ export function MascotLogo({ size = 'md', pulse = false, variant = 'default', co
           ]}
         />
       )}
-      <Svg width={dim} height={dim} viewBox="0 0 100 100" fill="none">
-        <Defs>
-          <LinearGradient id="mascotGrad" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor={colors.ring[0]} />
-            <Stop offset="50%" stopColor={colors.ring[1]} />
-            <Stop offset="100%" stopColor={colors.ring[2]} />
-          </LinearGradient>
-          <LinearGradient id="eyeGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={colors.eye[0]} />
-            <Stop offset="100%" stopColor={colors.eye[1]} />
-          </LinearGradient>
-        </Defs>
-        <Circle cx="50" cy="50" r="46" stroke="url(#mascotGrad)" strokeWidth="8" fill="none" />
-        <Circle cx="50" cy="50" r="40" fill="white" />
-        <Rect x="32" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)" />
-        {variant === 'double-bar'
-          ? <Rect x="58" y="37" width="10" height="26" rx="5" fill="url(#eyeGrad)" />
-          : <Path
-              d="M68 41 L58 50 L68 59"
-              stroke="url(#eyeGrad)"
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-        }
-      </Svg>
+      <Image
+        source={LOGOS[variant]}
+        resizeMode="cover"
+        style={{ width: dim, height: dim, borderRadius: dim / 2 }}
+      />
     </View>
   );
 }

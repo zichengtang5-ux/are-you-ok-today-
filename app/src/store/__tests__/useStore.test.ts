@@ -29,7 +29,6 @@ const INITIAL = {
   todayStatus: 'idle' as const,
   streak: 0,
   activeAlert: null,
-  guardians: [],
   notificationAuthorized: false,
   subscription: null,
 };
@@ -147,11 +146,7 @@ describe('useStore actions', () => {
     });
   });
 
-  describe('guardians / notification / subscription setters', () => {
-    it('setGuardians', () => {
-      s().setGuardians([{ id: 'g1' } as any]);
-      expect(s().guardians).toHaveLength(1);
-    });
+  describe('notification / subscription setters', () => {
     it('setNotificationAuthorized', () => {
       s().setNotificationAuthorized(true);
       expect(s().notificationAuthorized).toBe(true);

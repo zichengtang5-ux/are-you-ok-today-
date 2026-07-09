@@ -312,7 +312,7 @@ export class ReminderCronService {
       `Alert triggered for user ${user.id}, enqueued notifications for ${user.contacts.length} contacts (round ${round})`,
     );
     this.observability.metric('alert.triggered', 1, { round: String(round) });
-    // 实时推送告警，子女端/本人端立即感知
+    // 实时推送告警，本人设备立即感知
     await this.events.publish({ userId: user.id, type: 'alert_triggered', payload: { round } });
   }
 }

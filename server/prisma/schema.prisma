@@ -29,11 +29,6 @@ model User {
   agreements     AgreementConsent[]
   subscription   Subscription?
 
-  // 子女端：作为守护者
-  guardianOf GuardianRelation[] @relation("guardian")
-  // 子女端：作为被守护者
-  wardOf     GuardianRelation[] @relation("ward")
-
   devices Device[]
 }
 
@@ -153,22 +148,6 @@ model NotificationLog {
   @@index([providerMessageId])
 }
 
-// ─── 守护关系（子女端）───
-model GuardianRelation {
-  id         String   @id @default(cuid())
-  guardianId String
-  guardian   User     @relation("guardian", fields: [guardianId], references: [id])
-  wardId     String
-  ward       User     @relation("ward", fields: [wardId], references: [id])
-  relation   String   @default("子女")
-  inviteCode String?  @unique
-  isBound    Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([guardianId, wardId])
-}
-
 // ─── 暂停记录 ───
 model PauseLog {
   id        String   @id @default(cuid())
@@ -216,7 +195,6 @@ model Subscription {
   trialEndsAt        DateTime?
   currentPeriodEnd   DateTime?
   appleTransactionId String?
-  paidBy             String? // 本人 | 子女用户ID
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }

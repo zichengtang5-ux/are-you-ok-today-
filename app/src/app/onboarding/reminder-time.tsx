@@ -9,7 +9,7 @@ import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useStore } from '@/store/useStore';
 import { reminderApi, userApi } from '@/services/api.types';
 
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
@@ -22,10 +22,9 @@ function ScrollPicker({ value, options, onChange, label }: {
   useEffect(() => {
     const idx = options.indexOf(value);
     if (idx >= 0 && scrollRef.current) {
-      const offset = idx * ITEM_HEIGHT - (PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2);
-      scrollRef.current.scrollTo({ y: Math.max(0, offset), animated: false });
+      scrollRef.current.scrollTo({ y: idx * ITEM_HEIGHT, animated: false });
     }
-  }, []);
+  }, [options, value]);
 
   const handleMomentumEnd = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
@@ -70,17 +69,20 @@ function ScrollPicker({ value, options, onChange, label }: {
 
 export default function ReminderTimeScreen() {
   const router = useRouter();
-  const [startTime, setStartTime] = useState('20');
-  const [endTime, setEndTime] = useState('22');
+  const [startTime, setStartTime] = useState('20:00');
+  const [endTime, setEndTime] = useState('22:00');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const { setReminder, setOnboardingStep } = useStore();
 
+  const timeToMinutes = (time: string) => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  };
+
   const handleSubmit = async () => {
-    const start = `${startTime}:00`;
-    const end = `${endTime}:00`;
-    if (start >= end) {
+    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
       setError('结束时间必须晚于开始时间');
       return;
     }
@@ -88,13 +90,13 @@ export default function ReminderTimeScreen() {
     setError('');
 
     try {
-      await reminderApi.updateConfig({ startTime: start, endTime: end });
+      await reminderApi.updateConfig({ startTime, endTime });
       await userApi.updateOnboarding({
         step: 'notification-auth',
         isOnboarded: false,
       });
 
-      setReminder({ startTime: start, endTime: end, gracePeriodMin: 30 });
+      setReminder({ startTime, endTime, gracePeriodMin: 30 });
       setOnboardingStep('notification-auth');
       router.replace('/onboarding/notification-auth');
     } catch (err: any) {
@@ -125,7 +127,7 @@ export default function ReminderTimeScreen() {
 
         <Card variant="info" style={styles.hintCard}>
           <Text style={styles.hintText}>
-            如果 {endTime}:00 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
+            如果 {endTime} 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
           </Text>
         </Card>
 
@@ -159,7 +161,7 @@ const styles = StyleSheet.create({
   pickerLabel: { fontSize: FontSizes.sm, color: Colors.gray600, marginBottom: Spacing.sm },
   pickerWrapper: {
     height: PICKER_HEIGHT,
-    width: 80,
+    width: 96,
     position: 'relative',
     overflow: 'hidden',
   },

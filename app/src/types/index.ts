@@ -60,19 +60,6 @@ export interface AlertTimelineItem {
   isCurrent?: boolean;
 }
 
-/* ──────────────── Guardian (子女端) ──────────────── */
-export interface Guardian {
-  id: string;
-  wardName: string;   // 被守护者姓名
-  wardPhone: string;
-  relation: string;
-  status: ReplyStatus;
-  lastReplyAt?: string;
-  streak: number;
-  reminderConfig: ReminderConfig;
-  isBound: boolean;
-}
-
 /* ──────────────── Subscription ──────────────── */
 export type PlanType = 'free' | 'monthly' | 'yearly';
 

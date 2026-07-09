@@ -66,6 +66,12 @@
           "sounds": []
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "用于紧急求助和地址自动填写"
+        }
+      ],
       "expo-sharing",
       "react-native-iap"
     ],
