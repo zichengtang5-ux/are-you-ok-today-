@@ -208,6 +208,22 @@ export async function registerDeviceToken(): Promise<boolean> {
   }
 }
 
+export function setupPushTokenListener(): () => void {
+  if (!isNative) return () => {};
+  let subscription: { remove: () => void } | null = null;
+  loadNativeModules().then((ok) => {
+    if (!ok || !Notifications) return;
+    try {
+      subscription = Notifications.addPushTokenListener(async () => {
+        await registerDeviceToken();
+      });
+    } catch (e) {
+      console.warn('[notifications] setupPushTokenListener failed:', e);
+    }
+  });
+  return () => subscription?.remove();
+}
+
 /* ──────────────── Get Permission Status ──────────────── */
 export async function getNotificationStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
   if (!isNative || !(await loadNativeModules())) return 'undetermined';

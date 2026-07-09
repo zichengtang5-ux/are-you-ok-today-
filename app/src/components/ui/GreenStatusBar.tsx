@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, StatusBar, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../theme';
+import { Colors, Spacing } from '../../theme';
 import { MascotLogo } from './MascotLogo';
 
 type BarVariant = 'primary' | 'warn' | 'danger' | 'white';
@@ -47,7 +47,7 @@ export function GreenStatusBar({
       )}
       {showMascot && variant !== 'white' && (
         <View style={styles.mascot}>
-          <MascotLogo size="sm" />
+          <MascotLogo size="sm" colorScheme={variant === 'danger' ? 'red' : 'green'} />
         </View>
       )}
       <Text style={[styles.title, { color: textColor }]}>{title}</Text>
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
     position: 'relative',
   },
   title: {

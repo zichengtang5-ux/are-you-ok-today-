@@ -34,12 +34,6 @@ export type ReplyStatus =
   | 'alert'      // 告警中
   | 'paused';    // 已暂停
 
-export interface DailyRecord {
-  date: string;
-  status: ReplyStatus;
-  repliedAt?: string;
-}
-
 /* ──────────────── Alert ──────────────── */
 export type AlertStatus = 'active' | 'confirmed' | 'help_needed' | 'resolved';
 
@@ -55,7 +49,7 @@ export interface AlertEvent {
   status: AlertStatus;
   lastReplyAt?: string;
   contactsNotified: AlertContactNotified[];
-  smsRounds: number;
+  smsRounds?: number;
   timeline: AlertTimelineItem[];
 }
 
@@ -80,15 +74,6 @@ export interface Guardian {
 
 /* ──────────────── Subscription ──────────────── */
 export type PlanType = 'free' | 'monthly' | 'yearly';
-
-export interface SubscriptionPlan {
-  id: PlanType;
-  name: string;
-  price: string;
-  period: string;
-  features: { label: string; included: boolean }[];
-  recommended?: boolean;
-}
 
 export type SubscriptionStatus =
   | 'none'
@@ -115,11 +100,3 @@ export type OnboardingStep =
   | 'reminder-time'
   | 'notification-auth'
   | 'complete';
-
-export const ONBOARDING_STEPS: OnboardingStep[] = [
-  'agreement',
-  'basic-info',
-  'contact-setup',
-  'reminder-time',
-  'notification-auth',
-];

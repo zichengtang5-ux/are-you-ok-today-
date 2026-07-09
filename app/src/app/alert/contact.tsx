@@ -161,14 +161,6 @@ export default function AlertContactScreen() {
           </Card>
         )}
 
-        {/* SMS rounds info */}
-        {alert.smsRounds > 0 && (
-          <Card variant="warm" style={styles.countdownCard}>
-            <Text style={styles.countdownLabel}>已发送 {alert.smsRounds} 轮通知</Text>
-            <Text style={styles.countdownHint}>请尽快确认对方安全</Text>
-          </Card>
-        )}
-
         {/* Error message */}
         {error && (
           <Banner variant="danger">{error}</Banner>
@@ -182,6 +174,8 @@ export default function AlertContactScreen() {
             onPress={handleConfirmSafe}
             loading={confirming}
             disabled={!contactId}
+            accessibilityRole="button"
+            accessibilityLabel="确认 TA 已安全"
           >
             已联系，TA没事 ✓
           </Button>
@@ -190,6 +184,8 @@ export default function AlertContactScreen() {
             size="lg"
             onPress={handleNeedHelp}
             disabled={!contactId}
+            accessibilityRole="button"
+            accessibilityLabel="联系不上，需要帮助"
           >
             联系不上，需要帮助
           </Button>
@@ -294,19 +290,6 @@ const styles = StyleSheet.create({
   timelineCurrent: {
     fontWeight: FontWeights.semibold,
     color: Colors.primary,
-  },
-  countdownCard: {
-    alignItems: 'center',
-  },
-  countdownLabel: {
-    fontSize: FontSizes.base,
-    color: Colors.warmDark,
-    fontWeight: FontWeights.semibold,
-    marginBottom: Spacing.xs,
-  },
-  countdownHint: {
-    fontSize: FontSizes.sm,
-    color: Colors.warmDark,
   },
   actions: {
     gap: Spacing.md,

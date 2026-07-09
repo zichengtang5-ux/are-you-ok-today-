@@ -6,15 +6,27 @@
  *
  * 上线前（EAS Build）：
  *   1. `npx expo install react-native-iap`
- *   2. 取消下方 REAL_IAP 的注释
- *   3. 在 App Store Connect 创建 PRODUCT_IDS 对应的自动续期订阅
+ *   2. 在 App Store Connect 创建 PRODUCT_IDS 对应的自动续期订阅
+ *   3. 无需修改本文件 — 动态 require 在运行时自动加载
  */
 
 import { USE_IAP_MOCK, PRODUCT_IDS } from './iap.config';
 import type { SubscriptionPlan } from './api.types';
 
-// ── Production IAP (uncomment for EAS Build) ──────────────────────
-// import * as RNIap from 'react-native-iap';
+const _moduleName = 'react-native-iap';
+let _RNIap: any = null;
+function getRNIap(): any {
+  if (!_RNIap) {
+    try {
+      _RNIap = require(_moduleName);
+    } catch {
+      throw new Error(
+        'react-native-iap 未安装。请运行: npx expo install react-native-iap',
+      );
+    }
+  }
+  return _RNIap;
+}
 
 export interface PurchaseResult {
   transactionId: string;
@@ -36,9 +48,8 @@ export async function initIap(): Promise<void> {
     initialized = true;
     return;
   }
-  // Production: uncomment below when react-native-iap is installed
-  // await RNIap.initConnection();
-  throw new Error('真实 IAP 未启用。请先安装 react-native-iap 并取消 iap.native.ts 中的注释。');
+  await getRNIap().initConnection();
+  initialized = true;
 }
 
 export async function getProducts(): Promise<ProductPrice[]> {
@@ -48,19 +59,18 @@ export async function getProducts(): Promise<ProductPrice[]> {
       { plan: 'yearly', localizedPrice: '¥9.90', currency: 'CNY' },
     ];
   }
-  // Production: uncomment below
-  // const products = await RNIap.getProducts({ skus: Object.values(PRODUCT_IDS) });
-  // return products.map((p: any) => {
-  //   const plan = (Object.entries(PRODUCT_IDS).find(
-  //     ([, id]) => id === p.productId,
-  //   )?.[0] ?? 'monthly') as SubscriptionPlan;
-  //   return {
-  //     plan,
-  //     localizedPrice: p.localizedPrice ?? '',
-  //     currency: p.currency ?? 'CNY',
-  //   };
-  // });
-  throw new Error('真实 IAP 未启用');
+  const RNIap = getRNIap();
+  const products = await RNIap.getProducts({ skus: Object.values(PRODUCT_IDS) });
+  return products.map((p: any) => {
+    const plan = (Object.entries(PRODUCT_IDS).find(
+      ([, id]) => id === p.productId,
+    )?.[0] ?? 'monthly') as SubscriptionPlan;
+    return {
+      plan,
+      localizedPrice: p.localizedPrice ?? '',
+      currency: p.currency ?? 'CNY',
+    };
+  });
 }
 
 export async function purchasePlan(plan: SubscriptionPlan): Promise<PurchaseResult> {
@@ -75,18 +85,17 @@ export async function purchasePlan(plan: SubscriptionPlan): Promise<PurchaseResu
     };
   }
 
-  // Production: uncomment below
-  // const purchase = await RNIap.requestSubscription({ sku: productId });
-  // const transactionId = purchase.transactionId;
-  // if (!transactionId) throw new Error('StoreKit 未返回 transactionId，请重试');
-  // await RNIap.finishTransaction({ purchase, isConsumable: false });
-  // return { transactionId, productId, provider: 'apple' };
-  throw new Error('真实 IAP 未启用');
+  const RNIap = getRNIap();
+  const purchase = await RNIap.requestSubscription({ sku: productId });
+  const transactionId = purchase.transactionId;
+  if (!transactionId) throw new Error('StoreKit 未返回 transactionId，请重试');
+  await RNIap.finishTransaction({ purchase, isConsumable: false });
+  return { transactionId, productId, provider: 'apple' };
 }
 
 export async function endIap(): Promise<void> {
   if (USE_IAP_MOCK) return;
-  // Production: uncomment below
-  // await RNIap.endConnection();
+  await getRNIap().endConnection();
+  _RNIap = null;
   initialized = false;
 }

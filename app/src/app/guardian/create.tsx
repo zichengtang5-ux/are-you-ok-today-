@@ -24,7 +24,7 @@ const RELATIONS = [
   { label: '其他', value: '其他' },
 ];
 
-const APP_STORE_URL = 'https://apps.apple.com/app/today-ok/id000000000';
+const APP_STORE_URL = process.env.EXPO_PUBLIC_APP_STORE_URL || 'https://apps.apple.com/app/today-ok';
 
 function validatePhone(phone: string): boolean {
   return /^1[3-9]\d{9}$/.test(phone);

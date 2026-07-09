@@ -62,6 +62,8 @@ export default function DashboardScreen() {
     useCallback(() => {
       if (!ward) return;
       fetchDashboard();
+      const timer = setInterval(fetchDashboard, 30000);
+      return () => clearInterval(timer);
     }, [ward?.id, fetchDashboard]),
   );
 
@@ -73,7 +75,11 @@ export default function DashboardScreen() {
       Alert.alert('已代确认', result.message || '已代确认"TA没事"');
       fetchDashboard();
     } catch (err: any) {
-      Alert.alert('代确认失败', err?.message || '请稍后再试');
+      if (err?.response?.status === 403) {
+        Alert.alert('无法代确认', '守护关系尚未绑定，无法代确认');
+      } else {
+        Alert.alert('代确认失败', err?.response?.data?.message ?? err?.message ?? '请稍后再试');
+      }
     } finally {
       setProxySubmitting(false);
     }
@@ -124,7 +130,7 @@ export default function DashboardScreen() {
                 提醒时间 {activeWard.reminderConfig?.startTime ?? '—'} - {activeWard.reminderConfig?.endTime ?? '—'}
               </Text>
             </View>
-            <View style={[styles.statusTag, isOk ? styles.statusOk : styles.statusAlert]}>
+            <View style={[styles.statusTag, isOk ? styles.statusOk : styles.statusAlert]} accessibilityRole="text" accessibilityLabel={`守护状态：${isOk ? '正常' : '未确认'}`}>
               <Text style={styles.statusText}>{isOk ? '正常' : '未确认'}</Text>
             </View>
           </View>
@@ -207,6 +213,8 @@ export default function DashboardScreen() {
             variant="primary"
             onPress={handleProxyReply}
             disabled={proxySubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="代确认 TA 没事"
           >
             {proxySubmitting ? '代确认中...' : '代确认"TA没事"'}
           </Button>

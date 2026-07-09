@@ -100,21 +100,26 @@ export default function WardDashboardScreen() {
     useCallback(() => {
       if (!wardId) return;
       let cancelled = false;
+
+      const fetchData = () => {
+        guardianApi
+          .getDashboard(wardId)
+          .then((d) => {
+            if (!cancelled) { setData(d); setLoading(false); setError(''); }
+          })
+          .catch((e: any) => {
+            if (!cancelled) { setError(e?.response?.data?.message ?? '加载看板失败'); setLoading(false); }
+          });
+      };
+
       setLoading(true);
       setError('');
-      guardianApi
-        .getDashboard(wardId)
-        .then((d) => {
-          if (!cancelled) setData(d);
-        })
-        .catch((e: any) => {
-          if (!cancelled) setError(e?.response?.data?.message ?? '加载看板失败');
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
+      fetchData();
+      const timer = setInterval(fetchData, 30000);
+
       return () => {
         cancelled = true;
+        clearInterval(timer);
       };
     }, [wardId, refreshKey]),
   );
@@ -134,7 +139,11 @@ export default function WardDashboardScreen() {
               await guardianApi.proxyReply(wardId);
               setRefreshKey((k) => k + 1);
             } catch (e: any) {
-              Alert.alert('操作失败', e?.response?.data?.message ?? '请稍后重试');
+              if (e?.response?.status === 403) {
+                Alert.alert('无法代确认', '守护关系尚未绑定，无法代确认');
+              } else {
+                Alert.alert('操作失败', e?.response?.data?.message ?? '请稍后重试');
+              }
             } finally {
               setProxyLoading(false);
             }
@@ -200,7 +209,7 @@ export default function WardDashboardScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* Status card */}
-        <View style={[styles.statusCard, { backgroundColor: statusCfg.bg }]}>
+        <View style={[styles.statusCard, { backgroundColor: statusCfg.bg }]} accessibilityRole="text" accessibilityLabel={statusCfg.hint}>
           <Text style={styles.statusEmoji}>{statusCfg.emoji}</Text>
           <Text style={[styles.statusTitle, { color: statusCfg.color }]}>
             {statusCfg.title}
@@ -216,6 +225,8 @@ export default function WardDashboardScreen() {
             variant={data.status === 'alert' ? 'danger' : 'primary'}
             onPress={handleProxy}
             loading={proxyLoading}
+            accessibilityRole="button"
+            accessibilityLabel="代确认 TA 没事"
           >
             代确认"TA 没事"
           </Button>

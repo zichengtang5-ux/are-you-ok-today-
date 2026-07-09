@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Card } from '@/components/ui';
@@ -49,6 +49,26 @@ export default function HomeScreen() {
   const config = statusConfig[todayStatus];
 
   const [actionLoading, setActionLoading] = useState(false);
+  const [graceCountdown, setGraceCountdown] = useState('--:--');
+
+  useEffect(() => {
+    if (todayStatus !== 'grace') return;
+    const calcRemaining = () => {
+      const now = new Date();
+      const mins = now.getHours() * 60 + now.getMinutes();
+      const secs = now.getSeconds();
+      const [eh, em] = reminder.endTime.split(':').map(Number);
+      const deadlineMin = eh * 60 + em + reminder.gracePeriodMin;
+      const remainSec = (deadlineMin * 60) - (mins * 60 + secs);
+      if (remainSec <= 0) return '00:00';
+      const m = Math.floor(remainSec / 60);
+      const s = remainSec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+    setGraceCountdown(calcRemaining());
+    const timer = setInterval(() => setGraceCountdown(calcRemaining()), 1000);
+    return () => clearInterval(timer);
+  }, [todayStatus, reminder.endTime, reminder.gracePeriodMin]);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +84,7 @@ export default function HomeScreen() {
         if (data.status === 'alert') {
           alertApi.getActive().then((alertData) => {
             if (!cancelled && alertData) {
-              setActiveAlert({ id: alertData.id, triggeredAt: alertData.triggeredAt, status: 'active', lastReplyAt: alertData.lastReplyAt, contactsNotified: alertData.contactsNotified, smsRounds: alertData.smsRounds, timeline: alertData.timeline });
+              setActiveAlert({ id: alertData.id, triggeredAt: alertData.triggeredAt, status: 'active', lastReplyAt: alertData.lastReplyAt ?? undefined, contactsNotified: alertData.contactsNotified, timeline: alertData.timeline });
             }
           }).catch(() => {});
         } else { setActiveAlert(null); }
@@ -80,7 +100,14 @@ export default function HomeScreen() {
       reply();
       setTodayStatus(result.guardStatus as ReplyStatus);
     } catch (err: any) {
-      // silently handle
+      if (err.response?.status === 409) {
+        Alert.alert('守护已暂停', err.response?.data?.message || '请先恢复守护再签到', [
+          { text: '去恢复', onPress: () => router.push('/settings/pause-settings') },
+          { text: '稍后', style: 'cancel' },
+        ]);
+        return;
+      }
+      // silently handle other errors
     } finally {
       setActionLoading(false);
     }
@@ -118,7 +145,7 @@ export default function HomeScreen() {
         </Text>
 
         <View style={styles.hero}>
-          <MascotLogo size="lg" variant={todayStatus === 'waiting' ? 'double-bar' : 'default'} />
+          <MascotLogo size="lg" variant={(todayStatus === 'waiting' || todayStatus === 'alert') ? 'double-bar' : 'default'} />
           <Text style={[styles.title, styles.titleBelowIcon, todayStatus === 'replied' && { color: Colors.primary }]}>{config.title}</Text>
           {renderSubtitle()}
           {todayStatus === 'alert' && activeAlert && (
@@ -147,7 +174,7 @@ export default function HomeScreen() {
         {todayStatus === 'grace' && (
           <Card variant="warm" style={styles.graceCard}>
             <Text style={styles.graceTitle}>距离通知联系人还有</Text>
-            <Text style={styles.graceTimer}>29:42</Text>
+            <Text style={styles.graceTimer}>{graceCountdown}</Text>
             <Text style={styles.graceHint}>回复后不会通知联系人</Text>
           </Card>
         )}
@@ -157,6 +184,9 @@ export default function HomeScreen() {
             <Pressable
               onPress={handleReply}
               disabled={actionLoading}
+              accessibilityRole="button"
+              accessibilityLabel="今天还好，确认平安"
+              accessibilityHint="点击回复今日平安状态"
               style={({ pressed }) => [
                 [styles.confirmButton, { backgroundColor: confirmBtnBg }],
                 pressed && { transform: [{ scale: 0.93 }], backgroundColor: Colors.primaryDark },
@@ -187,11 +217,7 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.bottomLinks}>
-          <Pressable onPress={() => router.navigate('/(tabs)/settings')}>
-            <Text style={styles.bottomLink}>设置</Text>
-          </Pressable>
-          <Text style={styles.bottomSeparator}>|</Text>
-          <Pressable onPress={() => router.push('/help/emergency')}>
+          <Pressable onPress={() => router.push('/help/emergency')} accessibilityRole="link" accessibilityLabel="紧急求助">
             <Text style={[styles.bottomLink, styles.bottomLinkDanger]}>紧急求助</Text>
           </Pressable>
         </View>
@@ -231,7 +257,7 @@ const styles = StyleSheet.create({
   graceHint: { fontSize: FontSizes.sm, color: Colors.warmDark },
   alertBanner: { padding: 12, borderRadius: Radius.sm, backgroundColor: Colors.dangerLight, marginBottom: Spacing.md, alignSelf: 'center' },
   alertBannerText: { fontSize: FontSizes.sm, color: Colors.danger, fontWeight: FontWeights.semibold, textAlign: 'center' },
-  buttonContainer: { alignItems: 'center', marginTop: Spacing.xl, marginBottom: Spacing.lg },
+  buttonContainer: { alignItems: 'center', marginTop: Spacing.xl, marginBottom: Spacing.sm },
   confirmButton: {
     width: 120, height: 120, borderRadius: 60, backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
@@ -241,17 +267,16 @@ const styles = StyleSheet.create({
   confirmButtonText: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, color: Colors.white, textAlign: 'center' },
   confirmButtonTextDisabled: { color: Colors.gray500 },
   buttonHint: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: Spacing.md },
-  repliedCard: { alignItems: 'center', marginTop: Spacing.md },
+  repliedCard: { alignItems: 'center' },
   nextReminder: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium },
   bottomLinks: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    marginTop: Spacing.xl,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
     gap: 8,
   },
   bottomLink: { fontSize: FontSizes.sm, color: Colors.gray600, padding: 8 },
   bottomLinkDanger: { color: Colors.danger },
-  bottomSeparator: { fontSize: FontSizes.sm, color: Colors.gray300 },
 });

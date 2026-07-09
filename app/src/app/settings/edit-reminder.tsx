@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card } from '@/components/ui';
@@ -10,31 +10,71 @@ import { scheduleDailyReminder } from '@/services/notifications';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTES = ['00', '15', '30', '45'];
+const ITEM_HEIGHT = 44;
+const VISIBLE_ITEMS = 5;
+const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 
-function timeToIndex(time: string, list: string[]): number {
-  const idx = list.indexOf(time);
-  return idx >= 0 ? idx : 0;
-}
-
-function TimeScroll({ value, options, onChange, label }: {
+function ScrollPicker({ value, options, onChange, label }: {
   value: string; options: string[]; onChange: (v: string) => void; label: string;
 }) {
+  const scrollRef = useRef<ScrollView>(null);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const idx = options.indexOf(value);
+    if (idx >= 0 && scrollRef.current) {
+      const offset = idx * ITEM_HEIGHT - (PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2);
+      scrollRef.current.scrollTo({ y: Math.max(0, offset), animated: false });
+    }
+  }, []);
+
+  const handleScroll = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    setScrollY(y);
+    const idx = Math.round(y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(options.length - 1, idx));
+    if (options[clamped] !== value) {
+      onChange(options[clamped]);
+    }
+  };
+
+  const handleMomentumEnd = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const idx = Math.round(y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(options.length - 1, idx));
+    const targetY = clamped * ITEM_HEIGHT;
+    scrollRef.current?.scrollTo({ y: targetY, animated: true });
+    if (options[clamped] !== value) {
+      onChange(options[clamped]);
+    }
+  };
+
   return (
-    <View style={styles.timePicker}>
-      <Text style={styles.timeLabel}>{label}</Text>
-      <View style={styles.timeOptions}>
-        {options.map((opt) => (
-          <Pressable
-            key={opt}
-            onPress={() => onChange(opt)}
-            style={[styles.timeOption, value === opt && styles.timeOptionActive]}
-          >
-            <Text style={[styles.timeOptionText, value === opt && styles.timeOptionTextActive]}>
-              {opt}
-            </Text>
-          </Pressable>
-        ))}
+    <View style={styles.pickerContainer}>
+      <Text style={styles.pickerLabel}>{label}</Text>
+      <View style={styles.pickerWrapper}>
+        <View style={styles.pickerHighlight} />
+        <ScrollView
+          ref={scrollRef}
+          style={styles.pickerScroll}
+          contentContainerStyle={styles.pickerContent}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          decelerationRate="fast"
+          onScroll={handleScroll}
+          onMomentumScrollEnd={handleMomentumEnd}
+          scrollEventThrottle={16}
+        >
+          <View style={{ height: PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2 }} />
+          {options.map((opt) => (
+            <View key={opt} style={styles.pickerItem}>
+              <Text style={[styles.pickerItemText, opt === value && styles.pickerItemTextActive]}>
+                {opt}
+              </Text>
+            </View>
+          ))}
+          <View style={{ height: PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2 }} />
+        </ScrollView>
       </View>
     </View>
   );
@@ -71,19 +111,19 @@ export default function EditReminderScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <GreenStatusBar variant="white" title="编辑提醒时间" showMascot={false} onBack={() => router.back()} />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.content}>
         <Card style={styles.card}>
           <Text style={styles.cardTitle}>提醒时间窗口</Text>
           <View style={styles.pickersRow}>
-            <TimeScroll value={startTime} options={HOURS} onChange={setStartTime} label="开始（时）" />
+            <ScrollPicker value={startTime} options={HOURS} onChange={setStartTime} label="开始" />
             <Text style={styles.separator}>至</Text>
-            <TimeScroll value={endTime} options={HOURS} onChange={setEndTime} label="结束（时）" />
+            <ScrollPicker value={endTime} options={HOURS} onChange={setEndTime} label="结束" />
           </View>
         </Card>
 
         <Card variant="info" style={styles.hintCard}>
           <Text style={styles.hintText}>
-            如果 {endTime}:00 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
+            如果 {endTime} 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
           </Text>
         </Card>
 
@@ -92,29 +132,53 @@ export default function EditReminderScreen() {
         <Button variant="primary" size="lg" onPress={handleSave} loading={loading} style={styles.button}>
           保存
         </Button>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.gray50 },
-  scroll: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, gap: Spacing.lg },
+  content: { flex: 1, padding: Spacing.lg, gap: Spacing.lg },
   card: { alignItems: 'center' },
-  cardTitle: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium, marginBottom: Spacing.md },
+  cardTitle: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium, marginBottom: Spacing.lg },
   pickersRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  timePicker: { alignItems: 'center' },
-  timeLabel: { fontSize: FontSizes.sm, color: Colors.gray600, marginBottom: 8 },
-  timeOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 180 },
-  timeOption: {
-    paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: Radius.sm, backgroundColor: Colors.gray100,
+  pickerContainer: { alignItems: 'center' },
+  pickerLabel: { fontSize: FontSizes.sm, color: Colors.gray600, marginBottom: Spacing.sm },
+  pickerWrapper: {
+    height: PICKER_HEIGHT,
+    width: 80,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  timeOptionActive: { backgroundColor: Colors.primary },
-  timeOptionText: { fontSize: FontSizes.sm, color: Colors.gray700 },
-  timeOptionTextActive: { color: Colors.white, fontWeight: FontWeights.bold },
-  separator: { fontSize: FontSizes.lg, color: Colors.gray600, fontWeight: FontWeights.medium },
+  pickerHighlight: {
+    position: 'absolute',
+    top: PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2,
+    left: 0,
+    right: 0,
+    height: ITEM_HEIGHT,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.sm,
+    zIndex: 0,
+  },
+  pickerScroll: { flex: 1 },
+  pickerContent: { alignItems: 'center' },
+  pickerItem: {
+    height: ITEM_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  pickerItemText: {
+    fontSize: FontSizes.lg,
+    color: Colors.gray400,
+    fontWeight: FontWeights.medium,
+  },
+  pickerItemTextActive: {
+    color: Colors.primary,
+    fontWeight: FontWeights.bold,
+  },
+  separator: { fontSize: FontSizes.lg, color: Colors.gray600, fontWeight: FontWeights.medium, marginBottom: 20 },
   hintCard: {},
   hintText: { fontSize: FontSizes.sm, color: Colors.gray700, lineHeight: 20 },
   errorText: { fontSize: FontSizes.sm, color: Colors.danger, textAlign: 'center' },

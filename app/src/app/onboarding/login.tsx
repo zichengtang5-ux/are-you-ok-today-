@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(__DEV__ ? '13800138000' : '');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -21,6 +21,35 @@ export default function LoginScreen() {
 
   const setUser = useStore((s) => s.setUser);
   const setOnboardingStep = useStore((s) => s.setOnboardingStep);
+
+  useEffect(() => {
+    if (!__DEV__ || phone !== '13800138000' || codeSent) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const sendRes = await authApi.sendCode({ phone: '13800138000' });
+        if (cancelled) return;
+        const mc = sendRes.mockCode ?? '';
+        setCodeSent(true);
+        setCountdown(sendRes.cooldownSeconds);
+        if (mc) setCode(mc);
+        const loginRes = await authApi.verifyCode({ phone: '13800138000', code: mc });
+        if (cancelled) return;
+        await AsyncStorage.multiSet([
+          ['access_token', loginRes.accessToken],
+          ['refresh_token', loginRes.refreshToken],
+        ]);
+        setUser(loginRes.user);
+        setOnboardingStep(loginRes.user.onboardingStep as any);
+        if (loginRes.user.isOnboarded) {
+          router.replace('/(tabs)');
+        } else {
+          router.replace(`/onboarding/${loginRes.user.onboardingStep}` as Href);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSendCode = async () => {
     if (phone.length !== 11 || !/^1[3-9]\d{9}$/.test(phone)) {
@@ -84,41 +113,39 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.formArea}>
-          <View style={styles.inputRow}>
-            <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>手机号</Text>
+          <View style={styles.inputWrap}>
+            <Text style={styles.inputLabel}>手机号</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={(t) => { setPhone(t.replace(/\D/g, '')); setError(''); }}
+              placeholder="13800138000"
+              keyboardType="phone-pad"
+              maxLength={11}
+              placeholderTextColor={Colors.gray400}
+            />
+          </View>
+          <View style={styles.inputWrap}>
+            <Text style={styles.inputLabel}>验证码</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
               <TextInput
-                style={styles.input}
-                value={phone}
-                onChangeText={(t) => { setPhone(t.replace(/\D/g, '')); setError(''); }}
-                placeholder="13800138000"
-                keyboardType="phone-pad"
-                maxLength={11}
+                style={[styles.input, { flex: 1 }]}
+                value={code}
+                onChangeText={(t) => { setCode(t.replace(/\D/g, '')); setError(''); }}
+                placeholder="验证码"
+                keyboardType="numeric"
+                maxLength={6}
                 placeholderTextColor={Colors.gray400}
               />
-            </View>
-            <View style={[styles.inputWrap, { flex: 0.8 }]}>
-              <Text style={styles.inputLabel}>验证码</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  value={code}
-                  onChangeText={(t) => { setCode(t.replace(/\D/g, '')); setError(''); }}
-                  placeholder="验证码"
-                  keyboardType="numeric"
-                  maxLength={6}
-                  placeholderTextColor={Colors.gray400}
-                />
-                <TouchableOpacity
-                  style={[styles.sendBtn, phone.length !== 11 && styles.sendBtnDisabled]}
-                  onPress={handleSendCode}
-                  disabled={phone.length !== 11 || countdown > 0 || loading}
-                >
-                  <Text style={styles.sendBtnText}>
-                    {countdown > 0 ? `${countdown}s` : '发送'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.sendBtn, phone.length !== 11 && styles.sendBtnDisabled]}
+                onPress={handleSendCode}
+                disabled={phone.length !== 11 || countdown > 0 || loading}
+              >
+                <Text style={styles.sendBtnText}>
+                  {countdown > 0 ? `${countdown}s` : '发送'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -163,8 +190,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   formArea: { gap: Spacing.md },
-  inputRow: { flexDirection: 'row', gap: 12 },
-  inputWrap: { flex: 1 },
+  inputWrap: {},
   inputLabel: { fontSize: 13, color: Colors.gray700, marginBottom: 6, fontWeight: '500' },
   input: {
     borderWidth: 1,

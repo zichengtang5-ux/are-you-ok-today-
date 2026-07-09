@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
@@ -73,6 +74,8 @@ export default function SettingsScreen() {
           <Pressable
             style={styles.settingRow}
             onPress={() => router.push('/settings/edit-reminder')}
+            accessibilityRole="button"
+            accessibilityLabel="编辑提醒时间"
           >
             <Text style={styles.settingLabel}>提醒时间</Text>
             <View style={styles.settingValueRow}>
@@ -85,6 +88,8 @@ export default function SettingsScreen() {
           <Pressable
             style={styles.settingRow}
             onPress={() => router.push('/settings/edit-address')}
+            accessibilityRole="button"
+            accessibilityLabel="编辑当前住址"
           >
             <Text style={styles.settingLabel}>当前住址</Text>
             <View style={styles.settingValueRow}>
@@ -97,6 +102,8 @@ export default function SettingsScreen() {
           <Pressable
             style={styles.settingRow}
             onPress={() => router.push('/settings/edit-contact')}
+            accessibilityRole="button"
+            accessibilityLabel="编辑紧急联系人"
           >
             <Text style={styles.settingLabel}>紧急联系人</Text>
             <View style={styles.settingValueRow}>
@@ -205,10 +212,10 @@ export default function SettingsScreen() {
 
         {/* Legal & data */}
         <Card title="法律与数据" style={styles.card}>
-          <Pressable style={styles.linkRow}>
+          <Pressable style={styles.linkRow} onPress={() => Alert.alert('用户协议', '正式协议将在应用上线后发布')}>
             <Text style={styles.linkText}>查看协议</Text>
           </Pressable>
-          <Pressable style={styles.linkRow}>
+          <Pressable style={styles.linkRow} onPress={() => Alert.alert('隐私政策', '隐私政策将在应用上线后发布')}>
             <Text style={styles.linkText}>隐私政策</Text>
           </Pressable>
           <Pressable
@@ -220,7 +227,7 @@ export default function SettingsScreen() {
         </Card>
 
         {/* Version */}
-        <Text style={styles.version}>今天还好 v1.0</Text>
+        <Text style={styles.version}>今天还好 v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
       </ScrollView>
     </SafeAreaView>
   );
