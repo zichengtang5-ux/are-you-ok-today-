@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# EAS local config (project ID 绑定后由 eas init 生成)
+eas.local.json
+
 # typescript
 *.tsbuildinfo
 
