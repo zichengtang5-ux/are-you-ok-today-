@@ -7,9 +7,12 @@ import { realtime } from '@/services/realtime';
 import { syncTimezoneIfChanged } from '@/services/timezone';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoadingState } from '@/components/ui/States';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import {
   initializeNotifications,
   registerNotificationResponseHandler,
+  registerDeviceToken,
+  setupPushTokenListener,
   isReplyOkAction,
 } from '@/services/notifications';
 import {
@@ -17,6 +20,8 @@ import {
   addDeepLinkListener,
   navigateDeepLink,
 } from '@/services/deepLink';
+import { authEvents } from '@/services/authEvents';
+import type { Guardian, ReplyStatus } from '@/types';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -26,6 +31,7 @@ export default function RootLayout() {
   const setUser = useStore((s) => s.setUser);
   const setOnboardingStep = useStore((s) => s.setOnboardingStep);
   const setTodayStatus = useStore((s) => s.setTodayStatus);
+  const setGuardians = useStore((s) => s.setGuardians);
 
   useEffect(() => {
     const init = async () => {
@@ -38,6 +44,25 @@ export default function RootLayout() {
           const userData = await authApi.getMe();
           setUser(userData);
           setOnboardingStep(userData.onboardingStep as any);
+
+          const guardians: Guardian[] = ((userData as any).guardianOf ?? []).map((g: any) => ({
+            id: g.id,
+            wardName: g.ward?.nickname || g.ward?.phone || '未知',
+            wardPhone: g.ward?.phone || '',
+            relation: g.relation,
+            status: (g.status || 'idle') as ReplyStatus,
+            lastReplyAt: g.lastReplyAt,
+            streak: 0,
+            reminderConfig: g.reminderConfig || {
+              startTime: '20:00',
+              endTime: '22:00',
+              gracePeriodMin: 30,
+            },
+            isBound: g.isBound,
+          }));
+          setGuardians(guardians);
+
+          void registerDeviceToken();
           isReady.current = true;
 
           // 建立实时通道（SSE），守护状态/告警变化实时到达，替代 30 秒轮询
@@ -100,23 +125,36 @@ export default function RootLayout() {
       navigateDeepLink(url, router);
     });
 
+    const unsubscribeLogout = authEvents.onLogout(() => {
+      setUser(null);
+      realtime.close();
+      router.replace('/onboarding/login');
+    });
+
+    const unsubscribePushToken = setupPushTokenListener();
+
     return () => {
       unsubscribeNotification();
       unsubscribeDeepLink();
+      unsubscribeLogout();
+      unsubscribePushToken();
     };
-  }, [router, setTodayStatus]);
+  }, [router, setTodayStatus, setUser]);
 
   if (isLoading) {
     return <LoadingState message="正在加载..." />;
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="onboarding" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="alert" />
-      <Stack.Screen name="subscription" />
-      <Stack.Screen name="help" />
-    </Stack>
+    <ErrorBoundary>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="alert" />
+        <Stack.Screen name="subscription" />
+        <Stack.Screen name="help" />
+        <Stack.Screen name="guardian" />
+      </Stack>
+    </ErrorBoundary>
   );
 }

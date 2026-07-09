@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   Pressable,
+  Linking,
   StyleSheet,
   ActivityIndicator,
   Animated,
@@ -13,7 +14,6 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Card, Button, Banner } from '@/components/ui';
 import { helpApi, type EmergencyHelpResponse } from '@/services/api.types';
-import { openExternalUrl } from '@/services/linking';
 import { Colors, FontSizes, FontWeights, Spacing, Radius, Shadows } from '@/theme';
 
 type Stage = 'preparing' | 'ready' | 'sending' | 'sent' | 'error';
@@ -132,6 +132,9 @@ export default function EmergencyHelpScreen() {
               <Pressable
                 onPress={sendEmergency}
                 disabled={stage !== 'ready'}
+                accessibilityRole="button"
+                accessibilityLabel="紧急求助 SOS"
+                accessibilityHint="按下后向所有紧急联系人发送求助信息"
                 style={[styles.sosButton, stage !== 'ready' && styles.sosDisabled]}
               >
                 {stage === 'preparing' || stage === 'sending' ? (
@@ -209,7 +212,7 @@ export default function EmergencyHelpScreen() {
                   </View>
                 </View>
                 <Pressable
-                  onPress={() => void openExternalUrl(`tel:${c.phone}`, '当前设备无法拨打电话')}
+                  onPress={() => Linking.openURL(`tel:${c.phone}`)}
                   style={styles.callButton}
                 >
                   <Text style={styles.callButtonText}>拨打</Text>
@@ -219,36 +222,9 @@ export default function EmergencyHelpScreen() {
           </Card>
         )}
 
-        {/* Quick actions */}
-        <Card title="快捷拨号" style={styles.quickCard}>
-          <Pressable
-            onPress={() => void openExternalUrl('tel:120', '当前设备无法拨打电话')}
-            style={styles.quickRow}
-          >
-            <Text style={styles.quickIcon}>🚑</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.quickLabel}>120 急救</Text>
-              <Text style={styles.quickHint}>危及生命时第一时间拨打</Text>
-            </View>
-            <Text style={styles.quickArrow}>→</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => void openExternalUrl('tel:110', '当前设备无法拨打电话')}
-            style={styles.quickRow}
-          >
-            <Text style={styles.quickIcon}>🚔</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.quickLabel}>110 报警</Text>
-              <Text style={styles.quickHint}>遇到危险或治安问题</Text>
-            </View>
-            <Text style={styles.quickArrow}>→</Text>
-          </Pressable>
-        </Card>
-
         {/* Disclaimer */}
         <Text style={styles.disclaimer}>
-          按下 SOS 后，系统会向你的所有紧急联系人发送包含你当前位置的求助短信。请仅在真正需要时使用。
+          按下 SOS 后，系统会通过服务器向你的所有紧急联系人发送包含你当前位置的求助短信并自动拨打电话。请仅在真正需要时使用。
         </Text>
 
         {stage === 'sent' && (
@@ -435,34 +411,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.semibold,
     color: Colors.white,
-  },
-  quickCard: {
-    gap: Spacing.md,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray200,
-  },
-  quickIcon: {
-    fontSize: 24,
-  },
-  quickLabel: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.semibold,
-    color: Colors.gray900,
-  },
-  quickHint: {
-    fontSize: FontSizes.xs,
-    color: Colors.gray500,
-    marginTop: 2,
-  },
-  quickArrow: {
-    fontSize: FontSizes.lg,
-    color: Colors.gray400,
   },
   disclaimer: {
     fontSize: FontSizes.xs,

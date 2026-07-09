@@ -12,6 +12,9 @@ interface Props {
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  accessibilityRole?: string;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 const variantStyles: Record<Variant, { bg: string; text: string; border?: string }> = {
@@ -28,7 +31,7 @@ const sizeStyles: Record<Size, { py: number; px: number; font: number }> = {
   lg: { py: 16, px: 24, font: FontSizes.md },
 };
 
-export function Button({ children, variant = 'primary', size = 'md', onPress, loading, disabled, style }: Props) {
+export function Button({ children, variant = 'primary', size = 'md', onPress, loading, disabled, style, accessibilityRole, accessibilityLabel, accessibilityHint }: Props) {
   const v = variantStyles[variant];
   const s = sizeStyles[size];
 
@@ -36,6 +39,9 @@ export function Button({ children, variant = 'primary', size = 'md', onPress, lo
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole={accessibilityRole as any}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       style={({ pressed }) => [
         styles.base,
         {

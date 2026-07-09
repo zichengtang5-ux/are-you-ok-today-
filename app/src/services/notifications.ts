@@ -1,22 +1,53 @@
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { deviceApi } from './api.types';
+
+const isNative = Platform.OS !== 'web';
 
 const CATEGORY_ID = 'daily_reminder';
 const ACTION_REPLY_OK = 'reply_ok';
 const ACTION_OPEN_APP = 'open_app';
 
+let Notifications: typeof import('expo-notifications') | null = null;
+let Device: typeof import('expo-device') | null = null;
+let Constants: typeof import('expo-constants').default | null = null;
+
+async function loadNativeModules(): Promise<boolean> {
+  if (Notifications && Device && Constants) return true;
+  try {
+    const [notifMod, deviceMod, constMod] = await Promise.all([
+      import('expo-notifications'),
+      import('expo-device'),
+      import('expo-constants'),
+    ]);
+    Notifications = notifMod;
+    Device = deviceMod;
+    Constants = constMod.default ?? constMod;
+    return true;
+  } catch (e) {
+    try {
+      // Jest's module transform can fail dynamic imports even when the Expo mocks exist.
+      Notifications = require('expo-notifications');
+      Device = require('expo-device');
+      const constMod = require('expo-constants');
+      Constants = constMod.default ?? constMod;
+      return true;
+    } catch {
+      console.warn('[notifications] Native modules unavailable:', e);
+      return false;
+    }
+  }
+}
+
 /* ──────────────── Permission Request ──────────────── */
 export async function requestNotificationPermission(): Promise<boolean> {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  if (!isNative || !(await loadNativeModules())) return false;
+  const { status: existingStatus } = await Notifications!.getPermissionsAsync();
 
   if (existingStatus === 'granted') {
     return true;
   }
 
-  const { status } = await Notifications.requestPermissionsAsync({
+  const { status } = await Notifications!.requestPermissionsAsync({
     ios: {
       allowAlert: true,
       allowBadge: true,
@@ -28,24 +59,29 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 /* ──────────────── Notification Categories (Actions) ──────────────── */
 export async function setupNotificationCategories(): Promise<void> {
-  await Notifications.setNotificationCategoryAsync(CATEGORY_ID, [
-    {
-      identifier: ACTION_REPLY_OK,
-      buttonTitle: '今天还好 ✓',
-      options: {
-        opensAppToForeground: false,
-        isDestructive: false,
-        isAuthenticationRequired: false,
+  if (!isNative || !(await loadNativeModules())) return;
+  try {
+    await Notifications!.setNotificationCategoryAsync(CATEGORY_ID, [
+      {
+        identifier: ACTION_REPLY_OK,
+        buttonTitle: '今天还好 ✓',
+        options: {
+          opensAppToForeground: false,
+          isDestructive: false,
+          isAuthenticationRequired: false,
+        },
       },
-    },
-    {
-      identifier: ACTION_OPEN_APP,
-      buttonTitle: '打开应用',
-      options: {
-        opensAppToForeground: true,
+      {
+        identifier: ACTION_OPEN_APP,
+        buttonTitle: '打开应用',
+        options: {
+          opensAppToForeground: true,
+        },
       },
-    },
-  ]);
+    ]);
+  } catch (e) {
+    console.warn('[notifications] setupNotificationCategories failed:', e);
+  }
 }
 
 /* ──────────────── Schedule Daily Reminder ──────────────── */
@@ -53,22 +89,23 @@ export async function scheduleDailyReminder(
   startTime: string,
   endTime: string,
 ): Promise<string | null> {
+  if (!isNative || !(await loadNativeModules())) return null;
   try {
     const [hours, minutes] = startTime.split(':').map(Number);
 
     await cancelAllScheduledReminders();
 
-    const notificationId = await Notifications.scheduleNotificationAsync({
+    const notificationId = await Notifications!.scheduleNotificationAsync({
       content: {
         title: '今天还好吗？',
         body: '点一下告诉关心你的人你没事',
         data: { type: 'daily_reminder' },
         sound: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
+        priority: Notifications!.AndroidNotificationPriority.HIGH,
         categoryIdentifier: CATEGORY_ID,
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        type: Notifications!.SchedulableTriggerInputTypes.DAILY,
         hour: hours,
         minute: minutes,
       },
@@ -83,12 +120,13 @@ export async function scheduleDailyReminder(
 
 /* ──────────────── Cancel All Reminders ──────────────── */
 export async function cancelAllScheduledReminders(): Promise<void> {
+  if (!isNative || !(await loadNativeModules())) return;
   try {
-    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const scheduled = await Notifications!.getAllScheduledNotificationsAsync();
     for (const notification of scheduled) {
       const data = notification.content.data as Record<string, unknown> | undefined;
       if (data?.type === 'daily_reminder') {
-        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+        await Notifications!.cancelScheduledNotificationAsync(notification.identifier);
       }
     }
   } catch (error) {
@@ -98,8 +136,9 @@ export async function cancelAllScheduledReminders(): Promise<void> {
 
 /* ──────────────── Cancel Specific Reminder ──────────────── */
 export async function cancelDailyReminder(notificationId: string): Promise<void> {
+  if (!isNative || !(await loadNativeModules())) return;
   try {
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    await Notifications!.cancelScheduledNotificationAsync(notificationId);
   } catch (error) {
     console.error('Failed to cancel reminder:', error);
   }
@@ -111,14 +150,22 @@ type NotificationActionCallback = (actionIdentifier: string) => void | Promise<v
 export function registerNotificationResponseHandler(
   callback: NotificationActionCallback,
 ): () => void {
-  const subscription = Notifications.addNotificationResponseReceivedListener(
-    (response) => {
-      const actionId = response.actionIdentifier;
-      callback(actionId);
-    },
-  );
-
-  return () => subscription.remove();
+  if (!isNative) return () => {};
+  let subscription: { remove: () => void } | null = null;
+  loadNativeModules().then((ok) => {
+    if (!ok || !Notifications) return;
+    try {
+      subscription = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
+          const actionId = response.actionIdentifier;
+          callback(actionId);
+        },
+      );
+    } catch (e) {
+      console.warn('[notifications] registerNotificationResponseHandler failed:', e);
+    }
+  });
+  return () => subscription?.remove();
 }
 
 export function isReplyOkAction(actionIdentifier: string): boolean {
@@ -131,16 +178,17 @@ export function isOpenAppAction(actionIdentifier: string): boolean {
 
 /* ──────────────── Device Token Registration ──────────────── */
 export async function getPushToken(): Promise<string | null> {
+  if (!isNative || !(await loadNativeModules())) return null;
   try {
-    if (!Device.isDevice) {
+    if (!Device!.isDevice) {
       console.warn('Push notifications require a physical device');
       return null;
     }
 
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId
-      ?? Constants.easConfig?.projectId;
+    const projectId = Constants!.expoConfig?.extra?.eas?.projectId
+      ?? (Constants as any).easConfig?.projectId;
 
-    const tokenData = await Notifications.getExpoPushTokenAsync({
+    const tokenData = await Notifications!.getExpoPushTokenAsync({
       projectId: projectId ?? undefined,
     });
 
@@ -152,6 +200,7 @@ export async function getPushToken(): Promise<string | null> {
 }
 
 export async function registerDeviceToken(): Promise<boolean> {
+  if (!isNative || !(await loadNativeModules())) return false;
   try {
     const token = await getPushToken();
     if (!token) return false;
@@ -168,24 +217,50 @@ export async function registerDeviceToken(): Promise<boolean> {
   }
 }
 
+export function setupPushTokenListener(): () => void {
+  if (!isNative) return () => {};
+  let subscription: { remove: () => void } | null = null;
+  loadNativeModules().then((ok) => {
+    if (!ok || !Notifications) return;
+    try {
+      subscription = Notifications.addPushTokenListener(async () => {
+        await registerDeviceToken();
+      });
+    } catch (e) {
+      console.warn('[notifications] setupPushTokenListener failed:', e);
+    }
+  });
+  return () => subscription?.remove();
+}
+
 /* ──────────────── Get Permission Status ──────────────── */
 export async function getNotificationStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
-  const { status } = await Notifications.getPermissionsAsync();
-  return status;
+  if (!isNative || !(await loadNativeModules())) return 'undetermined';
+  try {
+    const { status } = await Notifications!.getPermissionsAsync();
+    return status;
+  } catch {
+    return 'undetermined';
+  }
 }
 
 /* ──────────────── Initialize All ──────────────── */
 export async function initializeNotifications(): Promise<void> {
-  await setupNotificationCategories();
+  if (!isNative || !(await loadNativeModules())) return;
+  try {
+    await setupNotificationCategories();
 
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      priority: Notifications.AndroidNotificationPriority.HIGH,
-    }),
-  });
+    Notifications!.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        priority: Notifications!.AndroidNotificationPriority.HIGH,
+      }),
+    });
+  } catch (e) {
+    console.warn('[notifications] initializeNotifications failed:', e);
+  }
 }

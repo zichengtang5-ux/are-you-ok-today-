@@ -3,10 +3,10 @@ import { Platform } from 'react-native';
 /* ──────────────────────────── Color Palette ──────────────────────────── */
 // Guardian Green — warm, natural, evokes safety & life
 export const Colors = {
-  primary: '#2D9B6E',
-  primaryLight: '#E8F5EE',
-  primaryDark: '#1F7A52',
-  primarySoft: '#5BB88F',
+  primary: '#4CAF50',
+  primaryLight: '#E8F5E9',
+  primaryDark: '#388E3C',
+  primarySoft: '#81C784',
 
   warm: '#F5A623',
   warmLight: '#FFF5E0',

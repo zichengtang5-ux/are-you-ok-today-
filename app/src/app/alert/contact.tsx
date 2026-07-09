@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Button, Card, Banner, LoadingState, ErrorState } from '@/components/ui';
-import { alertApi, type ActiveAlertResponse } from '@/services/api.types';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
+import { alertApi, type ActiveAlertResponse, type AlertConfirmResponse } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 function maskPhone(phone: string): string {
@@ -14,7 +15,7 @@ function maskPhone(phone: string): string {
 }
 
 function formatTime(isoString?: string | null): string {
-  if (!isoString) return '';
+  if (!isoString) return '暂无';
   try {
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -33,15 +34,6 @@ function formatDate(isoString?: string | null): string {
   }
 }
 
-function formatTimelineTime(value: string): string {
-  if (/^\d{2}:\d{2}$/.test(value)) return value;
-  const date = new Date(value);
-  if (!Number.isNaN(date.getTime())) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  }
-  return value;
-}
-
 export default function AlertContactScreen() {
   const router = useRouter();
   const { alertId, contactId } = useLocalSearchParams<{ alertId?: string; contactId?: string }>();
@@ -50,6 +42,7 @@ export default function AlertContactScreen() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
+  const [confirmResult, setConfirmResult] = useState<AlertConfirmResponse | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -57,11 +50,7 @@ export default function AlertContactScreen() {
       setLoading(true);
       setError('');
 
-      const request = alertId
-        ? alertApi.getById(alertId, contactId)
-        : alertApi.getActive();
-
-      request
+      alertApi.getActive()
         .then((data) => {
           if (!cancelled) {
             setAlert(data);
@@ -78,7 +67,7 @@ export default function AlertContactScreen() {
         });
 
       return () => { cancelled = true; };
-    }, [alertId, contactId]),
+    }, []),
   );
 
   const handleConfirmSafe = async () => {
@@ -87,6 +76,7 @@ export default function AlertContactScreen() {
     setConfirming(true);
     try {
       const result = await alertApi.confirm(alert.id, contactId);
+      setConfirmResult(result);
       router.push({
         pathname: '/alert/confirm',
         params: {
@@ -126,22 +116,18 @@ export default function AlertContactScreen() {
 
   const lastReplyDate = formatDate(alert.lastReplyAt);
   const lastReplyTime = formatTime(alert.lastReplyAt);
-  const lastReplyLabel = alert.lastReplyAt ? `${lastReplyDate} ${lastReplyTime}` : '从未回复';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="danger" title="安全确认" showMascot={false} onBack={() => router.back()} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.contextLabel}>联系人视角 · 安全确认</Text>
-        </View>
 
         {/* Notification card */}
         <Card variant="danger" style={styles.notificationCard}>
           <Text style={styles.appName}>今天还好 · 安全提醒</Text>
           <Text style={styles.alertMessage}>对方今天没有回复平安</Text>
           <Text style={styles.alertDetail}>
-            最后回复时间：{lastReplyLabel}
+            最后回复时间：{lastReplyDate} {lastReplyTime}
           </Text>
         </Card>
 
@@ -167,21 +153,13 @@ export default function AlertContactScreen() {
               {alert.timeline.map((item, index) => (
                 <View key={index} style={styles.timelineItem}>
                   <View style={[styles.dot, item.isCurrent && styles.dotCurrent]} />
-                  <Text style={styles.timelineTime}>{formatTimelineTime(item.time)}</Text>
+                  <Text style={styles.timelineTime}>{item.time}</Text>
                   <Text style={[styles.timelineAction, item.isCurrent && styles.timelineCurrent]}>
                     {item.action}
                   </Text>
                 </View>
               ))}
             </View>
-          </Card>
-        )}
-
-        {/* SMS rounds info */}
-        {alert.smsRounds > 0 && (
-          <Card variant="warm" style={styles.countdownCard}>
-            <Text style={styles.countdownLabel}>已发送 {alert.smsRounds} 轮通知</Text>
-            <Text style={styles.countdownHint}>请尽快确认对方安全</Text>
           </Card>
         )}
 
@@ -198,6 +176,8 @@ export default function AlertContactScreen() {
             onPress={handleConfirmSafe}
             loading={confirming}
             disabled={!contactId}
+            accessibilityRole="button"
+            accessibilityLabel="确认 TA 已安全"
           >
             已联系，TA没事 ✓
           </Button>
@@ -206,6 +186,8 @@ export default function AlertContactScreen() {
             size="lg"
             onPress={handleNeedHelp}
             disabled={!contactId}
+            accessibilityRole="button"
+            accessibilityLabel="联系不上，需要帮助"
           >
             联系不上，需要帮助
           </Button>
@@ -310,19 +292,6 @@ const styles = StyleSheet.create({
   timelineCurrent: {
     fontWeight: FontWeights.semibold,
     color: Colors.primary,
-  },
-  countdownCard: {
-    alignItems: 'center',
-  },
-  countdownLabel: {
-    fontSize: FontSizes.base,
-    color: Colors.warmDark,
-    fontWeight: FontWeights.semibold,
-    marginBottom: Spacing.xs,
-  },
-  countdownHint: {
-    fontSize: FontSizes.sm,
-    color: Colors.warmDark,
   },
   actions: {
     gap: Spacing.md,

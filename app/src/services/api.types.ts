@@ -35,6 +35,39 @@ export interface RefreshTokenResponse {
   refreshToken: string;
 }
 
+/* ──────────────── Guardian Relation (from /auth/me) ──────────────── */
+export interface GuardianRelationResponse {
+  id: string;
+  guardianId: string;
+  wardId: string;
+  relation: string;
+  inviteCode: string | null;
+  isBound: boolean;
+  createdAt: string;
+  updatedAt: string;
+  ward: {
+    id: string;
+    phone: string;
+    nickname: string | null;
+  };
+}
+
+export interface WardOfResponse {
+  id: string;
+  guardianId: string;
+  wardId: string;
+  relation: string;
+  inviteCode: string | null;
+  isBound: boolean;
+  createdAt: string;
+  updatedAt: string;
+  guardian: {
+    id: string;
+    phone: string;
+    nickname: string | null;
+  };
+}
+
 export const authApi = {
   sendCode: (data: SendCodeRequest) =>
     api.post<SendCodeResponse>('/auth/send-code', data),
@@ -49,12 +82,12 @@ export const authApi = {
     api.get<User & {
       isOnboarded: boolean;
       onboardingStep: string;
-      contacts: any[];
-      reminderConfig: any;
-      guardStatus: any;
-      subscription: any;
-      guardianOf: any[];
-      wardOf: any[];
+      contacts: ContactResponse[];
+      reminderConfig: ReminderConfigResponse;
+      guardStatus: { status: ReplyStatus };
+      subscription: SubscriptionRecord | null;
+      guardianOf: GuardianRelationResponse[];
+      wardOf: WardOfResponse[];
     }>('/auth/me'),
 };
 
@@ -172,7 +205,7 @@ export interface ReplyTodayResponse {
 
 export interface UndoReplyResponse {
   message: string;
-  guardStatus: string;
+  guardStatus: 'waiting' | 'grace';
 }
 
 export const replyApi = {
@@ -224,7 +257,6 @@ export interface ActiveAlertResponse {
   triggeredAt: string;
   lastReplyAt: string | null;
   contactsNotified: AlertContactNotified[];
-  smsRounds: number;
   timeline: AlertTimelineItem[];
 }
 

@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './config';
+import { authEvents } from './authEvents';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -47,6 +48,7 @@ class ApiClient {
             return this.client(originalRequest);
           } catch (refreshError) {
             await this.clearTokens();
+            authEvents.emitLogout();
             return Promise.reject(refreshError);
           }
         }

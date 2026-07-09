@@ -3,7 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Card, Button, Timeline, LoadingState } from '@/components/ui';
-import { alertApi } from '@/services/api.types';
+import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
+import { alertApi, type ActiveAlertResponse } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { AlertTimelineItem } from '@/types';
 
@@ -21,7 +22,7 @@ function formatDateTime(isoString: string): { date: string; time: string } {
 
 export default function AlertConfirmScreen() {
   const router = useRouter();
-  const { resolvedAt } = useLocalSearchParams<{ resolvedAt?: string }>();
+  const { alertId, resolvedAt } = useLocalSearchParams<{ alertId?: string; resolvedAt?: string }>();
 
   const [timeline, setTimeline] = useState<AlertTimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +46,7 @@ export default function AlertConfirmScreen() {
         }
       })
       .finally(() => setLoading(false));
-  }, [resolvedAt]);
+  }, [alertId, resolvedAt]);
 
   const handleDone = () => {
     router.replace('/(tabs)');
@@ -58,16 +59,16 @@ export default function AlertConfirmScreen() {
   const resolved = resolvedAt ? formatDateTime(resolvedAt) : { date: '今天', time: '' };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <GreenStatusBar variant="primary" title="确认安全" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>确认安全</Text>
-        </View>
 
         {/* Success state */}
         <View style={styles.successSection}>
-          <Text style={styles.successEmoji}>✅</Text>
+          <View style={styles.successIconWrap}>
+            <View style={styles.successCheckLong} />
+            <View style={styles.successCheckShort} />
+          </View>
           <Text style={styles.successTitle}>告警已解除</Text>
           <Text style={styles.eventDate}>{resolved.date}告警 · 已解除</Text>
           {resolved.time && (
@@ -115,9 +116,35 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     gap: Spacing.sm,
   },
-  successEmoji: {
-    fontSize: 56,
+  successIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.sm,
+    overflow: 'hidden',
+  },
+  successCheckLong: {
+    position: 'absolute',
+    width: 28,
+    height: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 2,
+    left: 12,
+    top: 26,
+    transform: [{ rotate: '45deg' }],
+  },
+  successCheckShort: {
+    position: 'absolute',
+    width: 14,
+    height: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 2,
+    left: 16,
+    top: 36,
+    transform: [{ rotate: '-45deg' }],
   },
   successTitle: {
     fontSize: FontSizes['2xl'],

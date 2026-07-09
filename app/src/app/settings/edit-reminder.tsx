@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card } from '@/components/ui';
-import { StepDots } from '@/components/ui/StepDots';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
-import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useStore } from '@/store/useStore';
-import { reminderApi, userApi } from '@/services/api.types';
+import { reminderApi } from '@/services/api.types';
+import { scheduleDailyReminder } from '@/services/notifications';
+import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const ITEM_HEIGHT = 44;
@@ -18,6 +18,7 @@ function ScrollPicker({ value, options, onChange, label }: {
   value: string; options: string[]; onChange: (v: string) => void; label: string;
 }) {
   const scrollRef = useRef<ScrollView>(null);
+  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
     const idx = options.indexOf(value);
@@ -26,6 +27,16 @@ function ScrollPicker({ value, options, onChange, label }: {
       scrollRef.current.scrollTo({ y: Math.max(0, offset), animated: false });
     }
   }, []);
+
+  const handleScroll = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    setScrollY(y);
+    const idx = Math.round(y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(options.length - 1, idx));
+    if (options[clamped] !== value) {
+      onChange(options[clamped]);
+    }
+  };
 
   const handleMomentumEnd = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
@@ -50,6 +61,7 @@ function ScrollPicker({ value, options, onChange, label }: {
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           decelerationRate="fast"
+          onScroll={handleScroll}
           onMomentumScrollEnd={handleMomentumEnd}
           scrollEventThrottle={16}
         >
@@ -68,38 +80,29 @@ function ScrollPicker({ value, options, onChange, label }: {
   );
 }
 
-export default function ReminderTimeScreen() {
+export default function EditReminderScreen() {
   const router = useRouter();
-  const [startTime, setStartTime] = useState('20');
-  const [endTime, setEndTime] = useState('22');
+  const { reminder, setReminder } = useStore();
+
+  const [startTime, setStartTime] = useState(reminder.startTime);
+  const [endTime, setEndTime] = useState(reminder.endTime);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { setReminder, setOnboardingStep } = useStore();
-
-  const handleSubmit = async () => {
-    const start = `${startTime}:00`;
-    const end = `${endTime}:00`;
-    if (start >= end) {
+  const handleSave = async () => {
+    if (startTime >= endTime) {
       setError('结束时间必须晚于开始时间');
       return;
     }
     setLoading(true);
     setError('');
-
     try {
-      await reminderApi.updateConfig({ startTime: start, endTime: end });
-      await userApi.updateOnboarding({
-        step: 'notification-auth',
-        isOnboarded: false,
-      });
-
-      setReminder({ startTime: start, endTime: end, gracePeriodMin: 30 });
-      setOnboardingStep('notification-auth');
-      router.replace('/onboarding/notification-auth');
+      await reminderApi.updateConfig({ startTime, endTime });
+      setReminder({ ...reminder, startTime, endTime });
+      await scheduleDailyReminder(startTime, endTime);
+      router.back();
     } catch (err: any) {
-      const message = err.response?.data?.message || '保存失败，请重试';
-      setError(message);
+      setError(err.response?.data?.message || '保存失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -107,15 +110,10 @@ export default function ReminderTimeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
+      <GreenStatusBar variant="white" title="编辑提醒时间" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
-        <View style={styles.header}>
-          <StepDots current={4} total={5} />
-          <Text style={styles.title}>每天什么时候问你？</Text>
-        </View>
-
-        <Card style={styles.timeCard}>
-          <Text style={styles.timeLabel}>提醒时间窗口</Text>
+        <Card style={styles.card}>
+          <Text style={styles.cardTitle}>提醒时间窗口</Text>
           <View style={styles.pickersRow}>
             <ScrollPicker value={startTime} options={HOURS} onChange={setStartTime} label="开始" />
             <Text style={styles.separator}>至</Text>
@@ -125,22 +123,14 @@ export default function ReminderTimeScreen() {
 
         <Card variant="info" style={styles.hintCard}>
           <Text style={styles.hintText}>
-            如果 {endTime}:00 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
+            如果 {endTime} 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
           </Text>
         </Card>
 
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <Button
-          variant="primary"
-          size="lg"
-          onPress={handleSubmit}
-          loading={loading}
-          style={styles.button}
-        >
-          下一步
+        <Button variant="primary" size="lg" onPress={handleSave} loading={loading} style={styles.button}>
+          保存
         </Button>
       </View>
     </SafeAreaView>
@@ -149,11 +139,9 @@ export default function ReminderTimeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.gray50 },
-  content: { flex: 1, padding: Spacing.lg },
-  header: { marginBottom: Spacing.xl },
-  title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900 },
-  timeCard: { alignItems: 'center', marginBottom: Spacing.lg },
-  timeLabel: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium, marginBottom: Spacing.md },
+  content: { flex: 1, padding: Spacing.lg, gap: Spacing.lg },
+  card: { alignItems: 'center' },
+  cardTitle: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium, marginBottom: Spacing.lg },
   pickersRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   pickerContainer: { alignItems: 'center' },
   pickerLabel: { fontSize: FontSizes.sm, color: Colors.gray600, marginBottom: Spacing.sm },
@@ -191,8 +179,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.bold,
   },
   separator: { fontSize: FontSizes.lg, color: Colors.gray600, fontWeight: FontWeights.medium, marginBottom: 20 },
-  hintCard: { marginBottom: Spacing.xl },
+  hintCard: {},
   hintText: { fontSize: FontSizes.sm, color: Colors.gray700, lineHeight: 20 },
-  errorText: { fontSize: FontSizes.sm, color: Colors.danger, textAlign: 'center', marginBottom: Spacing.md },
-  button: { marginTop: 'auto' },
+  errorText: { fontSize: FontSizes.sm, color: Colors.danger, textAlign: 'center' },
+  button: { marginTop: Spacing.md },
 });

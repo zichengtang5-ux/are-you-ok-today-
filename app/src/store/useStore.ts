@@ -70,7 +70,7 @@ interface AppState {
   setTodayStatus: (status: ReplyStatus) => void;
   setStreak: (streak: number) => void;
   reply: () => void;
-  undoReply: () => void;
+  undoReply: (status?: 'waiting' | 'grace') => void;
   triggerAlert: (alert: AlertEvent) => void;
   setActiveAlert: (alert: AlertEvent | null) => void;
   resolveAlert: () => void;
@@ -106,9 +106,9 @@ export const useStore = create<AppState>()(
           streak: s.streak + 1,
           activeAlert: null,
         })),
-      undoReply: () =>
+      undoReply: (status = 'waiting') =>
         set((s) => ({
-          todayStatus: 'waiting',
+          todayStatus: status,
           streak: Math.max(0, s.streak - 1),
         })),
       triggerAlert: (alert) => set({ activeAlert: alert, todayStatus: 'alert' }),
