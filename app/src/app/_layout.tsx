@@ -106,7 +106,7 @@ export default function RootLayout() {
       async (actionId) => {
         if (isReplyOkAction(actionId)) {
           try {
-            const result = await replyApi.reply();
+            const result = await replyApi.reply('notification_action');
             reply();
             setTodayStatus(result.guardStatus as any);
           } catch (e) {

@@ -2,6 +2,8 @@ import { Injectable, BadRequestException, ConflictException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 
+type ReplyMethod = 'in_app' | 'notification_action';
+
 function todayString(): string {
   const now = new Date();
   const shanghai = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -34,7 +36,7 @@ export class ReplyService {
     private events: EventsService,
   ) {}
 
-  async replyToday(userId: string) {
+  async replyToday(userId: string, replyMethod: ReplyMethod = 'in_app') {
     const guardStatus = await this.prisma.guardStatus.findUnique({ where: { userId } });
     if (guardStatus?.status === 'paused') {
       const activePause = await this.prisma.pauseLog.findFirst({
@@ -69,13 +71,13 @@ export class ReplyService {
 
     record = await this.prisma.dailyRecord.upsert({
       where: { userId_date: { userId, date } },
-      update: { status: 'replied', repliedAt: now, replyMethod: 'in_app' },
+      update: { status: 'replied', repliedAt: now, replyMethod },
       create: {
         userId,
         date,
         status: 'replied',
         repliedAt: now,
-        replyMethod: 'in_app',
+        replyMethod,
       },
     });
 

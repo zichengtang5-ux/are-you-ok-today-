@@ -20,9 +20,10 @@ const TEXT: Record<BarVariant, string> = {
 
 function HeaderLogo() {
   return (
-    <View style={styles.headerLogoRing}>
+    <View style={styles.headerLogoBadge}>
       <View style={styles.headerLogoBar} />
-      <Text style={styles.headerLogoMark}>{'<'}</Text>
+      <View style={styles.headerLogoChevronTop} />
+      <View style={styles.headerLogoChevronBottom} />
     </View>
   );
 }
@@ -78,13 +79,17 @@ const styles = StyleSheet.create({
   mascot: {
     marginRight: 8,
   },
-  headerLogoRing: {
+  headerLogoBadge: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    borderWidth: 2.5,
-    borderColor: Colors.white,
+    backgroundColor: Colors.white,
     position: 'relative',
+    shadowColor: Colors.primaryDark,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.24,
+    shadowRadius: 3,
+    elevation: 3,
   },
   headerLogoBar: {
     position: 'absolute',
@@ -93,16 +98,27 @@ const styles = StyleSheet.create({
     width: 3.5,
     height: 10,
     borderRadius: 2,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.primary,
   },
-  headerLogoMark: {
+  headerLogoChevronTop: {
     position: 'absolute',
-    left: 14,
-    top: 1,
-    color: Colors.white,
-    fontSize: 22,
-    lineHeight: 24,
-    fontWeight: '800',
+    left: 16,
+    top: 10,
+    width: 8,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
+    transform: [{ rotate: '-45deg' }],
+  },
+  headerLogoChevronBottom: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    width: 8,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
+    transform: [{ rotate: '45deg' }],
   },
   backBtn: {
     position: 'absolute',

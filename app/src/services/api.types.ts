@@ -168,6 +168,8 @@ export interface ReplyTodayResponse {
   alertResolved: boolean;
 }
 
+export type ReplyMethod = 'in_app' | 'notification_action';
+
 export interface UndoReplyResponse {
   message: string;
   guardStatus: 'waiting' | 'grace';
@@ -177,8 +179,8 @@ export const replyApi = {
   getStatus: () =>
     api.get<ReplyStatusResponse>('/reply/status'),
 
-  reply: () =>
-    api.post<ReplyTodayResponse>('/reply/today'),
+  reply: (replyMethod: ReplyMethod = 'in_app') =>
+    api.post<ReplyTodayResponse>('/reply/today', { replyMethod }),
 
   undoReply: () =>
     api.delete<UndoReplyResponse>('/reply/today'),

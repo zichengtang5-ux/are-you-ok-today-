@@ -61,6 +61,23 @@ describe('ReplyService', () => {
       expect(result.alertResolved).toBe(false);
     });
 
+    it('should record notification action replies', async () => {
+      mockPrisma.guardStatus.findUnique.mockResolvedValue({ status: 'idle' });
+      mockPrisma.dailyRecord.findUnique.mockResolvedValue(null);
+      mockPrisma.dailyRecord.upsert.mockResolvedValue({ status: 'replied' });
+      mockPrisma.guardStatus.upsert.mockResolvedValue({ status: 'replied' });
+      mockPrisma.alertEvent.findFirst.mockResolvedValue(null);
+
+      await service.replyToday('u1', 'notification_action');
+
+      expect(mockPrisma.dailyRecord.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ replyMethod: 'notification_action' }),
+          create: expect.objectContaining({ replyMethod: 'notification_action' }),
+        }),
+      );
+    });
+
     it('should reject if already replied today', async () => {
       mockPrisma.guardStatus.findUnique.mockResolvedValue({ status: 'replied' });
       mockPrisma.dailyRecord.findUnique.mockResolvedValue({ status: 'replied' });

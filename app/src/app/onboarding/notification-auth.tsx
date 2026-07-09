@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Button, Banner, Dialog } from '@/components/ui';
+import { Button, Dialog } from '@/components/ui';
 import { StepDots } from '@/components/ui/StepDots';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { MascotLogo } from '@/components/ui/MascotLogo';
@@ -65,52 +65,61 @@ export default function NotificationAuthScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
+      <GreenStatusBar variant="primary" title="通知授权" showMascot onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.header}>
           <StepDots current={5} total={5} />
         </View>
 
-        <View style={styles.hero}>
+        <View style={styles.dialogCard}>
           <View style={styles.logoWrap}>
-            <MascotLogo size="lg" variant="double-bar" />
+            <MascotLogo size="md" variant="double-bar" />
           </View>
-          <Text style={styles.title}>开启每日平安提醒</Text>
+          <Text style={styles.eyebrow}>系统通知授权</Text>
+          <Text style={styles.title}>打开提醒，一键报平安</Text>
           <Text style={styles.description}>
-            到点收到提醒后，直接点通知里的「今天还好」，就会完成当天签到。
+            到点收到系统通知后，点「今天还好」即可完成当天签到，无需再打开 App。
           </Text>
-        </View>
 
-        <View style={styles.previewSection}>
-          <View style={styles.notifCard}>
-            <View style={styles.notifHeader}>
-              <View style={styles.notifBrand}>
-                <MascotLogo size="sm" variant="double-bar" />
-                <Text style={styles.notifApp}>今天还好</Text>
+          <View style={styles.systemPreview}>
+            <View style={styles.systemHandle} />
+            <View style={styles.notifCard}>
+              <View style={styles.notifHeader}>
+                <View style={styles.notifBrand}>
+                  <View style={styles.notifLogo}>
+                    <MascotLogo size="sm" variant="double-bar" />
+                  </View>
+                  <Text style={styles.notifApp}>今天还好</Text>
+                </View>
+                <Text style={styles.notifTime}>现在</Text>
               </View>
-              <Text style={styles.notifTime}>现在</Text>
-            </View>
-            <Text style={styles.notifTitle}>今天还好吗？</Text>
-            <Text style={styles.notifBody}>点一下完成今日平安签到，不用再打开 App。</Text>
-            <View style={styles.actionPill}>
-              <Text style={styles.actionPillText}>今天还好</Text>
+              <Text style={styles.notifTitle}>今天还好吗？</Text>
+              <Text style={styles.notifBody}>点下面按钮，系统会直接记录你今日平安。</Text>
+              <View style={styles.notificationActions}>
+                <View style={styles.actionPill}>
+                  <Text style={styles.actionPillText}>今天还好</Text>
+                </View>
+                <View style={styles.secondaryPill}>
+                  <Text style={styles.secondaryPillText}>打开应用</Text>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
 
-        {authDenied && (
-          <Banner variant="danger" style={styles.warning}>
-            不授权将无法收到每日平安提醒。
-          </Banner>
-        )}
+          {authDenied && (
+            <View style={styles.warning}>
+              <Text style={styles.warningText}>不授权将无法收到每日提醒，也不能从通知一键签到。</Text>
+            </View>
+          )}
 
-        <View style={styles.buttons}>
-          <Button variant="primary" size="lg" onPress={handleAuthorize} loading={loading}>
-            允许发送提醒
-          </Button>
-          <Button variant="ghost" size="md" onPress={handleSkip}>
-            暂不授权
-          </Button>
+          <View style={styles.buttons}>
+            <Button variant="primary" size="lg" onPress={handleAuthorize} loading={loading}>
+              允许通知并开启
+            </Button>
+            <Button variant="ghost" size="md" onPress={handleSkip}>
+              稍后再说
+            </Button>
+          </View>
         </View>
 
         <Dialog
@@ -129,54 +138,94 @@ export default function NotificationAuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.gray50 },
-  content: { flex: 1, padding: Spacing.lg },
+  container: { flex: 1, backgroundColor: Colors.primary },
+  content: { flex: 1, padding: Spacing.lg, justifyContent: 'center' },
   header: { marginBottom: Spacing.lg },
-  hero: { alignItems: 'center', marginBottom: Spacing.lg },
+  dialogCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 28,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    shadowColor: Colors.primaryDark,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.22,
+    shadowRadius: 32,
+    elevation: 12,
+  },
   logoWrap: {
-    width: 152,
-    height: 152,
-    borderRadius: 76,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    marginTop: -52,
+    marginBottom: Spacing.md,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
     elevation: 8,
   },
+  eyebrow: { fontSize: FontSizes.sm, color: Colors.primary, fontWeight: FontWeights.bold, marginBottom: 6 },
   title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900, marginBottom: Spacing.sm, textAlign: 'center' },
-  description: { fontSize: FontSizes.base, color: Colors.gray600, textAlign: 'center', lineHeight: 22 },
-  previewSection: { marginBottom: Spacing.lg },
+  description: { fontSize: FontSizes.base, color: Colors.gray600, textAlign: 'center', lineHeight: 22, marginBottom: Spacing.lg },
+  systemPreview: {
+    width: '100%',
+    borderRadius: 24,
+    backgroundColor: '#E8F5EA',
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  systemHandle: {
+    width: 42,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.primaryLight,
+    alignSelf: 'center',
+    marginBottom: Spacing.sm,
+  },
   notifCard: {
     backgroundColor: Colors.white,
-    borderRadius: Radius.lg,
+    borderRadius: 20,
     padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.primaryLight,
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
     shadowRadius: 18,
     elevation: 4,
   },
   notifHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   notifBrand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  notifLogo: { width: 26, height: 26, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   notifApp: { fontSize: 12, fontWeight: '700', color: Colors.primaryDark },
   notifTime: { fontSize: 11, color: Colors.gray500 },
   notifTitle: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, color: Colors.gray900, marginBottom: 4 },
   notifBody: { fontSize: FontSizes.sm, color: Colors.gray600, lineHeight: 20 },
+  notificationActions: { flexDirection: 'row', gap: 8, marginTop: Spacing.md },
   actionPill: {
-    marginTop: Spacing.md,
-    alignSelf: 'flex-start',
+    flex: 1,
     backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: Radius.full,
+    alignItems: 'center',
   },
   actionPillText: { color: Colors.white, fontSize: FontSizes.sm, fontWeight: FontWeights.bold },
-  warning: { marginBottom: Spacing.lg },
-  buttons: { gap: Spacing.md, marginTop: 'auto' },
+  secondaryPill: {
+    flex: 1,
+    backgroundColor: Colors.primaryLight,
+    paddingVertical: 10,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+  },
+  secondaryPillText: { color: Colors.primaryDark, fontSize: FontSizes.sm, fontWeight: FontWeights.bold },
+  warning: {
+    width: '100%',
+    backgroundColor: Colors.warmLight,
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  warningText: { color: Colors.warmDark, fontSize: FontSizes.sm, textAlign: 'center', fontWeight: FontWeights.medium },
+  buttons: { width: '100%', gap: Spacing.sm },
 });

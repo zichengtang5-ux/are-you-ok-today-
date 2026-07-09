@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ReplyService } from './reply.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -12,8 +12,12 @@ export class ReplyController {
   @Post('today')
   @HttpCode(200)
   @ApiOperation({ summary: '今日回复' })
-  async replyToday(@CurrentUser('id') userId: string) {
-    return this.replyService.replyToday(userId);
+  async replyToday(
+    @CurrentUser('id') userId: string,
+    @Body() body?: { replyMethod?: 'in_app' | 'notification_action' },
+  ) {
+    const replyMethod = body?.replyMethod === 'notification_action' ? 'notification_action' : 'in_app';
+    return this.replyService.replyToday(userId, replyMethod);
   }
 
   @Delete('today')
