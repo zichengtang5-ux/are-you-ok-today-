@@ -230,6 +230,17 @@ export default function HomeScreen() {
           </Card>
         )}
 
+        {todayStatus === 'paused' && (
+          <Pressable
+            style={styles.resumeGuardButton}
+            onPress={() => router.push('/settings/pause-settings')}
+            accessibilityRole="button"
+            accessibilityLabel="恢复守护"
+          >
+            <Text style={styles.resumeGuardButtonText}>恢复守护</Text>
+          </Pressable>
+        )}
+
         <View style={styles.bottomLinks}>
           <Text style={styles.bottomCombined}>
             <Text onPress={() => router.push('/settings')} accessibilityRole="link" style={styles.bottomLink}>设置</Text>
@@ -284,6 +295,14 @@ const styles = StyleSheet.create({
   confirmButtonTextDisabled: { color: Colors.gray500 },
   buttonHint: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: Spacing.md },
   repliedCard: { alignItems: 'center' },
+  resumeGuardButton: {
+    alignSelf: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.md,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+  },
+  resumeGuardButtonText: { fontSize: FontSizes.base, color: Colors.white, fontWeight: FontWeights.semibold },
   nextReminder: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium },
   bottomLinks: {
     justifyContent: 'center',

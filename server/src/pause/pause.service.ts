@@ -6,6 +6,9 @@ export class PauseService {
   constructor(private prisma: PrismaService) {}
 
   async pause(userId: string, days: number, reason?: string) {
+    if (!Number.isInteger(days) || days < 1 || days > 14) {
+      throw new BadRequestException('暂停时长需为 1 至 14 天');
+    }
     const now = new Date();
     const pauseEnd = new Date(now);
     pauseEnd.setDate(pauseEnd.getDate() + days);

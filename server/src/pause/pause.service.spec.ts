@@ -83,6 +83,11 @@ describe('PauseService', () => {
         }),
       );
     });
+
+    it('should reject pauses longer than 14 days', async () => {
+      await expect(service.pause('u1', 15)).rejects.toThrow('暂停时长需为 1 至 14 天');
+      expect(mockPrisma.pauseLog.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('resume', () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
 import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
-import { contactApi } from '@/services/api.types';
+import { contactApi, pauseApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
 
@@ -53,6 +53,7 @@ export default function SettingsScreen() {
     setContacts,
     refreshSubscription,
   } = useStore();
+  const [pauseEndAt, setPauseEndAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -68,6 +69,11 @@ export default function SettingsScreen() {
           if (!cancelled) setContacts(latest);
         })
         .catch(() => {});
+      pauseApi.getStatus()
+        .then((status) => {
+          if (!cancelled) setPauseEndAt(status.isPaused ? status.pauseEndAt ?? null : null);
+        })
+        .catch(() => {});
       return () => {
         cancelled = true;
       };
@@ -78,6 +84,7 @@ export default function SettingsScreen() {
   const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
   const endLabel = formatEnd(subscription?.currentPeriodEnd);
   const goHome = () => router.replace('/(tabs)');
+  const pauseLabel = pauseEndAt ? `至 ${formatEnd(pauseEndAt)}` : '未暂停';
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -96,6 +103,18 @@ export default function SettingsScreen() {
               <Text style={styles.settingValue}>
                 {reminder.startTime} - {reminder.endTime}
               </Text>
+              <Text style={styles.chevron}>→</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => router.push('/settings/pause-settings')}
+            accessibilityRole="button"
+            accessibilityLabel="暂停守护"
+          >
+            <Text style={styles.settingLabel}>暂停守护</Text>
+            <View style={styles.settingValueRow}>
+              <Text style={[styles.settingValue, pauseEndAt && styles.pauseValue]}>{pauseLabel}</Text>
               <Text style={styles.chevron}>→</Text>
             </View>
           </Pressable>
@@ -214,6 +233,7 @@ const styles = StyleSheet.create({
   },
   settingLabel: { fontSize: FontSizes.base, color: Colors.gray700 },
   settingValue: { fontSize: FontSizes.base, fontWeight: FontWeights.medium, color: Colors.gray900 },
+  pauseValue: { color: Colors.warmDark },
   settingValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
   chevron: { fontSize: FontSizes.base, color: Colors.gray400 },
   statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
