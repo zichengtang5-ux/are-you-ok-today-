@@ -10,6 +10,7 @@ import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { requestNotificationPermission, scheduleDailyReminder, registerDeviceToken } from '@/services/notifications';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
+import { isOfflineDevSession } from '@/services/devMock';
 
 export default function NotificationAuthScreen() {
   const router = useRouter();
@@ -38,7 +39,13 @@ export default function NotificationAuthScreen() {
         setShowDeniedDialog(true);
       }
     } catch (error) {
-      console.error('Notification permission error:', error);
+      if (await isOfflineDevSession()) {
+        completeOnboarding();
+        setOnboardingStep('complete');
+        router.replace('/onboarding/complete');
+      } else {
+        console.error('Notification permission error:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -56,7 +63,13 @@ export default function NotificationAuthScreen() {
       setOnboardingStep('complete');
       router.replace('/onboarding/complete');
     } catch (error) {
-      console.error('Failed to complete onboarding:', error);
+      if (await isOfflineDevSession()) {
+        completeOnboarding();
+        setOnboardingStep('complete');
+        router.replace('/onboarding/complete');
+      } else {
+        console.error('Failed to complete onboarding:', error);
+      }
     } finally {
       setLoading(false);
     }

@@ -8,6 +8,7 @@ import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { getCurrentAddress } from '@/services/location';
+import { isOfflineDevSession } from '@/services/devMock';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function BasicInfoScreen() {
@@ -45,10 +46,10 @@ export default function BasicInfoScreen() {
 
     setError('');
     setLoading(true);
+    const nextNickname = nickname.trim();
+    const nextAddress = address.trim();
 
     try {
-      const nextNickname = nickname.trim();
-      const nextAddress = address.trim();
       const updatedUser = await userApi.updateProfile({ nickname: nextNickname, address: nextAddress });
       await userApi.updateOnboarding({
         step: 'contact-setup',
@@ -59,6 +60,12 @@ export default function BasicInfoScreen() {
       setOnboardingStep('contact-setup');
       router.replace('/onboarding/contact-setup');
     } catch (err: any) {
+      if (await isOfflineDevSession()) {
+        setUser({ ...user, nickname: nextNickname, address: nextAddress } as any);
+        setOnboardingStep('contact-setup');
+        router.replace('/onboarding/contact-setup');
+        return;
+      }
       const message = err.response?.data?.message || '保存失败，请重试';
       setError(message);
     } finally {

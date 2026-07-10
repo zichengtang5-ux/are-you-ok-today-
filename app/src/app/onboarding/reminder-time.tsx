@@ -8,6 +8,7 @@ import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useStore } from '@/store/useStore';
 import { reminderApi, userApi } from '@/services/api.types';
+import { isOfflineDevSession } from '@/services/devMock';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const ITEM_HEIGHT = 44;
@@ -100,6 +101,12 @@ export default function ReminderTimeScreen() {
       setOnboardingStep('notification-auth');
       router.replace('/onboarding/notification-auth');
     } catch (err: any) {
+      if (await isOfflineDevSession()) {
+        setReminder({ startTime, endTime, gracePeriodMin: 30 });
+        setOnboardingStep('notification-auth');
+        router.replace('/onboarding/notification-auth');
+        return;
+      }
       const message = err.response?.data?.message || '保存失败，请重试';
       setError(message);
     } finally {

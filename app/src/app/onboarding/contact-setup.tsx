@@ -8,6 +8,7 @@ import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { contactApi, userApi } from '@/services/api.types';
+import { DEV_MOCK_CODE, isOfflineDevSession } from '@/services/devMock';
 
 type ViewMode = 'list' | 'add';
 
@@ -60,6 +61,13 @@ export default function ContactSetupScreen() {
         });
       }, 1000);
     } catch (err: any) {
+      if (await isOfflineDevSession()) {
+        setContactId(`dev-contact-${Date.now()}`);
+        setCodeSent(true);
+        setCountdown(0);
+        setVerifyCode(DEV_MOCK_CODE);
+        return;
+      }
       const message = err.response?.data?.message || '发送验证码失败';
       setError(message);
     } finally {
@@ -96,6 +104,26 @@ export default function ContactSetupScreen() {
       setCodeSent(false);
       setCountdown(0);
     } catch (err: any) {
+      if (await isOfflineDevSession() && verifyCode === DEV_MOCK_CODE) {
+        const verified = {
+          id: contactId,
+          name: contactName,
+          phone: contactPhone,
+          relation: relation || '家人',
+          priority: 1,
+          verified: true,
+        };
+        addContact(verified);
+        setLastAdded(verified.name);
+        setViewMode('list');
+        setContactName('');
+        setContactPhone('');
+        setRelation('');
+        setVerifyCode('');
+        setContactId(null);
+        setCodeSent(false);
+        return;
+      }
       const message = err.response?.data?.message || '验证码错误';
       setError(message);
     } finally {
@@ -112,6 +140,11 @@ export default function ContactSetupScreen() {
       setOnboardingStep('reminder-time');
       router.replace('/onboarding/reminder-time');
     } catch (err: any) {
+      if (await isOfflineDevSession()) {
+        setOnboardingStep('reminder-time');
+        router.replace('/onboarding/reminder-time');
+        return;
+      }
       const message = err.response?.data?.message || '保存失败，请重试';
       setError(message);
     }

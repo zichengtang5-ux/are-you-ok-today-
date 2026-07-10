@@ -9,8 +9,8 @@ import { useStore } from '@/store/useStore';
 import { authApi } from '@/services/api.types';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEV_MOCK_ACCESS_TOKEN, DEV_MOCK_CODE } from '@/services/devMock';
 
-const DEV_MOCK_CODE = '123456';
 const AGREEMENT_TEXT = '今天还好是一款辅助守护工具，用于记录每日报平安状态，并在用户未按时回应时尝试通知紧急联系人。本产品不替代专业医疗、急救、报警或其他线下救助服务，也不保证所有情况下都能成功通知联系人。使用本服务即表示你理解并接受相关限制。';
 const PRIVACY_TEXT = '我们会为守护服务保存手机号、回复时间、紧急联系人、提醒时间、短信或通知记录等必要信息。这些信息仅用于登录、每日提醒、报平安、紧急通知和基础服务维护，不会用于无关用途。';
 
@@ -104,7 +104,7 @@ export default function LoginScreen() {
           onboardingStep: 'basic-info',
         };
         await AsyncStorage.multiSet([
-          ['access_token', 'dev-access-token'],
+          ['access_token', DEV_MOCK_ACCESS_TOKEN],
           ['refresh_token', 'dev-refresh-token'],
         ]);
         setUser(mockUser);
