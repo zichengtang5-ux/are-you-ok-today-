@@ -77,8 +77,6 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (__DEV__ && demoCheckIn) {
-        setTodayStatus('waiting');
-        setActiveAlert(null);
         return () => {};
       }
       let cancelled = false;
