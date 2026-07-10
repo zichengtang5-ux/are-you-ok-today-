@@ -108,18 +108,6 @@ export default function SettingsScreen() {
           </Pressable>
           <Pressable
             style={styles.settingRow}
-            onPress={() => router.push('/settings/pause-settings')}
-            accessibilityRole="button"
-            accessibilityLabel="暂停守护"
-          >
-            <Text style={styles.settingLabel}>暂停守护</Text>
-            <View style={styles.settingValueRow}>
-              <Text style={[styles.settingValue, pauseEndAt && styles.pauseValue]}>{pauseLabel}</Text>
-              <Text style={styles.chevron}>→</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            style={styles.settingRow}
             onPress={() => router.push('/settings/edit-address')}
             accessibilityRole="button"
             accessibilityLabel="编辑当前住址"
@@ -143,6 +131,24 @@ export default function SettingsScreen() {
               <Text style={styles.settingValue} numberOfLines={1}>
                 {contacts[0]?.name || '未设置'}
               </Text>
+              <Text style={styles.chevron}>→</Text>
+            </View>
+          </Pressable>
+        </Card>
+
+        <Card style={styles.pauseModule}>
+          <Pressable
+            style={styles.pauseRow}
+            onPress={() => router.push('/settings/pause-settings')}
+            accessibilityRole="button"
+            accessibilityLabel="暂停守护"
+          >
+            <View style={styles.pauseCopy}>
+              <Text style={styles.pauseTitle}>暂停守护</Text>
+              <Text style={styles.pauseDescription}>短期关闭提醒与联系人告警</Text>
+            </View>
+            <View style={styles.settingValueRow}>
+              <Text style={[styles.settingValue, pauseEndAt && styles.pauseValue]}>{pauseLabel}</Text>
               <Text style={styles.chevron}>→</Text>
             </View>
           </Pressable>
@@ -234,6 +240,11 @@ const styles = StyleSheet.create({
   settingLabel: { fontSize: FontSizes.base, color: Colors.gray700 },
   settingValue: { fontSize: FontSizes.base, fontWeight: FontWeights.medium, color: Colors.gray900 },
   pauseValue: { color: Colors.warmDark },
+  pauseModule: { paddingVertical: 0 },
+  pauseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
+  pauseCopy: { gap: 3, flex: 1 },
+  pauseTitle: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.semibold },
+  pauseDescription: { fontSize: FontSizes.xs, color: Colors.gray500 },
   settingValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
   chevron: { fontSize: FontSizes.base, color: Colors.gray400 },
   statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
