@@ -45,7 +45,7 @@ function computeEffectiveStatus(
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, reply, setTodayStatus, setReminder, setStreak, setActiveAlert } = useStore();
+  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, demoCheckIn, reply, setTodayStatus, setReminder, setStreak, setActiveAlert } = useStore();
   const config = statusConfig[todayStatus];
 
   const [actionLoading, setActionLoading] = useState(false);
@@ -76,6 +76,11 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (__DEV__ && demoCheckIn) {
+        setTodayStatus('waiting');
+        setActiveAlert(null);
+        return () => {};
+      }
       let cancelled = false;
       replyApi.getStatus().then((data) => {
         if (cancelled) return;
@@ -97,10 +102,15 @@ export default function HomeScreen() {
         } else { setActiveAlert(null); }
       }).catch(() => {});
       return () => { cancelled = true; };
-    }, [setTodayStatus, setReminder, setStreak, setActiveAlert]),
+    }, [demoCheckIn, setTodayStatus, setReminder, setStreak, setActiveAlert]),
   );
 
   const handleReply = async () => {
+    if (__DEV__ && demoCheckIn) {
+      reply();
+      setTodayStatus('replied');
+      return;
+    }
     setActionLoading(true);
     try {
       const result = await replyApi.reply();

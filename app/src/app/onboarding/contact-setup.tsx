@@ -26,7 +26,19 @@ export default function ContactSetupScreen() {
   const [error, setError] = useState('');
   const [lastAdded, setLastAdded] = useState<string | null>(null);
 
-  const { contacts, addContact, setOnboardingStep } = useStore();
+  const { contacts, subscription, user, addContact, setOnboardingStep } = useStore();
+  const isPremium = !!subscription?.isPremium || !!user?.isPremium;
+  const canAddContact = contacts.length === 0 || isPremium;
+
+  const handleAddContact = () => {
+    if (!canAddContact) {
+      router.push('/subscription');
+      return;
+    }
+    setViewMode('add');
+    setLastAdded(null);
+    setError('');
+  };
 
   const handleSendCode = async () => {
     if (!contactName.trim()) { setError('请输入联系人姓名'); return; }
@@ -61,7 +73,7 @@ export default function ContactSetupScreen() {
         });
       }, 1000);
     } catch (err: any) {
-      if (await isOfflineDevSession()) {
+      if (canAddContact && await isOfflineDevSession()) {
         setContactId(`dev-contact-${Date.now()}`);
         setCodeSent(true);
         setCountdown(0);
@@ -205,13 +217,9 @@ export default function ContactSetupScreen() {
             {/* Add more link */}
             <Pressable
               style={styles.addLink}
-              onPress={() => {
-                setViewMode('add');
-                setLastAdded(null);
-                setError('');
-              }}
+              onPress={handleAddContact}
             >
-              <Text style={styles.addLinkText}>＋ 添加更多联系人</Text>
+              <Text style={styles.addLinkText}>{canAddContact ? '＋ 添加更多联系人' : '升级后添加更多联系人'}</Text>
             </Pressable>
 
             {/* Free tier hint */}

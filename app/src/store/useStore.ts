@@ -24,6 +24,7 @@ const initialState = {
   activeAlert: null,
   notificationAuthorized: false,
   subscription: null,
+  demoCheckIn: false,
 };
 
 const SUBSCRIPTION_REFRESH_COOLDOWN_MS = 30_000;
@@ -52,6 +53,7 @@ interface AppState {
 
   /* Subscription (S6) */
   subscription: Subscription | null;
+  demoCheckIn: boolean;
 
   /* Actions */
   setUser: (user: User | null) => void;
@@ -71,6 +73,7 @@ interface AppState {
   resolveAlert: () => void;
   setNotificationAuthorized: (v: boolean) => void;
   setSubscription: (sub: Subscription | null) => void;
+  startCheckInDemo: () => void;
   refreshSubscription: () => Promise<void>;
   resetAppState: () => void;
 }
@@ -110,6 +113,7 @@ export const useStore = create<AppState>()(
       resolveAlert: () => set({ activeAlert: null, todayStatus: 'replied' }),
       setNotificationAuthorized: (v) => set({ notificationAuthorized: v }),
       setSubscription: (subscription) => set({ subscription }),
+      startCheckInDemo: () => set({ demoCheckIn: true, todayStatus: 'waiting', activeAlert: null }),
       resetAppState: () => set(initialState),
       refreshSubscription: async () => {
         if (subscriptionRefreshPromise) {
