@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
@@ -41,6 +42,40 @@ function formatEnd(iso?: string | null): string {
   } catch {
     return iso;
   }
+}
+
+function SettingsItem({
+  icon,
+  label,
+  value,
+  tint = Colors.primary,
+  last = false,
+  onPress,
+}: {
+  icon: SFSymbol;
+  label: string;
+  value?: string;
+  tint?: string;
+  last?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.item, !last && styles.itemBorder, pressed && styles.itemPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={[styles.iconBox, { backgroundColor: `${tint}18` }]}>
+        <SymbolView name={icon} size={20} tintColor={tint} fallback={<Text style={{ color: tint }}>•</Text>} />
+      </View>
+      <View style={styles.itemCopy}>
+        <Text style={[styles.itemLabel, !value && styles.itemLabelOnly]}>{label}</Text>
+        {value ? <Text style={styles.itemValue} numberOfLines={1}>{value}</Text> : null}
+      </View>
+      <SymbolView name="chevron.right" size={14} tintColor={Colors.gray400} fallback={<Text style={styles.chevron}>›</Text>} />
+    </Pressable>
+  );
 }
 
 export default function SettingsScreen() {
@@ -90,73 +125,28 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <GreenStatusBar variant="white" title="设置" showMascot={false} onBack={goHome} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Guard settings */}
-        <Card title="守护设置" style={styles.card}>
-          <Pressable
-            style={styles.settingRow}
-            onPress={() => router.push('/settings/edit-reminder')}
-            accessibilityRole="button"
-            accessibilityLabel="编辑提醒时间"
-          >
-            <Text style={styles.settingLabel}>提醒时间</Text>
-            <View style={styles.settingValueRow}>
-              <Text style={styles.settingValue}>
-                {reminder.startTime} - {reminder.endTime}
-              </Text>
-              <Text style={styles.chevron}>→</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            style={styles.settingRow}
-            onPress={() => router.push('/settings/edit-address')}
-            accessibilityRole="button"
-            accessibilityLabel="编辑当前住址"
-          >
-            <Text style={styles.settingLabel}>当前住址</Text>
-            <View style={styles.settingValueRow}>
-              <Text style={styles.settingValue} numberOfLines={1}>
-                {user?.address || '未设置'}
-              </Text>
-              <Text style={styles.chevron}>→</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            style={styles.settingRow}
-            onPress={() => router.push('/settings/edit-contact')}
-            accessibilityRole="button"
-            accessibilityLabel="编辑紧急联系人"
-          >
-            <Text style={styles.settingLabel}>紧急联系人</Text>
-            <View style={styles.settingValueRow}>
-              <Text style={styles.settingValue} numberOfLines={1}>
-                {contacts[0]?.name || '未设置'}
-              </Text>
-              <Text style={styles.chevron}>→</Text>
-            </View>
-          </Pressable>
+        <Card style={styles.compactCard}>
+          <Text style={styles.sectionTitle}>守护设置</Text>
+          <SettingsItem icon="clock.fill" label="提醒时间" value={`${reminder.startTime} - ${reminder.endTime}`} onPress={() => router.push('/settings/edit-reminder')} />
+          <SettingsItem icon="location.fill" label="当前住址" value={user?.address || '未设置'} onPress={() => router.push('/settings/edit-address')} />
+          <SettingsItem icon="person.crop.circle.fill" label="紧急联系人" value={contacts[0]?.name || '未设置'} last onPress={() => router.push('/settings/edit-contact')} />
         </Card>
 
-        <Card style={styles.pauseModule}>
-          <Pressable
-            style={styles.pauseRow}
-            onPress={() => router.push('/settings/pause-settings')}
-            accessibilityRole="button"
-            accessibilityLabel="暂停守护"
-          >
-            <View style={styles.pauseCopy}>
-              <Text style={styles.pauseTitle}>暂停守护</Text>
-              <Text style={styles.pauseDescription}>短期关闭提醒与联系人告警</Text>
-            </View>
-            <View style={styles.settingValueRow}>
-              <Text style={[styles.settingValue, pauseEndAt && styles.pauseValue]}>{pauseLabel}</Text>
-              <Text style={styles.chevron}>→</Text>
-            </View>
-          </Pressable>
+        <Card style={styles.singleCard}>
+          <SettingsItem icon="pause.circle.fill" label="暂停守护" value={pauseLabel} tint={Colors.warm} last onPress={() => router.push('/settings/pause-settings')} />
         </Card>
 
-        {/* Subscription */}
-        <Card title="订阅" style={styles.card}>
-          <View style={styles.subRow}>
+        <Card style={styles.subscriptionCard}>
+          <View style={styles.subscriptionHeading}>
+            <View style={styles.iconBox}>
+              <SymbolView name="shield.checkered" size={20} tintColor={Colors.primary} />
+            </View>
+            <View style={styles.subscriptionCopy}>
+              <Text style={styles.subscriptionTitle}>订阅</Text>
+              <Text style={styles.subscriptionHint}>{isPremium ? '5 位联系人与语音告警已开启' : '升级可添加 5 位联系人和语音告警'}</Text>
+            </View>
+          </View>
+          <View style={styles.subscriptionStatusRow}>
             <View style={styles.subInfo}>
               <View
                 style={[
@@ -201,20 +191,11 @@ export default function SettingsScreen() {
           )}
         </Card>
 
-        {/* Legal & data */}
-        <Card title="法律与数据" style={styles.card}>
-          <Pressable style={styles.linkRow} onPress={() => Alert.alert('用户协议', '正式协议将在应用上线后发布')}>
-            <Text style={styles.linkText}>查看协议</Text>
-          </Pressable>
-          <Pressable style={styles.linkRow} onPress={() => Alert.alert('隐私政策', '隐私政策将在应用上线后发布')}>
-            <Text style={styles.linkText}>隐私政策</Text>
-          </Pressable>
-          <Pressable
-            style={styles.dangerLinkRow}
-            onPress={() => router.push('/settings/delete-confirm')}
-          >
-            <Text style={styles.dangerLinkText}>删除我的数据</Text>
-          </Pressable>
+        <Card style={styles.compactCard}>
+          <Text style={styles.sectionTitle}>法律与数据</Text>
+          <SettingsItem icon="doc.text.fill" label="用户协议" onPress={() => Alert.alert('用户协议', '正式协议将在应用上线后发布')} />
+          <SettingsItem icon="hand.raised.fill" label="隐私政策" onPress={() => Alert.alert('隐私政策', '隐私政策将在应用上线后发布')} />
+          <SettingsItem icon="trash.fill" label="删除我的数据" tint={Colors.danger} last onPress={() => router.push('/settings/delete-confirm')} />
         </Card>
 
         {/* Version */}
@@ -227,33 +208,38 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.gray50 },
   scroll: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, gap: Spacing.lg },
-  card: { gap: Spacing.sm },
-  settingRow: {
+  scrollContent: { padding: Spacing.md, gap: 12, paddingBottom: Spacing.xl },
+  compactCard: { padding: Spacing.md },
+  singleCard: { paddingHorizontal: Spacing.md, paddingVertical: 4 },
+  sectionTitle: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.semibold, marginBottom: 6 },
+  item: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    minHeight: 62,
+    gap: 12,
+  },
+  itemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray200,
   },
-  settingLabel: { fontSize: FontSizes.base, color: Colors.gray700 },
-  settingValue: { fontSize: FontSizes.base, fontWeight: FontWeights.medium, color: Colors.gray900 },
-  pauseValue: { color: Colors.warmDark },
-  pauseModule: { paddingVertical: 0 },
-  pauseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
-  pauseCopy: { gap: 3, flex: 1 },
-  pauseTitle: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.semibold },
-  pauseDescription: { fontSize: FontSizes.xs, color: Colors.gray500 },
-  settingValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  itemPressed: { opacity: 0.65 },
+  iconBox: { width: 36, height: 36, borderRadius: 8, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  itemCopy: { flex: 1, minWidth: 0, gap: 3 },
+  itemLabel: { fontSize: FontSizes.sm, color: Colors.gray600 },
+  itemLabelOnly: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.medium },
+  itemValue: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.medium },
   chevron: { fontSize: FontSizes.base, color: Colors.gray400 },
   statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   statusTagText: { fontSize: FontSizes.sm, fontWeight: FontWeights.medium },
-  subRow: {
+  subscriptionCard: { padding: Spacing.md, gap: 12 },
+  subscriptionHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  subscriptionCopy: { flex: 1, gap: 2 },
+  subscriptionTitle: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.semibold },
+  subscriptionHint: { fontSize: FontSizes.xs, color: Colors.gray500 },
+  subscriptionStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
   },
   subInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   subEndLabel: { fontSize: FontSizes.sm, color: Colors.gray500 },
@@ -270,13 +256,5 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.gray200,
   },
   subActionText: { fontSize: FontSizes.base, color: Colors.primary, fontWeight: FontWeights.medium },
-  linkRow: {
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray200,
-  },
-  linkText: { fontSize: FontSizes.base, color: Colors.primary, fontWeight: FontWeights.medium },
-  dangerLinkRow: { paddingVertical: Spacing.sm },
-  dangerLinkText: { fontSize: FontSizes.base, color: Colors.danger, fontWeight: FontWeights.semibold },
-  version: { fontSize: FontSizes.sm, color: Colors.gray500, textAlign: 'center', marginTop: Spacing.xl },
+  version: { fontSize: FontSizes.xs, color: Colors.gray500, textAlign: 'center', marginTop: Spacing.sm },
 });

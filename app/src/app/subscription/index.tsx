@@ -15,6 +15,14 @@ import {
 import { subscriptionApi } from '@/services/api.types';
 import type { SubscriptionPlan } from '@/services/api.types';
 
+const BENEFIT_ROWS = [
+  { label: '每日提醒与报平安', free: '包含', premium: '包含' },
+  { label: '紧急联系人', free: '1 位', premium: '最多 5 位' },
+  { label: '超时短信告警', free: '包含', premium: '包含' },
+  { label: '语音电话告警', free: '—', premium: '包含' },
+  { label: '联系人优先级', free: '—', premium: '包含' },
+];
+
 export default function SubscriptionScreen() {
   const router = useRouter();
   const { refreshSubscription } = useStore();
@@ -124,6 +132,27 @@ export default function SubscriptionScreen() {
 	          </Text>
 	        </View>
 
+        <View style={styles.comparison}>
+          <View style={styles.comparisonTitleRow}>
+            <View>
+              <Text style={styles.comparisonTitle}>权益对比</Text>
+              <Text style={styles.comparisonSubtitle}>核心守护功能免费可用</Text>
+            </View>
+          </View>
+          <View style={styles.comparisonHeader}>
+            <Text style={styles.benefitHeader}>功能</Text>
+            <Text style={styles.freeHeader}>免费版</Text>
+            <Text style={styles.premiumHeader}>守护版</Text>
+          </View>
+          {BENEFIT_ROWS.map((row, index) => (
+            <View key={row.label} style={[styles.benefitRow, index === BENEFIT_ROWS.length - 1 && styles.benefitRowLast]}>
+              <Text style={styles.benefitLabel}>{row.label}</Text>
+              <Text style={styles.freeValue}>{row.free}</Text>
+              <Text style={styles.premiumValue}>{row.premium}</Text>
+            </View>
+          ))}
+        </View>
+
         {/* Plan cards */}
         <View style={styles.plans} accessibilityRole="radiogroup">
           <PlanCard
@@ -217,6 +246,37 @@ const styles = StyleSheet.create({
   plans: {
     gap: Spacing.md,
   },
+  comparison: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  comparisonTitleRow: { marginBottom: Spacing.md },
+  comparisonTitle: { fontSize: FontSizes.lg, color: Colors.gray900, fontWeight: FontWeights.semibold },
+  comparisonSubtitle: { fontSize: FontSizes.xs, color: Colors.gray500, marginTop: 3 },
+  comparisonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray200,
+  },
+  benefitHeader: { flex: 1, fontSize: FontSizes.xs, color: Colors.gray500 },
+  freeHeader: { width: 72, textAlign: 'center', fontSize: FontSizes.xs, color: Colors.gray600, fontWeight: FontWeights.semibold },
+  premiumHeader: { width: 82, textAlign: 'center', fontSize: FontSizes.xs, color: Colors.primaryDark, fontWeight: FontWeights.bold },
+  benefitRow: {
+    minHeight: 43,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+  },
+  benefitRowLast: { borderBottomWidth: 0 },
+  benefitLabel: { flex: 1, fontSize: FontSizes.sm, color: Colors.gray800 },
+  freeValue: { width: 72, textAlign: 'center', fontSize: FontSizes.sm, color: Colors.gray600 },
+  premiumValue: { width: 82, textAlign: 'center', fontSize: FontSizes.sm, color: Colors.primaryDark, fontWeight: FontWeights.semibold },
   cta: {
     marginTop: Spacing.sm,
   },
