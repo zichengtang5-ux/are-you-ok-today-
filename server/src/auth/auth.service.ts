@@ -12,6 +12,7 @@ import { SmsService } from '../sms/sms.service';
 const CODE_LENGTH = 6;
 const CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const COOLDOWN_MS = 60 * 1000; // 60 seconds
+const DEV_LOGIN_CODE = '123456';
 
 @Injectable()
 export class AuthService {
@@ -46,7 +47,7 @@ export class AuthService {
       }
     }
 
-    const code = this.generateCode();
+    const code = this.isDevAuthMockEnabled() ? DEV_LOGIN_CODE : this.generateCode();
     const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
     await this.prisma.verificationCode.create({
@@ -79,23 +80,28 @@ export class AuthService {
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!record) {
+    if (!record && !this.isDevAuthMockCode(code)) {
       throw new UnauthorizedException('验证码错误或已过期');
     }
 
-    await this.prisma.verificationCode.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    });
+    if (record) {
+      await this.prisma.verificationCode.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+    }
 
     let user = await this.prisma.user.findUnique({ where: { phone } });
-    let isNewUser = false;
 
     if (!user) {
       user = await this.prisma.user.create({
-        data: { phone, onboardingStep: 'agreement' },
+        data: { phone, onboardingStep: 'basic-info' },
       });
-      isNewUser = true;
+    } else if (!user.isOnboarded && user.onboardingStep === 'agreement') {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { onboardingStep: 'basic-info' },
+      });
     }
 
     const tokens = await this.generateTokens(user.id);
@@ -173,5 +179,13 @@ export class AuthService {
 
   private isMockMode(): boolean {
     return this.config.get('SMS_PROVIDER', 'mock') === 'mock';
+  }
+
+  private isDevAuthMockEnabled(): boolean {
+    return this.config.get('NODE_ENV', 'development') !== 'production';
+  }
+
+  private isDevAuthMockCode(code: string): boolean {
+    return this.isDevAuthMockEnabled() && code === DEV_LOGIN_CODE;
   }
 }

@@ -71,7 +71,7 @@ export default function BasicInfoScreen() {
       <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <StepDots current={2} total={5} />
+          <StepDots current={1} total={4} />
           <Text style={styles.title}>你的安全信息</Text>
           <Text style={styles.subtitle}>紧急时刻，让联系人和 120 快速找到你</Text>
         </View>

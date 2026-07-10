@@ -21,6 +21,7 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -120,7 +121,7 @@ describe('AuthService', () => {
         phone: '13812345678',
         nickname: null,
         isOnboarded: false,
-        onboardingStep: 'agreement',
+        onboardingStep: 'basic-info',
       });
 
       const result = await service.verifyCode('13812345678', '123456');
@@ -130,8 +131,25 @@ describe('AuthService', () => {
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
       expect(mockPrisma.user.create).toHaveBeenCalledWith({
-        data: { phone: '13812345678', onboardingStep: 'agreement' },
+        data: { phone: '13812345678', onboardingStep: 'basic-info' },
       });
+    });
+
+    it('should allow the dev mock code without an existing record', async () => {
+      mockPrisma.verificationCode.findFirst.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({
+        id: 'user1',
+        phone: '13812345678',
+        nickname: null,
+        isOnboarded: false,
+        onboardingStep: 'basic-info',
+      });
+
+      const result = await service.verifyCode('13812345678', '123456');
+
+      expect(result.user.onboardingStep).toBe('basic-info');
+      expect(mockPrisma.verificationCode.update).not.toHaveBeenCalled();
     });
 
     it('should login existing user on valid code', async () => {
@@ -155,6 +173,38 @@ describe('AuthService', () => {
       expect(result.user.nickname).toBe('小李');
       expect(result.user.isOnboarded).toBe(true);
       expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('should move existing agreement users to basic-info', async () => {
+      mockPrisma.verificationCode.findFirst.mockResolvedValue({
+        id: 'vc1',
+        phone: '13812345678',
+        code: '123456',
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      mockPrisma.verificationCode.update.mockResolvedValue({});
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user1',
+        phone: '13812345678',
+        nickname: null,
+        isOnboarded: false,
+        onboardingStep: 'agreement',
+      });
+      mockPrisma.user.update.mockResolvedValue({
+        id: 'user1',
+        phone: '13812345678',
+        nickname: null,
+        isOnboarded: false,
+        onboardingStep: 'basic-info',
+      });
+
+      const result = await service.verifyCode('13812345678', '123456');
+
+      expect(result.user.onboardingStep).toBe('basic-info');
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { onboardingStep: 'basic-info' },
+      });
     });
   });
 

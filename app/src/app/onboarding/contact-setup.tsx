@@ -123,7 +123,7 @@ export default function ContactSetupScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <StepDots current={3} total={5} />
+          <StepDots current={2} total={4} />
           <Text style={styles.title}>出事了通知谁？</Text>
         </View>
 

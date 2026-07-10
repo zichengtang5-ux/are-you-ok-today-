@@ -69,7 +69,7 @@ export default function NotificationAuthScreen() {
       <GreenStatusBar variant="primary" title="通知授权" showMascot onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <StepDots current={5} total={5} />
+          <StepDots current={4} total={4} />
         </View>
 
         <View style={styles.dialogCard}>

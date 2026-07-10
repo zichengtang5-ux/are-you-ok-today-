@@ -82,7 +82,6 @@ export interface Subscription {
 /* ──────────────── Onboarding step ──────────────── */
 export type OnboardingStep =
   | 'login'
-  | 'agreement'
   | 'basic-info'
   | 'contact-setup'
   | 'reminder-time'

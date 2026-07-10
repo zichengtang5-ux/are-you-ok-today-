@@ -24,6 +24,10 @@ import {
 } from '@/services/deepLink';
 import { authEvents } from '@/services/authEvents';
 
+function normalizeOnboardingStep(step: string): string {
+  return step === 'agreement' ? 'basic-info' : step;
+}
+
 export default function RootLayout() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -46,8 +50,9 @@ export default function RootLayout() {
 
         if (accessToken) {
           const userData = await authApi.getMe();
+          const onboardingStep = normalizeOnboardingStep(userData.onboardingStep);
           setUser(userData);
-          setOnboardingStep(userData.onboardingStep as any);
+          setOnboardingStep(onboardingStep as any);
           if ((userData as any).contacts) {
             setContacts((userData as any).contacts);
           }
@@ -82,7 +87,7 @@ export default function RootLayout() {
           if (userData.isOnboarded) {
             router.replace('/(tabs)');
           } else {
-            router.replace(`/onboarding/${userData.onboardingStep}` as Href);
+            router.replace(`/onboarding/${onboardingStep}` as Href);
           }
         } else {
           router.replace('/onboarding/login');

@@ -112,7 +112,7 @@ export default function ReminderTimeScreen() {
       <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <StepDots current={4} total={5} />
+          <StepDots current={3} total={4} />
           <Text style={styles.title}>每天什么时候问你？</Text>
         </View>
 
