@@ -12,6 +12,7 @@ export default function HomeStatusDemo() {
   const startCheckInDemo = useStore((state) => state.startCheckInDemo);
   const setTodayStatus = useStore((state) => state.setTodayStatus);
   const setActiveAlert = useStore((state) => state.setActiveAlert);
+  const setReminder = useStore((state) => state.setReminder);
 
   useEffect(() => {
     if (!__DEV__) {
@@ -20,7 +21,14 @@ export default function HomeStatusDemo() {
     }
 
     const nextStatus = DEMO_STATUSES.includes(status as ReplyStatus) ? status as ReplyStatus : 'waiting';
+    const now = new Date();
+    const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+    const oneHourAgo = new Date(now.getTime() - 62 * 60 * 1000);
+    const formatTime = (time: Date) => `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
     startCheckInDemo();
+    setReminder(nextStatus === 'grace'
+      ? { startTime: formatTime(oneHourAgo), endTime: formatTime(twoMinutesAgo), gracePeriodMin: 30 }
+      : { startTime: '20:00', endTime: '23:00', gracePeriodMin: 30 });
     setTodayStatus(nextStatus);
     setActiveAlert(nextStatus === 'alert' ? {
       id: 'demo-alert',
@@ -30,7 +38,7 @@ export default function HomeStatusDemo() {
       timeline: [],
     } : null);
     router.replace('/(tabs)');
-  }, [router, setActiveAlert, setTodayStatus, startCheckInDemo, status]);
+  }, [router, setActiveAlert, setReminder, setTodayStatus, startCheckInDemo, status]);
 
   return null;
 }
