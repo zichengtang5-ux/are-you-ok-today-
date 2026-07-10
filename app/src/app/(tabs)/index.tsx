@@ -136,7 +136,7 @@ export default function HomeScreen() {
 
   const renderSubtitle = () => {
     if (todayStatus === 'idle') {
-      return <Text style={styles.subtitle}>今晚 {reminder.endTime} 会收到提醒</Text>;
+      return <Text style={styles.subtitle}>今晚 {reminder.startTime} 会收到提醒</Text>;
     }
     if (todayStatus === 'waiting') {
       return <Text style={styles.subtitle}>提醒时间：{reminder.startTime} - {reminder.endTime}</Text>;
