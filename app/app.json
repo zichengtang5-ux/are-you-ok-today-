@@ -13,7 +13,7 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSContactsUsageDescription": "用于导入紧急联系人",
-        "NSLocationWhenInUseUsageDescription": "用于紧急求助时获取您的位置"
+        "NSLocationWhenInUseUsageDescription": "用于紧急求助时获取当前位置，并发送给您的紧急联系人"
       }
     },
     "android": {
@@ -69,7 +69,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "用于紧急求助和地址自动填写"
+          "locationWhenInUsePermission": "用于紧急求助时获取当前位置，并发送给您的紧急联系人"
         }
       ],
       "expo-sharing",
