@@ -12,6 +12,13 @@ import type {
 } from '@/types';
 import { subscriptionApi } from '@/services/api.types';
 import { reportError } from '@/services/errorReporter';
+import { getReminderWindowStatus } from '@/utils/guardStatus';
+
+interface PauseStatusSnapshot {
+  isPaused: boolean;
+  pauseEndAt?: string | null;
+  daysRemaining?: number | null;
+}
 
 const initialState = {
   user: null,
@@ -25,6 +32,9 @@ const initialState = {
   notificationAuthorized: false,
   subscription: null,
   demoCheckIn: false,
+  isPaused: false,
+  pauseEndAt: null,
+  daysRemaining: null,
 };
 
 const SUBSCRIPTION_REFRESH_COOLDOWN_MS = 30_000;
@@ -55,6 +65,11 @@ interface AppState {
   subscription: Subscription | null;
   demoCheckIn: boolean;
 
+  /* Pause guard */
+  isPaused: boolean;
+  pauseEndAt: string | null;
+  daysRemaining: number | null;
+
   /* Actions */
   setUser: (user: User | null) => void;
   completeOnboarding: () => void;
@@ -74,6 +89,8 @@ interface AppState {
   setNotificationAuthorized: (v: boolean) => void;
   setSubscription: (sub: Subscription | null) => void;
   startCheckInDemo: () => void;
+  setPauseStatus: (status: PauseStatusSnapshot) => void;
+  clearPauseStatus: () => void;
   refreshSubscription: () => Promise<void>;
   resetAppState: () => void;
 }
@@ -114,6 +131,26 @@ export const useStore = create<AppState>()(
       setNotificationAuthorized: (v) => set({ notificationAuthorized: v }),
       setSubscription: (subscription) => set({ subscription }),
       startCheckInDemo: () => set({ demoCheckIn: true, todayStatus: 'waiting', activeAlert: null }),
+      setPauseStatus: (status) =>
+        set((state) => ({
+          isPaused: status.isPaused,
+          pauseEndAt: status.isPaused ? status.pauseEndAt ?? null : null,
+          daysRemaining: status.isPaused ? status.daysRemaining ?? null : null,
+          todayStatus: status.isPaused
+            ? 'paused'
+            : state.todayStatus === 'paused'
+              ? getReminderWindowStatus(state.reminder)
+              : state.todayStatus,
+        })),
+      clearPauseStatus: () =>
+        set((state) => ({
+          isPaused: false,
+          pauseEndAt: null,
+          daysRemaining: null,
+          todayStatus: state.todayStatus === 'paused'
+            ? getReminderWindowStatus(state.reminder)
+            : state.todayStatus,
+        })),
       resetAppState: () => set(initialState),
       refreshSubscription: async () => {
         if (subscriptionRefreshPromise) {

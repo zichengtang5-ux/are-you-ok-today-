@@ -7,6 +7,7 @@ import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { pauseApi } from '@/services/api.types';
 import { isOfflineDevSession } from '@/services/devMock';
 import { useStore } from '@/store/useStore';
+import { getPauseDaysRemaining } from '@/utils/guardStatus';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 const DAYS = Array.from({ length: 14 }, (_, index) => index + 1);
@@ -58,33 +59,43 @@ function formatDate(iso: string) {
 
 export default function PauseSettingsScreen() {
   const router = useRouter();
-  const setTodayStatus = useStore((state) => state.setTodayStatus);
+  const {
+    isPaused,
+    pauseEndAt,
+    daysRemaining,
+    setPauseStatus,
+    clearPauseStatus,
+  } = useStore();
   const [selected, setSelected] = useState(1);
-  const [isPaused, setIsPaused] = useState(false);
-  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
-  const [pauseEndAt, setPauseEndAt] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [previewBaseTime] = useState(() => Date.now());
+  const currentDaysRemaining = getPauseDaysRemaining(pauseEndAt) ?? daysRemaining;
 
   useEffect(() => {
     pauseApi.getStatus().then((status) => {
-      setIsPaused(status.isPaused);
-      setDaysRemaining(status.daysRemaining ?? null);
-      setPauseEndAt(status.pauseEndAt ?? null);
+      setPauseStatus(status);
     }).catch(() => {});
-  }, []);
+  }, [setPauseStatus]);
 
   const handlePause = async () => {
+    if (submitting) return;
     setSubmitting(true);
     try {
       const result = await pauseApi.pause({ days: selected });
-      setTodayStatus('paused');
+      setPauseStatus({
+        isPaused: true,
+        pauseEndAt: result.pauseEndAt,
+        daysRemaining: result.days,
+      });
       Alert.alert('守护已暂停', `将在 ${formatDate(result.pauseEndAt)} 自动恢复`);
       router.back();
     } catch (error: any) {
       if (await isOfflineDevSession()) {
-        setTodayStatus('paused');
-        Alert.alert('守护已暂停', `${selected} 天后将自动恢复`);
+        const fallbackEnd = new Date();
+        fallbackEnd.setDate(fallbackEnd.getDate() + selected);
+        const fallbackEndAt = fallbackEnd.toISOString();
+        setPauseStatus({ isPaused: true, pauseEndAt: fallbackEndAt, daysRemaining: selected });
+        Alert.alert('守护已暂停', `将在 ${formatDate(fallbackEndAt)} 自动恢复`);
         router.back();
         return;
       }
@@ -95,15 +106,16 @@ export default function PauseSettingsScreen() {
   };
 
   const handleResume = async () => {
+    if (submitting) return;
     setSubmitting(true);
     try {
       await pauseApi.resume();
-      setTodayStatus('idle');
+      clearPauseStatus();
       Alert.alert('守护已恢复', '今晚将正常收到提醒');
       router.back();
     } catch (error: any) {
       if (await isOfflineDevSession()) {
-        setTodayStatus('idle');
+        clearPauseStatus();
         Alert.alert('守护已恢复', '今晚将正常收到提醒');
         router.back();
         return;
@@ -118,10 +130,13 @@ export default function PauseSettingsScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <GreenStatusBar variant="white" title="暂停守护" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
-        {isPaused && pauseEndAt ? (
+        {isPaused ? (
           <Card variant="warm" style={styles.pausedCard}>
             <Text style={styles.pausedTitle}>守护已暂停</Text>
-            <Text style={styles.pausedHint}>将在 {formatDate(pauseEndAt)} 自动恢复{daysRemaining != null ? `，还剩 ${daysRemaining} 天` : ''}</Text>
+            <Text style={styles.pausedHint}>
+              {pauseEndAt ? `将在 ${formatDate(pauseEndAt)} 自动恢复` : '当前不会发送每日守护提醒'}
+              {currentDaysRemaining != null ? `，还剩 ${currentDaysRemaining} 天` : ''}
+            </Text>
             <Button variant="primary" size="lg" onPress={handleResume} loading={submitting} style={styles.actionButton}>立即恢复守护</Button>
           </Card>
         ) : (

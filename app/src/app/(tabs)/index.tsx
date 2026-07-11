@@ -1,12 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { MascotLogo } from '@/components/ui/MascotLogo';
 import { useStore } from '@/store/useStore';
-import { replyApi, alertApi } from '@/services/api.types';
+import { replyApi, alertApi, pauseApi } from '@/services/api.types';
+import { isOfflineDevSession } from '@/services/devMock';
+import { computeEffectiveStatus } from '@/utils/guardStatus';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { ReplyStatus } from '@/types';
 
@@ -28,27 +30,13 @@ const statusBarVariant: Record<ReplyStatus, 'primary' | 'warn' | 'danger' | 'whi
   paused: 'white',
 };
 
-function computeEffectiveStatus(
-  backendStatus: string,
-  reminderConfig?: { startTime: string; endTime: string },
-): ReplyStatus {
-  if (backendStatus !== 'idle' || !reminderConfig) return backendStatus as ReplyStatus;
-  const now = new Date();
-  const mins = now.getHours() * 60 + now.getMinutes();
-  const [sh, sm] = reminderConfig.startTime.split(':').map(Number);
-  const [eh, em] = reminderConfig.endTime.split(':').map(Number);
-  const start = sh * 60 + sm;
-  const end = eh * 60 + em;
-  if (mins >= start && mins < end) return 'waiting';
-  return 'idle';
-}
-
 export default function HomeScreen() {
   const router = useRouter();
-  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, demoCheckIn, reply, setTodayStatus, setReminder, setStreak, setActiveAlert } = useStore();
+  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, demoCheckIn, reply, setTodayStatus, setReminder, setStreak, setActiveAlert, clearPauseStatus } = useStore();
   const config = statusConfig[todayStatus];
 
   const [actionLoading, setActionLoading] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
   const [graceCountdown, setGraceCountdown] = useState('--:--');
   const [daysInMonth, setDaysInMonth] = useState(() => {
     const now = new Date();
@@ -125,6 +113,24 @@ export default function HomeScreen() {
       // silently handle other errors
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleResumeGuard = async () => {
+    if (resumeLoading) return;
+    setResumeLoading(true);
+    try {
+      await pauseApi.resume();
+      clearPauseStatus();
+    } catch (error: any) {
+      if (await isOfflineDevSession()) {
+        clearPauseStatus();
+        return;
+      }
+      const message = error.response?.data?.message;
+      Alert.alert('恢复失败', typeof message === 'string' ? message : '请检查网络后重试');
+    } finally {
+      setResumeLoading(false);
     }
   };
 
@@ -232,12 +238,21 @@ export default function HomeScreen() {
 
         {todayStatus === 'paused' && (
           <Pressable
-            style={styles.resumeGuardButton}
-            onPress={() => router.push('/settings/pause-settings')}
+            style={({ pressed }) => [
+              styles.resumeGuardButton,
+              pressed && !resumeLoading && styles.resumeGuardButtonPressed,
+            ]}
+            onPress={handleResumeGuard}
+            disabled={resumeLoading}
             accessibilityRole="button"
             accessibilityLabel="恢复守护"
+            accessibilityState={{ busy: resumeLoading, disabled: resumeLoading }}
           >
-            <Text style={styles.resumeGuardButtonText}>恢复守护</Text>
+            {resumeLoading ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <Text style={styles.resumeGuardButtonText}>恢复守护</Text>
+            )}
           </Pressable>
         )}
 
@@ -303,6 +318,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   resumeGuardButtonText: { fontSize: FontSizes.base, color: Colors.white, fontWeight: FontWeights.semibold },
+  resumeGuardButtonPressed: { backgroundColor: Colors.primaryDark },
   nextReminder: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium },
   bottomLinks: {
     justifyContent: 'center',

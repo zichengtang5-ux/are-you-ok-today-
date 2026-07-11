@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { contactApi, pauseApi } from '@/services/api.types';
+import { getPauseDaysRemaining } from '@/utils/guardStatus';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
 
@@ -48,6 +49,7 @@ function SettingsItem({
   icon,
   label,
   value,
+  detail,
   tint = Colors.primary,
   last = false,
   onPress,
@@ -55,6 +57,7 @@ function SettingsItem({
   icon: SFSymbol;
   label: string;
   value?: string;
+  detail?: string;
   tint?: string;
   last?: boolean;
   onPress: () => void;
@@ -72,6 +75,7 @@ function SettingsItem({
       <View style={styles.itemCopy}>
         <Text style={[styles.itemLabel, !value && styles.itemLabelOnly]}>{label}</Text>
         {value ? <Text style={styles.itemValue} numberOfLines={1}>{value}</Text> : null}
+        {detail ? <Text style={styles.itemDetail} numberOfLines={1}>{detail}</Text> : null}
       </View>
       <SymbolView name="chevron.right" size={14} tintColor={Colors.gray400} fallback={<Text style={styles.chevron}>›</Text>} />
     </Pressable>
@@ -85,10 +89,13 @@ export default function SettingsScreen() {
     reminder,
     contacts,
     subscription,
+    isPaused,
+    pauseEndAt,
+    daysRemaining,
     setContacts,
+    setPauseStatus,
     refreshSubscription,
   } = useStore();
-  const [pauseEndAt, setPauseEndAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -106,20 +113,26 @@ export default function SettingsScreen() {
         .catch(() => {});
       pauseApi.getStatus()
         .then((status) => {
-          if (!cancelled) setPauseEndAt(status.isPaused ? status.pauseEndAt ?? null : null);
+          if (!cancelled) setPauseStatus(status);
         })
         .catch(() => {});
       return () => {
         cancelled = true;
       };
-    }, [setContacts]),
+    }, [setContacts, setPauseStatus]),
   );
 
   const isPremium = !!subscription?.isPremium;
   const planLabel = PLAN_LABEL[subscription?.plan ?? 'free'] ?? '免费版';
   const endLabel = formatEnd(subscription?.currentPeriodEnd);
   const goHome = () => router.replace('/(tabs)');
-  const pauseLabel = pauseEndAt ? `至 ${formatEnd(pauseEndAt)}` : '未暂停';
+  const pauseDaysRemaining = getPauseDaysRemaining(pauseEndAt) ?? daysRemaining;
+  const pauseLabel = isPaused
+    ? pauseDaysRemaining != null
+      ? `已暂停 · 剩余 ${pauseDaysRemaining} 天`
+      : '已暂停'
+    : '未暂停';
+  const pauseDetail = isPaused && pauseEndAt ? `${formatEnd(pauseEndAt)} 自动恢复` : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -133,7 +146,7 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.singleCard}>
-          <SettingsItem icon="pause.circle.fill" label="暂停守护" value={pauseLabel} tint={Colors.warm} last onPress={() => router.push('/settings/pause-settings')} />
+          <SettingsItem icon="pause.circle.fill" label="暂停守护" value={pauseLabel} detail={pauseDetail} tint={Colors.warm} last onPress={() => router.push('/settings/pause-settings')} />
         </Card>
 
         <Card style={styles.subscriptionCard}>
@@ -228,6 +241,7 @@ const styles = StyleSheet.create({
   itemLabel: { fontSize: FontSizes.sm, color: Colors.gray600 },
   itemLabelOnly: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.medium },
   itemValue: { fontSize: FontSizes.base, color: Colors.gray900, fontWeight: FontWeights.medium },
+  itemDetail: { fontSize: FontSizes.xs, color: Colors.gray500 },
   chevron: { fontSize: FontSizes.base, color: Colors.gray400 },
   statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   statusTagText: { fontSize: FontSizes.sm, fontWeight: FontWeights.medium },
