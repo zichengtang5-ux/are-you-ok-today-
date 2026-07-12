@@ -9,8 +9,11 @@ import { EventsService } from '../events/events.service';
 import {
   computeGraceDeadlineDueAt,
   computeNextEndTimeDueAt,
+  getGuardDateForMoment,
   getLocalDateParts,
+  getWindowEndDate,
   isInShard,
+  localDateTimeToUtc,
   parseHhmmToMinutes,
 } from './reminder-schedule.util';
 
@@ -127,6 +130,7 @@ export class ReminderCronService {
   private async processOne(
     config: {
       userId: string;
+      startTime: string;
       endTime: string;
       gracePeriodMin: number;
       timezone: string;
@@ -162,13 +166,20 @@ export class ReminderCronService {
       return;
     }
 
-    const local = getLocalDateParts(now, config.timezone);
-    const date = local.dateStr;
+    const guardStatus = user.guardStatus?.status ?? 'idle';
+    const guardDate = getGuardDateForMoment(now, config, guardStatus);
+    const windowEndDate = getWindowEndDate(guardDate, config.startTime, config.endTime);
     const endMin = parseHhmmToMinutes(config.endTime);
-    const graceDeadlineMin = endMin + config.gracePeriodMin;
+    const windowEndDueAt = localDateTimeToUtc(windowEndDate, endMin, config.timezone);
+    const graceDeadlineDueAt = computeGraceDeadlineDueAt(
+      windowEndDate,
+      config.endTime,
+      config.gracePeriodMin,
+      config.timezone,
+    );
 
     const dailyRecord = await this.prisma.dailyRecord.findUnique({
-      where: { userId_date: { userId: user.id, date } },
+      where: { userId_date: { userId: user.id, date: guardDate } },
     });
     if (dailyRecord?.status === 'replied') {
       // 今天已回复，推进到明天的 endTime
@@ -176,28 +187,26 @@ export class ReminderCronService {
       return;
     }
 
-    const guardStatus = user.guardStatus?.status ?? 'idle';
-
     // 已在 grace/alert：到达 grace deadline 则触发（或重复）告警
     if (guardStatus === 'grace' || guardStatus === 'alert') {
-      if (local.minutesOfDay >= graceDeadlineMin) {
-        await this.triggerAlert(user, date, now, config.endTime, config.timezone);
+      if (now >= graceDeadlineDueAt) {
+        await this.triggerAlert(user, guardDate, now, config.endTime, config.timezone);
       }
       // 推进到下一个检查点：未到 deadline → deadline；已触发 → 明天
       const nextDue =
-        local.minutesOfDay < graceDeadlineMin
-          ? computeGraceDeadlineDueAt(date, config.endTime, config.gracePeriodMin, config.timezone)
+        now < graceDeadlineDueAt
+          ? graceDeadlineDueAt
           : computeNextEndTimeDueAt(now, config.endTime, config.timezone);
       await this.prisma.reminderConfig.update({ where: { userId: user.id }, data: { nextDueAt: nextDue } });
       return;
     }
 
     // idle 且已过 endTime → 进入 grace，发关怀提醒，nextDueAt 推进到 grace deadline
-    if (local.minutesOfDay >= endMin) {
-      await this.sendCareReminder(user, config.endTime);
+    if (now >= windowEndDueAt) {
+      await this.sendCareReminder(user, config.endTime, guardDate);
       await this.prisma.reminderConfig.update({
         where: { userId: user.id },
-        data: { nextDueAt: computeGraceDeadlineDueAt(date, config.endTime, config.gracePeriodMin, config.timezone) },
+        data: { nextDueAt: graceDeadlineDueAt },
       });
       return;
     }
@@ -220,6 +229,7 @@ export class ReminderCronService {
   private async sendCareReminder(
     user: { id: string; nickname: string | null; devices: { token: string }[]; timezone?: string },
     endTime: string,
+    guardDate: string,
   ): Promise<void> {
     await this.prisma.guardStatus.upsert({
       where: { userId: user.id },
@@ -227,11 +237,10 @@ export class ReminderCronService {
       create: { userId: user.id, status: 'grace' },
     });
 
-    const date = getLocalDateParts(new Date(), 'Asia/Shanghai').dateStr;
     await this.prisma.dailyRecord.upsert({
-      where: { userId_date: { userId: user.id, date } },
+      where: { userId_date: { userId: user.id, date: guardDate } },
       update: { status: 'grace' },
-      create: { userId: user.id, date, status: 'grace' },
+      create: { userId: user.id, date: guardDate, status: 'grace' },
     });
 
     for (const device of user.devices) {

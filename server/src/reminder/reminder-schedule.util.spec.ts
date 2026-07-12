@@ -1,8 +1,11 @@
 import {
   computeGraceDeadlineDueAt,
   computeNextEndTimeDueAt,
+  getGuardDateForMoment,
   getLocalDateParts,
+  getWindowEndDate,
   isInShard,
+  isAfterWindowEnd,
   localDateTimeToUtc,
   parseHhmmToMinutes,
 } from './reminder-schedule.util';
@@ -45,6 +48,25 @@ describe('reminder-schedule.util', () => {
   it('computeGraceDeadlineDueAt adds grace minutes', () => {
     const due = computeGraceDeadlineDueAt('2026-06-30', '22:00', 30, 'Asia/Shanghai');
     expect(due.toISOString()).toBe('2026-06-30T14:30:00.000Z'); // 22:30 Shanghai
+  });
+
+  it('assigns the after-midnight part of an overnight window to the previous guard day', () => {
+    const config = { startTime: '23:00', endTime: '01:00', timezone: 'Asia/Shanghai' };
+    expect(getGuardDateForMoment(new Date('2026-07-11T15:30:00Z'), config)).toBe('2026-07-11');
+    expect(getGuardDateForMoment(new Date('2026-07-11T16:30:00Z'), config)).toBe('2026-07-11');
+    expect(getWindowEndDate('2026-07-11', '23:00', '01:00')).toBe('2026-07-12');
+  });
+
+  it('keeps an overnight alert on the previous guard day after its end time', () => {
+    const config = { startTime: '23:00', endTime: '01:00', timezone: 'Asia/Shanghai' };
+    expect(getGuardDateForMoment(new Date('2026-07-12T02:00:00Z'), config, 'alert')).toBe('2026-07-11');
+    expect(isAfterWindowEnd(new Date('2026-07-11T16:30:00Z'), config)).toBe(false);
+    expect(isAfterWindowEnd(new Date('2026-07-11T17:10:00Z'), config)).toBe(true);
+  });
+
+  it('rolls grace deadlines across midnight', () => {
+    const due = computeGraceDeadlineDueAt('2026-07-11', '23:50', 30, 'Asia/Shanghai');
+    expect(due.toISOString()).toBe('2026-07-11T16:20:00.000Z');
   });
 
   it('isInShard is stable and partitions users', () => {

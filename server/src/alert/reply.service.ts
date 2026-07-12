@@ -1,6 +1,10 @@
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import {
+  getGuardDateForMoment,
+  isAfterWindowEnd,
+} from '../reminder/reminder-schedule.util';
 
 type ReplyMethod = 'in_app' | 'notification_action';
 
@@ -19,15 +23,12 @@ function monthRange(): { start: string; end: string } {
   return { start, end };
 }
 
-function isAfterWindowEnd(reminderConfig: { endTime: string } | null): boolean {
-  const now = new Date();
-  const shanghai = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  const endTimeStr = reminderConfig?.endTime ?? '22:00';
-  const [hours, minutes] = endTimeStr.split(':').map(Number);
-  const windowEnd = new Date(shanghai);
-  windowEnd.setUTCHours(hours, minutes, 0, 0);
-  return shanghai >= windowEnd;
-}
+const DEFAULT_REMINDER = {
+  startTime: '20:00',
+  endTime: '22:00',
+  gracePeriodMin: 30,
+  timezone: 'Asia/Shanghai',
+};
 
 @Injectable()
 export class ReplyService {
@@ -58,8 +59,10 @@ export class ReplyService {
       }
     }
 
-    const date = todayString();
     const now = new Date();
+    const reminderConfig =
+      await this.prisma.reminderConfig.findUnique({ where: { userId } }) ?? DEFAULT_REMINDER;
+    const date = getGuardDateForMoment(now, reminderConfig, guardStatus?.status);
 
     let record = await this.prisma.dailyRecord.findUnique({
       where: { userId_date: { userId, date } },
@@ -121,7 +124,10 @@ export class ReplyService {
   }
 
   async undoReply(userId: string) {
-    const date = todayString();
+    const now = new Date();
+    const reminderConfig =
+      await this.prisma.reminderConfig.findUnique({ where: { userId } }) ?? DEFAULT_REMINDER;
+    const date = getGuardDateForMoment(now, reminderConfig, 'replied');
 
     const record = await this.prisma.dailyRecord.findUnique({
       where: { userId_date: { userId, date } },
@@ -131,8 +137,7 @@ export class ReplyService {
       throw new BadRequestException('今天尚未回复');
     }
 
-    const reminderConfig = await this.prisma.reminderConfig.findUnique({ where: { userId } });
-    const afterWindow = isAfterWindowEnd(reminderConfig);
+    const afterWindow = isAfterWindowEnd(now, reminderConfig);
     const newStatus = afterWindow ? 'grace' : 'waiting';
 
     await this.prisma.dailyRecord.update({
@@ -151,7 +156,6 @@ export class ReplyService {
         where: { userId, status: 'active' },
       });
       if (!existingActive && guardStatus) {
-        const now = new Date();
         await this.prisma.alertEvent.create({
           data: {
             userId,
@@ -172,8 +176,6 @@ export class ReplyService {
   }
 
   async getStatus(userId: string) {
-    const date = todayString();
-
     const guardStatus = await this.prisma.guardStatus.findUnique({ where: { userId } });
 
     if (guardStatus?.status === 'paused') {
@@ -194,9 +196,11 @@ export class ReplyService {
       }
     }
 
-    const [todayRecord, reminderConfig, { start, end }] = await Promise.all([
+    const reminderConfig =
+      await this.prisma.reminderConfig.findUnique({ where: { userId } }) ?? DEFAULT_REMINDER;
+    const date = getGuardDateForMoment(new Date(), reminderConfig, guardStatus?.status);
+    const [todayRecord, { start, end }] = await Promise.all([
       this.prisma.dailyRecord.findUnique({ where: { userId_date: { userId, date } } }),
-      this.prisma.reminderConfig.findUnique({ where: { userId } }),
       Promise.resolve(monthRange()),
     ]);
 
@@ -218,12 +222,7 @@ export class ReplyService {
       lastReplyAt: guardStatus?.lastReplyAt?.toISOString() ?? null,
       todayReplied: todayRecord?.status === 'replied',
       todayRepliedAt: todayRecord?.repliedAt?.toISOString() ?? null,
-      reminderConfig: reminderConfig ?? {
-        startTime: '20:00',
-        endTime: '22:00',
-        gracePeriodMin: 30,
-        timezone: 'Asia/Shanghai',
-      },
+      reminderConfig,
       monthlyStats: {
         repliedDays,
         totalDays: currentDay,
@@ -234,17 +233,23 @@ export class ReplyService {
   }
 
   async getStreak(userId: string) {
-    const records = await this.prisma.dailyRecord.findMany({
-      where: {
-        userId,
-        status: 'replied',
-      },
-      orderBy: { date: 'desc' },
-      select: { date: true },
-    });
+    const [records, reminderConfig] = await Promise.all([
+      this.prisma.dailyRecord.findMany({
+        where: {
+          userId,
+          status: 'replied',
+        },
+        orderBy: { date: 'desc' },
+        select: { date: true },
+      }),
+      this.prisma.reminderConfig.findUnique({ where: { userId } }),
+    ]);
 
     const repliedDates = new Set(records.map((record) => record.date));
-    let cursor = todayString();
+    let cursor = getGuardDateForMoment(
+      new Date(),
+      reminderConfig ?? DEFAULT_REMINDER,
+    );
     let streak = 0;
 
     while (repliedDates.has(cursor)) {

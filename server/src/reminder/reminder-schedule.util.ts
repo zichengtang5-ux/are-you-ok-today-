@@ -45,6 +45,63 @@ export function getLocalDateParts(
   };
 }
 
+/** 在不依赖运行机器时区的情况下移动 YYYY-MM-DD。 */
+export function shiftDateString(dateStr: string, days: number): string {
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export function isOvernightWindow(startTime: string, endTime: string): boolean {
+  return parseHhmmToMinutes(endTime) < parseHhmmToMinutes(startTime);
+}
+
+/**
+ * 返回某一时刻所属的守护日。跨午夜窗口 23:00-01:00 中，次日 00:30 仍属于前一守护日。
+ * grace/alert 持续到次日时，也继续归属触发该状态的前一守护日。
+ */
+export function getGuardDateForMoment(
+  at: Date,
+  config: { startTime: string; endTime: string; timezone: string },
+  guardStatus?: string,
+): string {
+  const local = getLocalDateParts(at, config.timezone);
+  const startMin = parseHhmmToMinutes(config.startTime);
+  const endMin = parseHhmmToMinutes(config.endTime);
+  const activePastWindow = guardStatus === 'grace' || guardStatus === 'alert';
+
+  if (activePastWindow && local.minutesOfDay < startMin) {
+    return shiftDateString(local.dateStr, -1);
+  }
+  if (isOvernightWindow(config.startTime, config.endTime) && local.minutesOfDay <= endMin) {
+    return shiftDateString(local.dateStr, -1);
+  }
+  return local.dateStr;
+}
+
+export function getWindowEndDate(
+  guardDate: string,
+  startTime: string,
+  endTime: string,
+): string {
+  return isOvernightWindow(startTime, endTime)
+    ? shiftDateString(guardDate, 1)
+    : guardDate;
+}
+
+export function isAfterWindowEnd(
+  at: Date,
+  config: { startTime: string; endTime: string; timezone: string },
+): boolean {
+  const local = getLocalDateParts(at, config.timezone);
+  const startMin = parseHhmmToMinutes(config.startTime);
+  const endMin = parseHhmmToMinutes(config.endTime);
+  if (isOvernightWindow(config.startTime, config.endTime)) {
+    return local.minutesOfDay >= endMin && local.minutesOfDay < startMin;
+  }
+  return local.minutesOfDay >= endMin;
+}
+
 /**
  * 给定本地日期字符串 (YYYY-MM-DD)、时区、当天分钟数，求对应的 UTC 时刻。
  * 通过"猜测 UTC → 校正偏移"的方式得到精确 UTC（处理时区偏移）。
@@ -107,8 +164,9 @@ export function computeGraceDeadlineDueAt(
   gracePeriodMin: number,
   timezone: string,
 ): Date {
-  const endMin = parseHhmmToMinutes(endTime);
-  return localDateTimeToUtc(dateStr, endMin + gracePeriodMin, timezone);
+  const totalMinutes = parseHhmmToMinutes(endTime) + gracePeriodMin;
+  const deadlineDate = shiftDateString(dateStr, Math.floor(totalMinutes / 1440));
+  return localDateTimeToUtc(deadlineDate, totalMinutes % 1440, timezone);
 }
 
 /**

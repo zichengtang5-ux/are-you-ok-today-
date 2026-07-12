@@ -7,6 +7,7 @@ import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { userApi } from '@/services/api.types';
 import { getCurrentAddress } from '@/services/location';
+import { isOfflineDevSession } from '@/services/devMock';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function EditAddressScreen() {
@@ -46,6 +47,12 @@ export default function EditAddressScreen() {
       setUser({ ...user, ...updatedUser, address: nextAddress } as any);
       router.back();
     } catch (err: any) {
+      if (await isOfflineDevSession()) {
+        const nextAddress = address.trim();
+        setUser({ ...user, address: nextAddress } as any);
+        router.back();
+        return;
+      }
       setError(err.response?.data?.message || '保存失败，请重试');
     } finally {
       setLoading(false);
@@ -57,7 +64,7 @@ export default function EditAddressScreen() {
       <GreenStatusBar variant="white" title="编辑地址" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         <Text style={styles.pageTitle}>当前住址</Text>
-        <Text style={styles.pageSubtitle}>紧急联系人和 120 可通过此地址快速定位你的位置</Text>
+        <Text style={styles.pageSubtitle}>紧急联系人可通过此地址快速定位你的位置</Text>
 
         <Pressable
           onPress={handleUseLocation}

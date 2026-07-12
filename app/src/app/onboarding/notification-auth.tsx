@@ -21,6 +21,11 @@ export default function NotificationAuthScreen() {
   const { reminder, user, setOnboardingStep, setNotificationAuthorized, completeOnboarding } = useStore();
   const notificationTitle = `「${user?.nickname?.trim() || '你'}」今天还好吗？`;
 
+  const handleBack = () => {
+    setOnboardingStep('reminder-time');
+    router.replace('/onboarding/reminder-time');
+  };
+
   const handleAuthorize = async () => {
     setLoading(true);
     try {
@@ -79,7 +84,7 @@ export default function NotificationAuthScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="primary" title="通知授权" showMascot onBack={() => router.back()} />
+      <GreenStatusBar variant="primary" title="通知授权" showMascot onBack={handleBack} />
       <View style={styles.content}>
         <View style={styles.header}>
           <StepDots current={4} total={4} />

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card, Input } from '@/components/ui';
@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { contactApi, userApi } from '@/services/api.types';
 import { DEV_MOCK_CODE, isOfflineDevSession } from '@/services/devMock';
+import { canAddMoreContacts } from '@/utils/contactLimits';
 
 type ViewMode = 'list' | 'add';
 
@@ -28,11 +29,20 @@ export default function ContactSetupScreen() {
 
   const { contacts, subscription, user, addContact, setOnboardingStep } = useStore();
   const isPremium = !!subscription?.isPremium || !!user?.isPremium;
-  const canAddContact = contacts.length === 0 || isPremium;
+  const canAddContact = canAddMoreContacts(contacts.length, isPremium);
+
+  const handleBack = () => {
+    setOnboardingStep('basic-info');
+    router.replace('/onboarding/basic-info');
+  };
 
   const handleAddContact = () => {
     if (!canAddContact) {
-      router.push('/subscription');
+      if (isPremium) {
+        Alert.alert('已达上限', '守护版最多可添加 5 位紧急联系人。');
+      } else {
+        router.push('/subscription');
+      }
       return;
     }
     setViewMode('add');
@@ -122,7 +132,7 @@ export default function ContactSetupScreen() {
           name: contactName,
           phone: contactPhone,
           relation: relation || '家人',
-          priority: 1,
+          priority: contacts.length + 1,
           verified: true,
         };
         addContact(verified);
@@ -164,7 +174,7 @@ export default function ContactSetupScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
+      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={handleBack} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -219,7 +229,9 @@ export default function ContactSetupScreen() {
               style={styles.addLink}
               onPress={handleAddContact}
             >
-              <Text style={styles.addLinkText}>{canAddContact ? '＋ 添加更多联系人' : '升级后添加更多联系人'}</Text>
+              <Text style={styles.addLinkText}>
+                {canAddContact ? '＋ 添加更多联系人' : isPremium ? '已达 5 位上限' : '升级后添加更多联系人'}
+              </Text>
             </Pressable>
 
             {/* Free tier hint */}

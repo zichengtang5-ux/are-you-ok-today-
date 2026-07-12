@@ -13,16 +13,20 @@ import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function BasicInfoScreen() {
   const router = useRouter();
-  const [nickname, setNickname] = useState('');
-  const [address, setAddress] = useState('');
+  const setUser = useStore((s) => s.setUser);
+  const setOnboardingStep = useStore((s) => s.setOnboardingStep);
+  const user = useStore((s) => s.user);
+  const [nickname, setNickname] = useState(user?.nickname ?? '');
+  const [address, setAddress] = useState(user?.address ?? '');
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const [locationHint, setLocationHint] = useState('');
 
-  const setUser = useStore((s) => s.setUser);
-  const setOnboardingStep = useStore((s) => s.setOnboardingStep);
-  const user = useStore((s) => s.user);
+  const handleBack = () => {
+    setOnboardingStep('login');
+    router.replace('/onboarding/login');
+  };
 
   const handleUseLocation = async () => {
     setLocating(true);
@@ -75,12 +79,12 @@ export default function BasicInfoScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
+      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={handleBack} />
       <View style={styles.content}>
         <View style={styles.header}>
           <StepDots current={1} total={4} />
           <Text style={styles.title}>你的安全信息</Text>
-          <Text style={styles.subtitle}>紧急时刻，让联系人和 120 快速找到你</Text>
+          <Text style={styles.subtitle}>紧急时刻，让联系人快速找到你</Text>
         </View>
 
         <View style={styles.form}>
@@ -125,7 +129,7 @@ export default function BasicInfoScreen() {
               <Text style={styles.locationHint}>{locationHint}</Text>
             ) : null}
             <Text style={styles.addressNote}>
-              请写到具体门牌号，方便紧急联系人和 120 准确定位。地址信息可发送给联系人。
+              请写到具体门牌号，方便紧急联系人准确定位。地址信息可发送给联系人。
             </Text>
           </View>
 

@@ -26,6 +26,14 @@ describe('guardStatus', () => {
     expect(getReminderWindowStatus(reminder, new Date('2026-07-12T23:00:00+08:00'))).toBe('idle');
   });
 
+  it('treats both sides of midnight as one reminder window', () => {
+    const overnightReminder = { ...reminder, startTime: '23:00', endTime: '01:00' };
+
+    expect(getReminderWindowStatus(overnightReminder, new Date('2026-07-12T23:30:00+08:00'))).toBe('waiting');
+    expect(getReminderWindowStatus(overnightReminder, new Date('2026-07-13T00:30:00+08:00'))).toBe('waiting');
+    expect(getReminderWindowStatus(overnightReminder, new Date('2026-07-13T01:00:00+08:00'))).toBe('idle');
+  });
+
   it('only derives a reminder-window status from an idle backend status', () => {
     const withinWindow = new Date('2026-07-12T21:00:00+08:00');
 

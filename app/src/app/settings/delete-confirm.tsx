@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Input, Button } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { userApi } from '@/services/api.types';
+import { isOfflineDevSession } from '@/services/devMock';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
@@ -14,30 +15,28 @@ export default function DeleteConfirmScreen() {
   const [confirmText, setConfirmText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const clearLocalAccount = async () => {
+    useStore.getState().resetAppState();
+    await AsyncStorage.multiRemove([
+      'access_token',
+      'refresh_token',
+      'today-ok-storage',
+    ]);
+    router.replace('/onboarding/login');
+  };
+
   const handleDelete = async () => {
     if (confirmText !== '确认删除' || submitting) return;
     setSubmitting(true);
     try {
       await userApi.deleteAccount(confirmText);
-      await AsyncStorage.multiRemove([
-        'access_token',
-        'refresh_token',
-        'today-ok-storage',
-      ]);
-      useStore.setState({
-        user: null,
-        isOnboarded: false,
-        onboardingStep: 'login',
-        contacts: [],
-        todayStatus: 'idle',
-        streak: 0,
-        activeAlert: null,
-        notificationAuthorized: false,
-        subscription: null,
-      });
-      router.replace('/onboarding/login');
+      await clearLocalAccount();
     } catch (err: any) {
-      Alert.alert('删除失败', err?.message || '请稍后再试');
+      if (await isOfflineDevSession()) {
+        await clearLocalAccount();
+        return;
+      }
+      Alert.alert('删除失败', err.response?.data?.message || err?.message || '请稍后再试');
     } finally {
       setSubmitting(false);
     }

@@ -9,6 +9,10 @@ import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useStore } from '@/store/useStore';
 import { reminderApi, userApi } from '@/services/api.types';
 import { isOfflineDevSession } from '@/services/devMock';
+import {
+  formatReminderWindowEnd,
+  isValidReminderWindow,
+} from '@/utils/reminderWindow';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const ITEM_HEIGHT = 44;
@@ -70,21 +74,20 @@ function ScrollPicker({ value, options, onChange, label }: {
 
 export default function ReminderTimeScreen() {
   const router = useRouter();
-  const [startTime, setStartTime] = useState('20:00');
-  const [endTime, setEndTime] = useState('22:00');
+  const { reminder, setReminder, setOnboardingStep } = useStore();
+  const [startTime, setStartTime] = useState(reminder.startTime);
+  const [endTime, setEndTime] = useState(reminder.endTime);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { setReminder, setOnboardingStep } = useStore();
-
-  const timeToMinutes = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
+  const handleBack = () => {
+    setOnboardingStep('contact-setup');
+    router.replace('/onboarding/contact-setup');
   };
 
   const handleSubmit = async () => {
-    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
-      setError('结束时间必须晚于开始时间');
+    if (!isValidReminderWindow(startTime, endTime)) {
+      setError('开始时间和结束时间不能相同');
       return;
     }
     setLoading(true);
@@ -116,7 +119,7 @@ export default function ReminderTimeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={() => router.back()} />
+      <GreenStatusBar variant="white" title="注册" showMascot={false} onBack={handleBack} />
       <View style={styles.content}>
         <View style={styles.header}>
           <StepDots current={3} total={4} />
@@ -134,7 +137,7 @@ export default function ReminderTimeScreen() {
 
         <Card variant="info" style={styles.hintCard}>
           <Text style={styles.hintText}>
-            如果 {endTime} 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
+            如果 {formatReminderWindowEnd(startTime, endTime)} 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
           </Text>
         </Card>
 

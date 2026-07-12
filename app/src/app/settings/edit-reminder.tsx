@@ -7,6 +7,11 @@ import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { reminderApi } from '@/services/api.types';
 import { scheduleDailyReminder } from '@/services/notifications';
+import { isOfflineDevSession } from '@/services/devMock';
+import {
+  formatReminderWindowEnd,
+  isValidReminderWindow,
+} from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
@@ -83,11 +88,6 @@ function parseTime(time: string): string {
   return `${String(Math.max(0, Math.min(23, hour))).padStart(2, '0')}:00`;
 }
 
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
-}
-
 export default function EditReminderScreen() {
   const router = useRouter();
   const { reminder, user, setReminder } = useStore();
@@ -98,8 +98,8 @@ export default function EditReminderScreen() {
   const [error, setError] = useState('');
 
   const handleSave = async () => {
-    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
-      setError('结束时间必须晚于开始时间');
+    if (!isValidReminderWindow(startTime, endTime)) {
+      setError('开始时间和结束时间不能相同');
       return;
     }
     setLoading(true);
@@ -110,6 +110,12 @@ export default function EditReminderScreen() {
       await scheduleDailyReminder(startTime, endTime, user?.nickname);
       router.back();
     } catch (err: any) {
+      if (await isOfflineDevSession()) {
+        setReminder({ ...reminder, startTime, endTime });
+        await scheduleDailyReminder(startTime, endTime, user?.nickname);
+        router.back();
+        return;
+      }
       setError(err.response?.data?.message || '保存失败，请重试');
     } finally {
       setLoading(false);
@@ -131,7 +137,7 @@ export default function EditReminderScreen() {
 
         <Card variant="info" style={styles.hintCard}>
           <Text style={styles.hintText}>
-            如果 {endTime} 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
+            如果 {formatReminderWindowEnd(startTime, endTime)} 前没回复，系统会先温和提醒你，再给 30 分钟宽限期，之后才通知联系人。
           </Text>
         </Card>
 

@@ -9,6 +9,7 @@ import { useStore } from '@/store/useStore';
 import { replyApi, alertApi, pauseApi } from '@/services/api.types';
 import { isOfflineDevSession } from '@/services/devMock';
 import { computeEffectiveStatus } from '@/utils/guardStatus';
+import { formatReminderWindowEnd } from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { ReplyStatus } from '@/types';
 
@@ -145,7 +146,7 @@ export default function HomeScreen() {
       return <Text style={styles.subtitle}>今晚 {reminder.startTime} 会收到提醒</Text>;
     }
     if (todayStatus === 'waiting') {
-      return <Text style={styles.subtitle}>提醒时间：{reminder.startTime} - {reminder.endTime}</Text>;
+      return <Text style={styles.subtitle}>提醒时间：{reminder.startTime} - {formatReminderWindowEnd(reminder.startTime, reminder.endTime)}</Text>;
     }
     if (config.subtitle) {
       return <Text style={[styles.subtitle, todayStatus === 'replied' && { color: Colors.primary }]}>{config.subtitle}</Text>;
