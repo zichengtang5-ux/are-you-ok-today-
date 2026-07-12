@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { Image } from 'expo-image';
 import { Colors } from '../../theme';
 
 type Size = 'sm' | 'md' | 'lg' | 'xl';
@@ -57,7 +58,8 @@ export function MascotLogo({ size = 'md', pulse = false, variant = 'default' }: 
       )}
       <Image
         source={LOGOS[variant]}
-        resizeMode="cover"
+        contentFit="cover"
+        recyclingKey={variant}
         style={{ width: dim, height: dim, borderRadius: dim / 2 }}
       />
     </View>

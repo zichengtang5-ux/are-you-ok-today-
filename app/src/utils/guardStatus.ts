@@ -31,9 +31,10 @@ export function getReminderWindowStatus(
 export function computeEffectiveStatus(
   backendStatus: string,
   reminderConfig?: Pick<ReminderConfig, 'startTime' | 'endTime'>,
+  now = new Date(),
 ): ReplyStatus {
   if (backendStatus !== 'idle' || !reminderConfig) {
     return backendStatus as ReplyStatus;
   }
-  return getReminderWindowStatus(reminderConfig);
+  return getReminderWindowStatus(reminderConfig, now);
 }

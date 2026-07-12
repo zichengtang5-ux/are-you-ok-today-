@@ -20,7 +20,6 @@ const BENEFIT_ROWS = [
   { label: '紧急联系人', free: '1 位', premium: '最多 5 位' },
   { label: '超时短信告警', free: '包含', premium: '包含' },
   { label: '语音电话告警', free: '—', premium: '包含' },
-  { label: '联系人优先级', free: '—', premium: '包含' },
 ];
 
 export default function SubscriptionScreen() {
@@ -91,114 +90,116 @@ export default function SubscriptionScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LoadingState message="正在加载订阅方案…" />
-      </SafeAreaView>
-    );
-  }
-
-  if (error && !purchasing && prices.monthly === '' && prices.yearly === '') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ErrorState message={error} onRetry={() => router.back()} />
-      </SafeAreaView>
-    );
-  }
+  const initialLoadFailed =
+    !!error && !purchasing && prices.monthly === '' && prices.yearly === '';
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable
-            accessibilityLabel="返回"
-            onPress={() => router.back()}
-            style={styles.backBtn}
-          >
-            <Text style={styles.backText}>← 返回</Text>
-          </Pressable>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityLabel="返回"
+          onPress={() => router.back()}
+          style={styles.backBtn}
+        >
+          <Text style={styles.backText}>← 返回</Text>
+        </Pressable>
+      </View>
+
+      {loading ? (
+        <View style={styles.stateContent}>
+          <LoadingState message="正在加载订阅方案…" />
         </View>
+      ) : initialLoadFailed ? (
+        <View style={styles.stateContent}>
+          <ErrorState message={error} onRetry={() => router.back()} />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.hero}>
+            <Text style={styles.heroTitle}>守护版</Text>
+            <Text style={styles.heroSubtitle}>
+              增强紧急联系人和告警通知
+            </Text>
+          </View>
 
-	        <View style={styles.hero}>
-	          <Text style={styles.heroTitle}>守护版</Text>
-	          <Text style={styles.heroSubtitle}>
-	            增强紧急联系人和告警通知
-	          </Text>
-	        </View>
+          {/* Plan cards */}
+          <View style={styles.plans} accessibilityRole="radiogroup">
+            <PlanCard
+              plan="monthly"
+              localizedPrice={prices.monthly || undefined}
+              selected={selected === 'monthly'}
+              onPress={() => setSelected('monthly')}
+              disabled={purchasing}
+            />
+            <PlanCard
+              plan="yearly"
+              localizedPrice={prices.yearly || undefined}
+              selected={selected === 'yearly'}
+              onPress={() => setSelected('yearly')}
+              disabled={purchasing}
+            />
+          </View>
 
-        <View style={styles.comparison}>
-          <View style={styles.comparisonTitleRow}>
-            <View>
-              <Text style={styles.comparisonTitle}>权益对比</Text>
-              <Text style={styles.comparisonSubtitle}>核心守护功能免费可用</Text>
+          {/* CTA */}
+          <View style={styles.cta}>
+            <Button
+              variant="primary"
+              onPress={handlePurchase}
+              loading={purchasing}
+              disabled={purchasing}
+            >
+              {purchasing ? '正在购买…' : '立即开通'}
+            </Button>
+          </View>
+
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
             </View>
-          </View>
-          <View style={styles.comparisonHeader}>
-            <Text style={styles.benefitHeader}>功能</Text>
-            <Text style={styles.freeHeader}>免费版</Text>
-            <Text style={styles.premiumHeader}>守护版</Text>
-          </View>
-          {BENEFIT_ROWS.map((row, index) => (
-            <View key={row.label} style={[styles.benefitRow, index === BENEFIT_ROWS.length - 1 && styles.benefitRowLast]}>
-              <Text style={styles.benefitLabel}>{row.label}</Text>
-              <Text style={styles.freeValue}>{row.free}</Text>
-              <Text style={styles.premiumValue}>{row.premium}</Text>
+          )}
+
+          <View style={styles.comparison}>
+            <View style={styles.comparisonTitleRow}>
+              <View>
+                <Text style={styles.comparisonTitle}>权益对比</Text>
+                <Text style={styles.comparisonSubtitle}>核心守护功能免费可用</Text>
+              </View>
             </View>
-          ))}
-        </View>
-
-        {/* Plan cards */}
-        <View style={styles.plans} accessibilityRole="radiogroup">
-          <PlanCard
-            plan="yearly"
-            localizedPrice={prices.yearly || undefined}
-            selected={selected === 'yearly'}
-            onPress={() => setSelected('yearly')}
-            disabled={purchasing}
-          />
-          <PlanCard
-            plan="monthly"
-            localizedPrice={prices.monthly || undefined}
-            selected={selected === 'monthly'}
-            onPress={() => setSelected('monthly')}
-            disabled={purchasing}
-          />
-        </View>
-
-        {/* CTA */}
-        <View style={styles.cta}>
-          <Button
-            variant="primary"
-            onPress={handlePurchase}
-            loading={purchasing}
-            disabled={purchasing}
-          >
-            {purchasing ? '正在购买…' : '立即开通'}
-          </Button>
-        </View>
-
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.comparisonHeader}>
+              <Text style={styles.benefitHeader}>功能</Text>
+              <Text style={styles.freeHeader}>免费版</Text>
+              <Text style={styles.premiumHeader}>守护版</Text>
+            </View>
+            {BENEFIT_ROWS.map((row, index) => (
+              <View
+                key={row.label}
+                style={[
+                  styles.benefitRow,
+                  index === BENEFIT_ROWS.length - 1 && styles.benefitRowLast,
+                ]}
+              >
+                <Text style={styles.benefitLabel}>{row.label}</Text>
+                <Text style={styles.freeValue}>{row.free}</Text>
+                <Text style={styles.premiumValue}>{row.premium}</Text>
+              </View>
+            ))}
           </View>
-        )}
 
-        {/* Legal links */}
-        <View style={styles.legal}>
-          <Pressable onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdfla/')}>
-            <Text style={styles.legalText}>标准 Apple 最终用户许可协议</Text>
-          </Pressable>
-          <Text style={styles.legalNote}>
-            订阅将自动续期，可在 Apple ID 账户设置中随时取消。
-          </Text>
-        </View>
-      </ScrollView>
+          {/* Legal links */}
+          <View style={styles.legal}>
+            <Pressable onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdfla/')}>
+              <Text style={styles.legalText}>标准 Apple 最终用户许可协议</Text>
+            </Pressable>
+            <Text style={styles.legalNote}>
+              订阅将自动续期，可在 Apple ID 账户设置中随时取消。
+            </Text>
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -219,6 +220,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.gray50,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.gray200,
+    zIndex: 1,
   },
   backBtn: {
     paddingVertical: Spacing.xs,
@@ -228,6 +235,9 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     color: Colors.primary,
     fontWeight: FontWeights.medium,
+  },
+  stateContent: {
+    flex: 1,
   },
   hero: {
     alignItems: 'center',
