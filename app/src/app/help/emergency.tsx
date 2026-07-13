@@ -68,7 +68,6 @@ export default function EmergencyHelpScreen() {
   const [isLocating, setIsLocating] = useState(true);
   const [sendStage, setSendStage] = useState<SendStage>('idle');
   const [roughAddress, setRoughAddress] = useState('');
-  const [detailAddress, setDetailAddress] = useState('');
   const [addressSource, setAddressSource] = useState<AddressSource>(null);
   const [coords, setCoords] = useState<Coordinates | null>(null);
   const [horizontalAccuracy, setHorizontalAccuracy] = useState<number | null>(null);
@@ -197,12 +196,7 @@ export default function EmergencyHelpScreen() {
     return () => clearTimeout(timer);
   }, [fetchLocation]);
 
-  const combinedAddress = [
-    roughAddress.trim(),
-    detailAddress.trim() ? `具体位置：${detailAddress.trim()}` : '',
-  ]
-    .filter(Boolean)
-    .join('；');
+  const combinedAddress = roughAddress.trim();
   const canSend = !isLocating && sendStage !== 'sending' && Boolean(combinedAddress);
 
   const accuracyText =
@@ -211,10 +205,12 @@ export default function EmergencyHelpScreen() {
       : `约 ±${Math.max(1, Math.ceil(horizontalAccuracy)).toLocaleString('zh-CN')} 米`;
   const locationMeta = (() => {
     if (isLocating) return '正在自动定位...';
+    if (addressSource === 'manual') return '已手动编辑';
     if (addressSource === 'user_preset' && !coords) return '已使用保存的住址';
     if (lowAccuracy) return accuracyText ? `大概位置 · ${accuracyText}` : '大概位置';
     return accuracyText ? `已定位 · ${accuracyText}` : '已获取当前位置';
   })();
+  const locationNeedsAttention = lowAccuracy && addressSource !== 'manual';
 
   const sendEmergency = async () => {
     if (!combinedAddress) {
@@ -260,6 +256,7 @@ export default function EmergencyHelpScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
       >
         {sendStage === 'sent' && result ? (
@@ -274,13 +271,18 @@ export default function EmergencyHelpScreen() {
           <View style={styles.sosHero}>
             <Text style={styles.heroTitle}>需要帮助？</Text>
             <Text style={styles.heroSubtitle}>确认位置后，点击 SOS 发出求助</Text>
+          </View>
+        )}
+
+        {sendStage !== 'sent' ? (
+          <View style={styles.sosAction}>
             <Animated.View style={[styles.sosRing, { transform: [{ scale: pulse }] }]}>
               <Pressable
                 onPress={sendEmergency}
                 disabled={!canSend}
                 accessibilityRole="button"
                 accessibilityLabel="发送 SOS 给紧急联系人"
-                accessibilityHint="发送当前定位和补充地址给紧急联系人"
+                accessibilityHint="发送当前定位和完整求助地址给紧急联系人"
                 style={({ pressed }) => [
                   styles.sosButton,
                   pressed && canSend && styles.sosButtonPressed,
@@ -296,7 +298,7 @@ export default function EmergencyHelpScreen() {
             </Animated.View>
             <Text style={styles.sosHint}>{sosHint}</Text>
           </View>
-        )}
+        ) : null}
 
         <Card style={styles.locationCard}>
           <View style={styles.locationHeader}>
@@ -304,8 +306,13 @@ export default function EmergencyHelpScreen() {
               <Text style={styles.locationIcon}>⌖</Text>
             </View>
             <View style={styles.locationHeading}>
-              <Text style={styles.locationTitle}>求助位置</Text>
-              <Text style={[styles.locationMeta, lowAccuracy && styles.locationMetaWarn]}>
+              <Text style={styles.locationTitle}>确认求助地址</Text>
+              <Text
+                style={[
+                  styles.locationMeta,
+                  locationNeedsAttention && styles.locationMetaWarn,
+                ]}
+              >
                 {locationMeta}
               </Text>
             </View>
@@ -318,38 +325,30 @@ export default function EmergencyHelpScreen() {
             ) : null}
           </View>
 
-          <TextInput
-            value={roughAddress}
-            onChangeText={(value) => {
-              setRoughAddress(value);
-              setAddressSource('manual');
-              setLocationWarning('');
-              setSendError('');
-            }}
-            editable={sendStage !== 'sent'}
-            multiline
-            placeholder={isLocating ? '正在定位...' : '所在区域、道路或小区'}
-            placeholderTextColor={Colors.gray400}
-            accessibilityLabel="求助位置"
-            style={[styles.addressInput, sendStage === 'sent' && styles.inputDisabled]}
-          />
-
-          <View style={styles.addressDivider} />
-
-          <TextInput
-            value={detailAddress}
-            onChangeText={(value) => {
-              setDetailAddress(value);
-              setLocationWarning('');
-              setSendError('');
-            }}
-            editable={sendStage !== 'sent'}
-            multiline
-            placeholder="补充楼栋、门牌、房间号（选填）"
-            placeholderTextColor={Colors.gray400}
-            accessibilityLabel="补充楼栋门牌房间号"
-            style={[styles.detailInput, sendStage === 'sent' && styles.inputDisabled]}
-          />
+          <View style={styles.addressEditor}>
+            <View style={styles.addressFieldHeader}>
+              <Text style={styles.addressFieldLabel}>求助地址</Text>
+              <Text style={styles.addressFieldHint}>定位后可直接补充门牌</Text>
+            </View>
+            <TextInput
+              value={roughAddress}
+              onChangeText={(value) => {
+                setRoughAddress(value);
+                setAddressSource('manual');
+                setLocationWarning('');
+                setSendError('');
+              }}
+              editable={sendStage !== 'sent'}
+              multiline
+              placeholder={isLocating ? '正在自动填入当前位置...' : '请输入道路、小区、楼栋和门牌号'}
+              placeholderTextColor={Colors.gray400}
+              accessibilityLabel="求助地址，可补充楼栋门牌房间号"
+              style={[
+                styles.addressInput,
+                sendStage === 'sent' && styles.inputDisabled,
+              ]}
+            />
+          </View>
 
           {locationWarning ? (
             <View style={styles.locationWarning}>
@@ -385,7 +384,7 @@ export default function EmergencyHelpScreen() {
         ) : null}
 
         <Text style={styles.disclaimer}>
-          SOS 会将当前位置和补充地址发送给已验证的紧急联系人。
+          SOS 会将当前位置和完整地址发送给已验证的紧急联系人。
         </Text>
 
         {sendStage === 'sent' ? (
@@ -414,7 +413,11 @@ const styles = StyleSheet.create({
   sosHero: {
     alignItems: 'center',
     paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  sosAction: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
   },
   heroTitle: {
     fontSize: FontSizes['2xl'],
@@ -430,7 +433,6 @@ const styles = StyleSheet.create({
     width: 184,
     height: 184,
     borderRadius: 92,
-    marginTop: Spacing.lg,
     backgroundColor: Colors.dangerLight,
     borderWidth: 1,
     borderColor: '#F7C9CB',
@@ -499,8 +501,8 @@ const styles = StyleSheet.create({
   locationCard: {
     gap: 12,
     padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#F2D4D5',
+    borderWidth: 1.5,
+    borderColor: '#EDB8BA',
     ...Shadows.sm,
   },
   locationHeader: {
@@ -542,33 +544,40 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.semibold,
     color: Colors.danger,
   },
-  addressInput: {
-    minHeight: 50,
+  addressEditor: {
     borderWidth: 1,
-    borderColor: '#F0D7D8',
-    borderRadius: Radius.sm,
-    backgroundColor: '#FFF9F9',
+    borderColor: '#EFC3C5',
+    borderRadius: Radius.md,
+    backgroundColor: '#FFFDFD',
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  addressFieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  addressFieldLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.semibold,
+    color: Colors.dangerDark,
+  },
+  addressFieldHint: {
+    fontSize: 11,
+    color: Colors.gray500,
+  },
+  addressInput: {
+    minHeight: 68,
+    paddingHorizontal: 0,
+    paddingVertical: 4,
     fontSize: FontSizes.base,
-    lineHeight: 22,
-    color: Colors.gray900,
-  },
-  addressDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.gray200,
-  },
-  detailInput: {
-    minHeight: 42,
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    fontSize: FontSizes.sm,
-    lineHeight: 20,
+    lineHeight: 24,
+    fontWeight: FontWeights.medium,
     color: Colors.gray900,
   },
   inputDisabled: {
     color: Colors.gray600,
-    backgroundColor: Colors.gray100,
   },
   locationWarning: {
     borderRadius: Radius.sm,
