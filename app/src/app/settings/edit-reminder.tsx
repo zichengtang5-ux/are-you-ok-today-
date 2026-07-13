@@ -9,12 +9,14 @@ import { reminderApi } from '@/services/api.types';
 import { scheduleDailyReminder } from '@/services/notifications';
 import { isOfflineDevSession } from '@/services/devMock';
 import {
+  REMINDER_HOUR_OPTIONS,
   formatReminderWindowEnd,
+  formatReminderWindowSummary,
   isValidReminderWindow,
+  normalizeReminderHour,
 } from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 
-const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
@@ -82,18 +84,12 @@ function ScrollPicker({ value, options, onChange, label }: {
   );
 }
 
-function parseTime(time: string): string {
-  const hour = Number(time.split(':')[0]);
-  if (!Number.isFinite(hour)) return '20:00';
-  return `${String(Math.max(0, Math.min(23, hour))).padStart(2, '0')}:00`;
-}
-
 export default function EditReminderScreen() {
   const router = useRouter();
   const { reminder, user, setReminder } = useStore();
 
-  const [startTime, setStartTime] = useState(() => parseTime(reminder.startTime));
-  const [endTime, setEndTime] = useState(() => parseTime(reminder.endTime));
+  const [startTime, setStartTime] = useState(() => normalizeReminderHour(reminder.startTime));
+  const [endTime, setEndTime] = useState(() => normalizeReminderHour(reminder.endTime, '22:00'));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -127,12 +123,16 @@ export default function EditReminderScreen() {
       <GreenStatusBar variant="white" title="编辑提醒时间" showMascot={false} onBack={() => router.back()} />
       <View style={styles.content}>
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>提醒时间窗口</Text>
-          <View style={styles.pickersRow}>
-            <ScrollPicker value={startTime} options={HOURS} onChange={setStartTime} label="开始" />
-            <Text style={styles.separator}>至</Text>
-            <ScrollPicker value={endTime} options={HOURS} onChange={setEndTime} label="结束" />
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle}>提醒时间窗口</Text>
+            <Text style={styles.timeModeBadge}>24 小时制</Text>
           </View>
+          <View style={styles.pickersRow}>
+            <ScrollPicker value={startTime} options={REMINDER_HOUR_OPTIONS} onChange={setStartTime} label="开始" />
+            <Text style={styles.separator}>至</Text>
+            <ScrollPicker value={endTime} options={REMINDER_HOUR_OPTIONS} onChange={setEndTime} label="结束" />
+          </View>
+          <Text style={styles.timeSummary}>{formatReminderWindowSummary(startTime, endTime)}</Text>
         </Card>
 
         <Card variant="info" style={styles.hintCard}>
@@ -155,7 +155,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.gray50 },
   content: { flex: 1, padding: Spacing.lg, gap: Spacing.lg },
   card: { alignItems: 'center' },
-  cardTitle: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium, marginBottom: Spacing.lg },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
+  cardTitle: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium },
+  timeModeBadge: {
+    fontSize: FontSizes.xs,
+    color: Colors.primaryDark,
+    fontWeight: FontWeights.semibold,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+  },
   pickersRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   pickerContainer: { alignItems: 'center' },
   pickerLabel: { fontSize: FontSizes.sm, color: Colors.gray600, marginBottom: Spacing.sm },
@@ -193,6 +203,12 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.bold,
   },
   separator: { fontSize: FontSizes.lg, color: Colors.gray600, fontWeight: FontWeights.medium, marginBottom: 20 },
+  timeSummary: {
+    marginTop: Spacing.md,
+    fontSize: FontSizes.sm,
+    color: Colors.primaryDark,
+    fontWeight: FontWeights.semibold,
+  },
   hintCard: {},
   hintText: { fontSize: FontSizes.sm, color: Colors.gray700, lineHeight: 20 },
   errorText: { fontSize: FontSizes.sm, color: Colors.danger, textAlign: 'center' },

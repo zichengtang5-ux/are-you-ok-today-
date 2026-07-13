@@ -4,6 +4,7 @@ import { Button, Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { MascotLogo } from '@/components/ui/MascotLogo';
 import { useStore } from '@/store/useStore';
+import { formatReminderTimeOfDay, formatReminderWindow } from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useRouter } from 'expo-router';
 
@@ -24,7 +25,7 @@ export default function CompleteScreen() {
           <MascotLogo size="md" />
           <Text style={styles.title}>守护已开启</Text>
           <Text style={styles.subtitle}>
-            今晚 {reminder.startTime}，你会收到第一条"今天还好吗？"
+            每天{formatReminderTimeOfDay(reminder.startTime)}，你会收到“今天还好吗？”
           </Text>
         </View>
 
@@ -32,7 +33,7 @@ export default function CompleteScreen() {
           <View style={styles.previewRow}>
             <Text style={styles.previewLabel}>提醒时间</Text>
             <Text style={styles.previewValue}>
-              {reminder.startTime} - {reminder.endTime}
+              {formatReminderWindow(reminder.startTime, reminder.endTime)}
             </Text>
           </View>
           <View style={styles.previewRow}>

@@ -9,7 +9,7 @@ import { useStore } from '@/store/useStore';
 import { replyApi, alertApi, pauseApi } from '@/services/api.types';
 import { isOfflineDevSession } from '@/services/devMock';
 import { computeEffectiveStatus } from '@/utils/guardStatus';
-import { formatReminderWindowEnd } from '@/utils/reminderWindow';
+import { formatNextReminderOccurrence, formatReminderWindow } from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { ReplyStatus } from '@/types';
 
@@ -143,10 +143,10 @@ export default function HomeScreen() {
 
   const renderSubtitle = () => {
     if (todayStatus === 'idle') {
-      return <Text style={styles.subtitle}>今晚 {reminder.startTime} 会收到提醒</Text>;
+      return <Text style={styles.subtitle}>{formatNextReminderOccurrence(reminder.startTime, now)} 会收到提醒</Text>;
     }
     if (todayStatus === 'waiting') {
-      return <Text style={styles.subtitle}>提醒时间：{reminder.startTime} - {formatReminderWindowEnd(reminder.startTime, reminder.endTime)}</Text>;
+      return <Text style={styles.subtitle}>提醒时间：{formatReminderWindow(reminder.startTime, reminder.endTime)}</Text>;
     }
     if (config.subtitle) {
       return <Text style={[styles.subtitle, todayStatus === 'replied' && { color: Colors.primary }]}>{config.subtitle}</Text>;
@@ -225,7 +225,7 @@ export default function HomeScreen() {
           <View style={styles.buttonContainer}>
             <View style={[styles.confirmButton, styles.confirmButtonDisabled]}>
               <Text style={[styles.confirmButtonText, styles.confirmButtonTextDisabled]}>
-                今晚{'\n'}{reminder.startTime}
+                下次提醒{'\n'}{reminder.startTime}
               </Text>
             </View>
           </View>
@@ -233,7 +233,7 @@ export default function HomeScreen() {
 
         {todayStatus === 'replied' && (
           <Card style={styles.repliedCard}>
-            <Text style={styles.nextReminder}>明天 {reminder.endTime} 再见</Text>
+            <Text style={styles.nextReminder}>下次提醒：{formatNextReminderOccurrence(reminder.startTime, now)}</Text>
           </Card>
         )}
 

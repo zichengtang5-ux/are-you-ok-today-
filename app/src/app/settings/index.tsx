@@ -9,7 +9,7 @@ import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { useStore } from '@/store/useStore';
 import { contactApi, pauseApi } from '@/services/api.types';
 import { getPauseDaysRemaining } from '@/utils/guardStatus';
-import { formatReminderWindowEnd } from '@/utils/reminderWindow';
+import { formatReminderWindow } from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 import type { SubscriptionStatus } from '@/types';
 
@@ -141,7 +141,7 @@ export default function SettingsScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Card style={styles.compactCard}>
           <Text style={styles.sectionTitle}>守护设置</Text>
-          <SettingsItem icon="clock.fill" label="提醒时间" value={`${reminder.startTime} - ${formatReminderWindowEnd(reminder.startTime, reminder.endTime)}`} onPress={() => router.push('/settings/edit-reminder')} />
+          <SettingsItem icon="clock.fill" label="提醒时间" value={formatReminderWindow(reminder.startTime, reminder.endTime)} onPress={() => router.push('/settings/edit-reminder')} />
           <SettingsItem icon="location.fill" label="当前住址" value={user?.address || '未设置'} onPress={() => router.push('/settings/edit-address')} />
           <SettingsItem icon="person.crop.circle.fill" label="紧急联系人" value={contacts[0]?.name || '未设置'} last onPress={() => router.push('/settings/edit-contact')} />
         </Card>

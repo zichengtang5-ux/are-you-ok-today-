@@ -112,6 +112,20 @@ describe('notifications', () => {
       expect(arg.content.body).toBe('一键点击，让我知道你今天还好');
       expect(arg.content.data).toEqual(expect.objectContaining({ route: 'home' }));
     });
+    it.each([
+      ['11:00', 11],
+      ['23:00', 23],
+    ])('keeps %s in 24-hour time as hour %i', async (startTime, expectedHour) => {
+      mockNotifications.getAllScheduledNotificationsAsync.mockResolvedValue([]);
+      mockNotifications.scheduleNotificationAsync.mockResolvedValue(`notif-${expectedHour}`);
+
+      await scheduleDailyReminder(startTime, '01:00');
+
+      const arg = mockNotifications.scheduleNotificationAsync.mock.calls[0][0];
+      expect(arg.trigger).toEqual(
+        expect.objectContaining({ hour: expectedHour, minute: 0, type: 'daily' }),
+      );
+    });
     it('returns null and swallows error on failure', async () => {
       mockNotifications.getAllScheduledNotificationsAsync.mockResolvedValue([]);
       mockNotifications.scheduleNotificationAsync.mockRejectedValue(new Error('fail'));

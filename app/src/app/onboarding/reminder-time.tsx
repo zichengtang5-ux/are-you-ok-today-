@@ -10,11 +10,13 @@ import { useStore } from '@/store/useStore';
 import { reminderApi, userApi } from '@/services/api.types';
 import { isOfflineDevSession } from '@/services/devMock';
 import {
+  REMINDER_HOUR_OPTIONS,
   formatReminderWindowEnd,
+  formatReminderWindowSummary,
   isValidReminderWindow,
+  normalizeReminderHour,
 } from '@/utils/reminderWindow';
 
-const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
@@ -75,8 +77,8 @@ function ScrollPicker({ value, options, onChange, label }: {
 export default function ReminderTimeScreen() {
   const router = useRouter();
   const { reminder, setReminder, setOnboardingStep } = useStore();
-  const [startTime, setStartTime] = useState(reminder.startTime);
-  const [endTime, setEndTime] = useState(reminder.endTime);
+  const [startTime, setStartTime] = useState(() => normalizeReminderHour(reminder.startTime));
+  const [endTime, setEndTime] = useState(() => normalizeReminderHour(reminder.endTime, '22:00'));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -127,12 +129,16 @@ export default function ReminderTimeScreen() {
         </View>
 
         <Card style={styles.timeCard}>
-          <Text style={styles.timeLabel}>提醒时间窗口</Text>
-          <View style={styles.pickersRow}>
-            <ScrollPicker value={startTime} options={HOURS} onChange={setStartTime} label="开始" />
-            <Text style={styles.separator}>至</Text>
-            <ScrollPicker value={endTime} options={HOURS} onChange={setEndTime} label="结束" />
+          <View style={styles.timeTitleRow}>
+            <Text style={styles.timeLabel}>提醒时间窗口</Text>
+            <Text style={styles.timeModeBadge}>24 小时制</Text>
           </View>
+          <View style={styles.pickersRow}>
+            <ScrollPicker value={startTime} options={REMINDER_HOUR_OPTIONS} onChange={setStartTime} label="开始" />
+            <Text style={styles.separator}>至</Text>
+            <ScrollPicker value={endTime} options={REMINDER_HOUR_OPTIONS} onChange={setEndTime} label="结束" />
+          </View>
+          <Text style={styles.timeSummary}>{formatReminderWindowSummary(startTime, endTime)}</Text>
         </Card>
 
         <Card variant="info" style={styles.hintCard}>
@@ -165,7 +171,17 @@ const styles = StyleSheet.create({
   header: { marginBottom: Spacing.xl },
   title: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.bold, color: Colors.gray900 },
   timeCard: { alignItems: 'center', marginBottom: Spacing.lg },
-  timeLabel: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium, marginBottom: Spacing.md },
+  timeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  timeLabel: { fontSize: FontSizes.base, color: Colors.gray700, fontWeight: FontWeights.medium },
+  timeModeBadge: {
+    fontSize: FontSizes.xs,
+    color: Colors.primaryDark,
+    fontWeight: FontWeights.semibold,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+  },
   pickersRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   pickerContainer: { alignItems: 'center' },
   pickerLabel: { fontSize: FontSizes.sm, color: Colors.gray600, marginBottom: Spacing.sm },
@@ -203,6 +219,12 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.bold,
   },
   separator: { fontSize: FontSizes.lg, color: Colors.gray600, fontWeight: FontWeights.medium, marginBottom: 20 },
+  timeSummary: {
+    marginTop: Spacing.md,
+    fontSize: FontSizes.sm,
+    color: Colors.primaryDark,
+    fontWeight: FontWeights.semibold,
+  },
   hintCard: { marginBottom: Spacing.xl },
   hintText: { fontSize: FontSizes.sm, color: Colors.gray700, lineHeight: 20 },
   errorText: { fontSize: FontSizes.sm, color: Colors.danger, textAlign: 'center', marginBottom: Spacing.md },
