@@ -84,7 +84,7 @@ describe('emergency location collection', () => {
     expect(remove).toHaveBeenCalled();
   });
 
-  it('reports reduced precision and cancellation without returning stale data', async () => {
+  it('reports reduced precision on a completed fix', async () => {
     mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
       status: 'granted',
       granted: true,
@@ -92,14 +92,28 @@ describe('emergency location collection', () => {
       expires: 'never',
       ios: { scope: 'whenInUse', accuracy: 'reduced' },
     } as Location.LocationPermissionResponse);
-    mockLocation.getLastKnownPositionAsync.mockResolvedValue(position(80, 10));
-    mockLocation.watchPositionAsync.mockResolvedValue({ remove: jest.fn() });
+    mockLocation.getLastKnownPositionAsync.mockResolvedValue(null);
+    mockLocation.watchPositionAsync.mockImplementation(async (_options, callback) => {
+      callback(position(80, 10));
+      return { remove: jest.fn() };
+    });
+
+    const result = await collectEmergencyLocation({ timeoutMs: 1 });
+
+    expect(result).toEqual({
+      status: 'complete',
+      fix: expect.objectContaining({ precisionAuthorization: 'reduced' }),
+    });
+  });
+
+  it('cancels without requesting permission when already aborted', async () => {
     const controller = new AbortController();
     controller.abort();
 
     await expect(
       collectEmergencyLocation({ signal: controller.signal, timeoutMs: 1 }),
     ).resolves.toEqual({ status: 'cancelled', fix: null });
+    expect(mockLocation.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
   });
 
   it('classifies accuracy thresholds for UI messaging', () => {

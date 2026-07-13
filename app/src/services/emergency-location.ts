@@ -89,11 +89,14 @@ export async function collectEmergencyLocation(
   if (signal?.aborted) return { status: 'cancelled', fix: null };
 
   const permission = await Location.requestForegroundPermissionsAsync();
+  if (signal?.aborted) return { status: 'cancelled', fix: null };
   if (permission.status !== 'granted') {
     return { status: 'permission_denied', fix: null };
   }
 
-  if (!(await Location.hasServicesEnabledAsync())) {
+  const servicesEnabled = await Location.hasServicesEnabledAsync();
+  if (signal?.aborted) return { status: 'cancelled', fix: null };
+  if (!servicesEnabled) {
     return { status: 'services_disabled', fix: null };
   }
 
