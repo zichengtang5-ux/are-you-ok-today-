@@ -11,6 +11,13 @@ import { getCurrentAddress } from '@/services/location';
 import { isOfflineDevSession } from '@/services/devMock';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
+interface AddressLocation {
+  baseAddress: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+}
+
 export default function BasicInfoScreen() {
   const router = useRouter();
   const setUser = useStore((s) => s.setUser);
@@ -22,6 +29,7 @@ export default function BasicInfoScreen() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const [locationHint, setLocationHint] = useState('');
+  const [addressLocation, setAddressLocation] = useState<AddressLocation | null>(null);
 
   const handleBack = () => {
     setOnboardingStep('login');
@@ -35,6 +43,12 @@ export default function BasicInfoScreen() {
       const result = await getCurrentAddress();
       setAddress(result.address);
       setLocationHint(result.hint);
+      setAddressLocation({
+        baseAddress: result.address,
+        latitude: result.latitude,
+        longitude: result.longitude,
+        accuracyMeters: result.accuracyMeters,
+      });
     } catch (err: any) {
       setError(err?.message || '定位失败，请手动输入地址');
     } finally {
@@ -52,20 +66,46 @@ export default function BasicInfoScreen() {
     setLoading(true);
     const nextNickname = nickname.trim();
     const nextAddress = address.trim();
+    const addressMetadata = addressLocation
+      ? {
+          addressLatitude: addressLocation.latitude,
+          addressLongitude: addressLocation.longitude,
+          addressAccuracyMeters: addressLocation.accuracyMeters,
+        }
+      : {
+          addressLatitude: null,
+          addressLongitude: null,
+          addressAccuracyMeters: null,
+        };
 
     try {
-      const updatedUser = await userApi.updateProfile({ nickname: nextNickname, address: nextAddress });
+      const updatedUser = await userApi.updateProfile({
+        nickname: nextNickname,
+        address: nextAddress,
+        ...addressMetadata,
+      });
       await userApi.updateOnboarding({
         step: 'contact-setup',
         isOnboarded: false,
       });
 
-      setUser({ ...user, ...updatedUser, nickname: nextNickname, address: nextAddress } as any);
+      setUser({
+        ...user,
+        ...updatedUser,
+        nickname: nextNickname,
+        address: nextAddress,
+        ...addressMetadata,
+      } as any);
       setOnboardingStep('contact-setup');
       router.replace('/onboarding/contact-setup');
     } catch (err: any) {
       if (await isOfflineDevSession()) {
-        setUser({ ...user, nickname: nextNickname, address: nextAddress } as any);
+        setUser({
+          ...user,
+          nickname: nextNickname,
+          address: nextAddress,
+          ...addressMetadata,
+        } as any);
         setOnboardingStep('contact-setup');
         router.replace('/onboarding/contact-setup');
         return;
@@ -122,7 +162,13 @@ export default function BasicInfoScreen() {
             <Input
               label=""
               value={address}
-              onChangeText={(text) => { setAddress(text); setLocationHint(''); }}
+              onChangeText={(text) => {
+                setAddress(text);
+                setLocationHint('');
+                if (addressLocation && !text.trim().startsWith(addressLocation.baseAddress.trim())) {
+                  setAddressLocation(null);
+                }
+              }}
               placeholder="如：朝阳区XX路XX号 3号楼502"
             />
             {locationHint ? (

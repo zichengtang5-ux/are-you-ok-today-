@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +12,7 @@ import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
 export default function DeleteConfirmScreen() {
   const router = useRouter();
+  const subscription = useStore((state) => state.subscription);
   const [confirmText, setConfirmText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -56,7 +57,27 @@ export default function DeleteConfirmScreen() {
             联系人信息、守护设置。{'\n'}
             你的紧急联系人将不再收到通知。
           </Text>
+          {subscription?.isPremium ? (
+            <Text style={styles.subscriptionWarning}>
+              删除账号不会自动取消 Apple 订阅，请先在 App Store 管理自动续订。
+            </Text>
+          ) : null}
         </View>
+
+        {subscription?.isPremium ? (
+          <Button
+            variant="outline"
+            size="md"
+            onPress={() => {
+              Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => {
+                Alert.alert('无法打开', '请前往系统设置中的 Apple ID 订阅页面管理。');
+              });
+            }}
+            style={styles.manageSubscriptionButton}
+          >
+            管理 Apple 订阅
+          </Button>
+        ) : null}
 
         <View style={styles.inputSection}>
           <Input
@@ -123,6 +144,16 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  subscriptionWarning: {
+    marginTop: Spacing.md,
+    fontSize: FontSizes.sm,
+    color: Colors.danger,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  manageSubscriptionButton: {
+    marginBottom: Spacing.lg,
   },
   inputSection: {
     marginBottom: Spacing.lg,

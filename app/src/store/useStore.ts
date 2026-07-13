@@ -129,7 +129,13 @@ export const useStore = create<AppState>()(
       setActiveAlert: (alert) => set({ activeAlert: alert }),
       resolveAlert: () => set({ activeAlert: null, todayStatus: 'replied' }),
       setNotificationAuthorized: (v) => set({ notificationAuthorized: v }),
-      setSubscription: (subscription) => set({ subscription }),
+      setSubscription: (subscription) =>
+        set((state) => ({
+          subscription,
+          user: state.user
+            ? { ...state.user, isPremium: !!subscription?.isPremium }
+            : state.user,
+        })),
       startCheckInDemo: () => set({ demoCheckIn: true, todayStatus: 'waiting', activeAlert: null }),
       setPauseStatus: (status) =>
         set((state) => ({

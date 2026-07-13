@@ -9,15 +9,18 @@ datasource db {
 
 // ─── 用户 ───
 model User {
-  id               String   @id @default(cuid())
-  phone            String   @unique
-  nickname         String?
-  address          String?
-  onboardingStep   String   @default("login")
-  isOnboarded      Boolean  @default(false)
-  notificationAuth Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  phone                 String   @unique
+  nickname              String?
+  address               String?
+  addressLatitude       Float?
+  addressLongitude      Float?
+  addressAccuracyMeters Float?
+  onboardingStep        String   @default("login")
+  isOnboarded           Boolean  @default(false)
+  notificationAuth      Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   contacts       EmergencyContact[]
   reminderConfig ReminderConfig?
@@ -162,13 +165,21 @@ model PauseLog {
 
 // ─── 求助记录 ───
 model HelpRequest {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  latitude    Float?
-  longitude   Float?
-  addressText String?
-  createdAt   DateTime @default(now())
+  id                     String    @id @default(cuid())
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id])
+  latitude               Float?
+  longitude              Float?
+  accuracyMeters         Float?
+  locationCapturedAt     DateTime?
+  fixSource              String?
+  precisionAuthorization String?
+  addressText            String?
+  addressSource          String?
+  addressConfirmed       Boolean   @default(false)
+  mapsProvider           String?
+  mapUrl                 String?
+  createdAt              DateTime  @default(now())
 }
 
 // ─── 协议同意记录 ───
@@ -187,16 +198,17 @@ model AgreementConsent {
 
 // ─── 订阅 ───
 model Subscription {
-  id                 String    @id @default(cuid())
-  userId             String    @unique
-  user               User      @relation(fields: [userId], references: [id])
-  plan               String    @default("free") // free | monthly | yearly
-  status             String    @default("inactive") // inactive | active | trial | cancelled | expired
-  trialEndsAt        DateTime?
-  currentPeriodEnd   DateTime?
-  appleTransactionId String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                         String    @id @default(cuid())
+  userId                     String    @unique
+  user                       User      @relation(fields: [userId], references: [id])
+  plan                       String    @default("free") // free | monthly | yearly
+  status                     String    @default("inactive") // inactive | active | trial | cancelled | expired
+  trialEndsAt                DateTime?
+  currentPeriodEnd           DateTime?
+  appleTransactionId         String?   @unique
+  appleOriginalTransactionId String?   @unique
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 }
 
 // ─── 短信验证码（临时存储）───

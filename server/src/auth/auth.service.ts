@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ServiceUnavailableException,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
@@ -8,8 +9,11 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SmsService } from '../sms/sms.service';
+import {
+  hasPremiumEntitlement,
+  limitContactsForSubscription,
+} from '../subscription/subscription-entitlement';
 
-const CODE_LENGTH = 6;
 const CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const COOLDOWN_MS = 60 * 1000; // 60 seconds
 const DEV_LOGIN_CODE = '123456';
@@ -50,11 +54,17 @@ export class AuthService {
     const code = this.isDevAuthMockEnabled() ? DEV_LOGIN_CODE : this.generateCode();
     const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
-    await this.prisma.verificationCode.create({
+    const record = await this.prisma.verificationCode.create({
       data: { phone, code, expiresAt },
     });
 
-    await this.sms.sendVerificationCode(phone, code);
+    const sent = await this.sms.sendVerificationCode(phone, code);
+    if (!sent) {
+      await this.prisma.verificationCode
+        .delete({ where: { id: record.id } })
+        .catch(() => undefined);
+      throw new ServiceUnavailableException('验证码发送失败，请稍后重试');
+    }
 
     this.logger.log(`Verification code sent to ${phone.slice(0, 3)}****${phone.slice(-4)}`);
 
@@ -157,7 +167,13 @@ export class AuthService {
       throw new UnauthorizedException('用户不存在');
     }
 
-    return user;
+    const isPremium = hasPremiumEntitlement(user.subscription);
+
+    return {
+      ...user,
+      contacts: limitContactsForSubscription(user.contacts, user.subscription),
+      isPremium,
+    };
   }
 
   private async generateTokens(userId: string) {

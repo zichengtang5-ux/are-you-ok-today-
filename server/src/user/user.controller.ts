@@ -4,6 +4,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { UpdateOnboardingDto } from './dto/update-onboarding.dto';
 
 @ApiTags('用户')
 @ApiBearerAuth()
@@ -30,7 +31,7 @@ export class UserController {
   @ApiOperation({ summary: '更新引导进度' })
   async updateOnboarding(
     @CurrentUser('id') userId: string,
-    @Body() body: { step: string; isOnboarded?: boolean },
+    @Body() body: UpdateOnboardingDto,
   ) {
     return this.prisma.user.update({
       where: { id: userId },

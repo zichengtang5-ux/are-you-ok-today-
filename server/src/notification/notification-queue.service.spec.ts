@@ -37,6 +37,7 @@ describe('NotificationQueueService', () => {
       nickname: '小李',
       lastReplyAt: '从未回复',
       round: 1,
+      includeVoice: true,
     });
 
     // 2 contacts × 2 channels = 4 logs + 4 jobs
@@ -67,9 +68,14 @@ describe('NotificationQueueService', () => {
       nickname: '小李',
       lastReplyAt: '从未回复',
       round: 2,
+      includeVoice: false,
     });
     expect(mockPrisma.notificationLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ round: 2 }) }),
+    );
+    expect(mockQueue.add).not.toHaveBeenCalledWith(
+      'voice_call',
+      expect.anything(),
     );
   });
 });

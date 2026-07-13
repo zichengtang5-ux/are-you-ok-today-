@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReminderService } from './reminder.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BadRequestException } from '@nestjs/common';
 
 describe('ReminderService', () => {
   let service: ReminderService;
@@ -53,7 +54,12 @@ describe('ReminderService', () => {
 
   describe('updateConfig', () => {
     it('should update start time without recomputing nextDueAt', async () => {
-      mockPrisma.reminderConfig.findUnique.mockResolvedValue({ userId: 'u1' });
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        userId: 'u1',
+        startTime: '20:00',
+        endTime: '22:00',
+        timezone: 'Asia/Shanghai',
+      });
       mockPrisma.reminderConfig.update.mockResolvedValue({ startTime: '19:00' });
 
       const result = await service.updateConfig('u1', { startTime: '19:00' });
@@ -67,6 +73,7 @@ describe('ReminderService', () => {
     it('should recompute nextDueAt when endTime changes', async () => {
       mockPrisma.reminderConfig.findUnique.mockResolvedValue({
         userId: 'u1',
+        startTime: '20:00',
         endTime: '22:00',
         timezone: 'Asia/Shanghai',
       });
@@ -77,6 +84,39 @@ describe('ReminderService', () => {
         where: { userId: 'u1' },
         data: { endTime: '21:00', nextDueAt: expect.any(Date) },
       });
+    });
+
+    it('should accept an overnight reminder window', async () => {
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        userId: 'u1',
+        startTime: '20:00',
+        endTime: '22:00',
+        timezone: 'Asia/Shanghai',
+      });
+      mockPrisma.reminderConfig.update.mockResolvedValue({
+        startTime: '23:00',
+        endTime: '01:00',
+      });
+
+      await expect(
+        service.updateConfig('u1', { startTime: '23:00', endTime: '01:00' }),
+      ).resolves.toEqual(expect.objectContaining({ endTime: '01:00' }));
+    });
+
+    it('should reject invalid or identical reminder times', async () => {
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        userId: 'u1',
+        startTime: '20:00',
+        endTime: '22:00',
+        timezone: 'Asia/Shanghai',
+      });
+
+      await expect(service.updateConfig('u1', { startTime: '24:00' })).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.updateConfig('u1', { startTime: '22:00' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

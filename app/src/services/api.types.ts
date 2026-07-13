@@ -50,8 +50,8 @@ export const authApi = {
       isOnboarded: boolean;
       onboardingStep: string;
       contacts: ContactResponse[];
-      reminderConfig: ReminderConfigResponse;
-      guardStatus: { status: ReplyStatus };
+      reminderConfig: ReminderConfigResponse | null;
+      guardStatus: { status: ReplyStatus } | null;
       subscription: SubscriptionRecord | null;
     }>('/auth/me'),
 };
@@ -60,12 +60,15 @@ export const authApi = {
 export interface UpdateProfileRequest {
   nickname?: string;
   address?: string;
+  addressLatitude?: number | null;
+  addressLongitude?: number | null;
+  addressAccuracyMeters?: number | null;
   notificationAuth?: boolean;
 }
 
 export interface UpdateOnboardingRequest {
   step: string;
-  isOnboarded: boolean;
+  isOnboarded?: boolean;
 }
 
 export const userApi = {
@@ -158,6 +161,7 @@ export interface ReplyStatusResponse {
     gracePeriodMin: number;
     timezone: string;
   };
+  graceDeadlineAt: string | null;
   monthlyStats: MonthlyStats;
 }
 
@@ -273,20 +277,33 @@ export const alertApi = {
 export interface EmergencyHelpRequest {
   latitude?: number;
   longitude?: number;
+  accuracyMeters?: number;
+  locationCapturedAt?: string;
+  fixSource?: 'live' | 'last_known';
+  precisionAuthorization?: 'full' | 'reduced';
   addressText?: string;
+  addressSource?: 'manual' | 'user_preset' | 'apple_client';
+  addressConfirmed?: boolean;
 }
 
 export interface EmergencyHelpResponse {
   id: string;
   createdAt: string;
   address: string;
+  mapUrl: string | null;
+  accuracyMeters: number | null;
+  deliveryStatus: 'sent' | 'partial' | 'failed' | 'no_contacts';
   contactsNotified: AlertContactNotified[];
+  contactsFailed: AlertContactNotified[];
   message: string;
 }
 
 export interface HelpAddressResponse {
   address: string;
   source: 'gps' | 'user_preset';
+  latitude: number | null;
+  longitude: number | null;
+  accuracyMeters: number | null;
 }
 
 export const helpApi = {
@@ -300,7 +317,7 @@ export const helpApi = {
 /* ──────────────── Subscription (S6) ──────────────── */
 export type SubscriptionPlan = 'monthly' | 'yearly';
 export type SubscriptionProvider = 'apple';
-export type SubscriptionStatusValue = 'active' | 'trial' | 'expired' | 'cancelled' | 'none';
+export type SubscriptionStatusValue = 'active' | 'trial' | 'expired' | 'cancelled' | 'inactive' | 'none';
 
 export interface SubscriptionVerifyRequest {
   transactionId: string;
@@ -321,7 +338,7 @@ export interface SubscriptionResponse {
 }
 
 export interface SubscriptionStatusResponse {
-  plan: SubscriptionPlan | null;
+  plan: SubscriptionPlan | 'free' | null;
   status: SubscriptionStatusValue;
   currentPeriodEnd: string | null;
   isPremium: boolean;

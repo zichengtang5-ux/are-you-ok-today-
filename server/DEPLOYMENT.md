@@ -111,6 +111,23 @@ APNS_PROVIDER=apns
 - `APPLE_IAP_ISSUER_ID`
 - `APPLE_IAP_KEY_ID`
 - `APPLE_IAP_KEY_PATH`
+- `APPLE_APP_ID`
+- `APPLE_ROOT_CA_PATHS`，Apple Root CA DER 文件路径，多个用逗号分隔
+- `APPLE_IAP_MONTHLY_PRODUCT_ID`
+- `APPLE_IAP_YEARLY_PRODUCT_ID`
+
+服务端使用 Apple 官方 `@apple/app-store-server-library` 校验交易签名、产品和真实到期时间。上线前还需在 App Store Connect 配置 App Store Server Notifications V2，用于续期、退款和撤销后的主动同步。
+
+### Apple Maps Server API（可选）
+
+紧急求助会始终先保存坐标；配置以下参数后，服务端会在不超过 `APPLE_MAPS_TIMEOUT_MS` 的时间内补全中文地址。未配置、超时或额度受限时自动降级为客户端地址或坐标地图链接，不阻塞短信发送。
+
+- `APPLE_MAPS_TEAM_ID`
+- `APPLE_MAPS_KEY_ID`
+- `APPLE_MAPS_PRIVATE_KEY_PATH`，或使用 `APPLE_MAPS_PRIVATE_KEY` 直接注入私钥
+- `APPLE_MAPS_TIMEOUT_MS`，默认 `1800`
+
+私钥必须只保存在服务端。需要先在 Apple Developer 后台创建 Maps ID 和 Maps 私钥。
 
 ## 部署步骤
 

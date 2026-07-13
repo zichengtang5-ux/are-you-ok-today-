@@ -5,7 +5,7 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 
 describe('ReplyService', () => {
   let service: ReplyService;
-  const mockPrisma = {
+  const mockPrisma: any = {
     dailyRecord: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
@@ -29,6 +29,10 @@ describe('ReplyService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    $transaction: jest.fn(async (arg: unknown): Promise<unknown> => {
+      if (typeof arg === 'function') return (arg as (tx: any) => unknown)(mockPrisma);
+      return Promise.all(arg as Promise<unknown>[]);
+    }),
   };
 
   beforeEach(async () => {
@@ -78,11 +82,19 @@ describe('ReplyService', () => {
       );
     });
 
-    it('should reject if already replied today', async () => {
+    it('should return an idempotent success if already replied today', async () => {
       mockPrisma.guardStatus.findUnique.mockResolvedValue({ status: 'replied' });
-      mockPrisma.dailyRecord.findUnique.mockResolvedValue({ status: 'replied' });
+      mockPrisma.dailyRecord.findUnique.mockResolvedValue({
+        status: 'replied',
+        repliedAt: new Date('2026-07-13T04:00:00Z'),
+      });
+      mockPrisma.guardStatus.upsert.mockResolvedValue({ status: 'replied' });
+      mockPrisma.alertEvent.findFirst.mockResolvedValue(null);
 
-      await expect(service.replyToday('u1')).rejects.toThrow(BadRequestException);
+      await expect(service.replyToday('u1')).resolves.toEqual(
+        expect.objectContaining({ message: '今天已回复', guardStatus: 'replied' }),
+      );
+      expect(mockPrisma.dailyRecord.upsert).not.toHaveBeenCalled();
     });
 
     it('should resolve active alert on reply', async () => {
@@ -198,6 +210,7 @@ describe('ReplyService', () => {
 
   describe('getStatus', () => {
     it('should return idle status for new user', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-13T04:00:00Z'));
       mockPrisma.guardStatus.findUnique.mockResolvedValue(null);
       mockPrisma.dailyRecord.findUnique.mockResolvedValue(null);
       mockPrisma.reminderConfig.findUnique.mockResolvedValue(null);
@@ -209,7 +222,47 @@ describe('ReplyService', () => {
       expect(result.monthlyStats.repliedDays).toBe(0);
     });
 
+    it('should not carry yesterday replied status into a new guard day', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-13T12:30:00Z'));
+      mockPrisma.guardStatus.findUnique.mockResolvedValue({
+        status: 'replied',
+        lastReplyAt: new Date('2026-07-12T12:30:00Z'),
+      });
+      mockPrisma.dailyRecord.findUnique.mockResolvedValue(null);
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        startTime: '20:00',
+        endTime: '23:00',
+        gracePeriodMin: 30,
+        timezone: 'Asia/Shanghai',
+      });
+      mockPrisma.dailyRecord.findMany.mockResolvedValue([]);
+
+      const result = await service.getStatus('u1');
+
+      expect(result.status).toBe('waiting');
+      expect(result.todayReplied).toBe(false);
+    });
+
+    it('should return an absolute cross-midnight grace deadline', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-11T17:10:00Z'));
+      mockPrisma.guardStatus.findUnique.mockResolvedValue({ status: 'grace', lastReplyAt: null });
+      mockPrisma.dailyRecord.findUnique.mockResolvedValue({ status: 'grace', repliedAt: null });
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        startTime: '23:00',
+        endTime: '01:00',
+        gracePeriodMin: 30,
+        timezone: 'Asia/Shanghai',
+      });
+      mockPrisma.dailyRecord.findMany.mockResolvedValue([]);
+
+      const result = await service.getStatus('u1');
+
+      expect(result.status).toBe('grace');
+      expect(result.graceDeadlineAt).toBe('2026-07-11T17:30:00.000Z');
+    });
+
     it('should return replied status with monthly stats', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-13T04:00:00Z'));
       mockPrisma.guardStatus.findUnique.mockResolvedValue({
         status: 'replied',
         lastReplyAt: new Date('2026-06-24T12:00:00Z'),
@@ -231,6 +284,8 @@ describe('ReplyService', () => {
       expect(result.status).toBe('replied');
       expect(result.todayReplied).toBe(true);
       expect(result.monthlyStats.repliedDays).toBe(2);
+      expect(result.monthlyStats.totalDays).toBe(31);
+      expect(result.monthlyStats.display).toBe('本月平安 2/31 天');
     });
 
     it('should auto-expire paused status when pause has ended', async () => {

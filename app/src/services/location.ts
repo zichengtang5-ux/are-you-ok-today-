@@ -3,6 +3,10 @@ import * as Location from 'expo-location';
 export interface CurrentAddressResult {
   address: string;
   hint: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  capturedAt: number;
 }
 
 function uniqueParts(parts: (string | null | undefined)[]): string[] {
@@ -45,12 +49,12 @@ export async function getCurrentAddress(): Promise<CurrentAddressResult> {
   let position: Location.LocationObject | null = null;
   try {
     position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+      accuracy: Location.Accuracy.High,
     });
   } catch {
     position = await Location.getLastKnownPositionAsync({
-      requiredAccuracy: 3000,
-      maxAge: 10 * 60 * 1000,
+      requiredAccuracy: 100,
+      maxAge: 2 * 60 * 1000,
     });
   }
 
@@ -71,5 +75,12 @@ export async function getCurrentAddress(): Promise<CurrentAddressResult> {
   return {
     address,
     hint: '请补充具体门牌号（如 3 号楼 502），方便紧急联系人和救援准确找到你',
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracyMeters:
+      typeof position.coords.accuracy === 'number' && position.coords.accuracy >= 0
+        ? position.coords.accuracy
+        : null,
+    capturedAt: position.timestamp,
   };
 }

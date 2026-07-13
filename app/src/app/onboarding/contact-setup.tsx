@@ -8,7 +8,7 @@ import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { contactApi, userApi } from '@/services/api.types';
-import { DEV_MOCK_CODE, isOfflineDevSession } from '@/services/devMock';
+import { isOfflineDevSession } from '@/services/devMock';
 import { canAddMoreContacts } from '@/utils/contactLimits';
 
 type ViewMode = 'list' | 'add';
@@ -19,10 +19,6 @@ export default function ContactSetupScreen() {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [relation, setRelation] = useState('');
-  const [verifyCode, setVerifyCode] = useState('');
-  const [contactId, setContactId] = useState<string | null>(null);
-  const [codeSent, setCodeSent] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastAdded, setLastAdded] = useState<string | null>(null);
@@ -50,7 +46,7 @@ export default function ContactSetupScreen() {
     setError('');
   };
 
-  const handleSendCode = async () => {
+  const handleSaveContact = async () => {
     if (!contactName.trim()) { setError('请输入联系人姓名'); return; }
     if (contactPhone.length !== 11 || !/^1[3-9]\d{9}$/.test(contactPhone)) {
       setError('请输入正确的手机号');
@@ -62,92 +58,35 @@ export default function ContactSetupScreen() {
 
     try {
       const contact = await contactApi.create({
-        name: contactName,
+        name: contactName.trim(),
         phone: contactPhone,
-        relation: relation || '家人',
+        relation: relation.trim() || '家人',
       });
-      setContactId(contact.id);
-
-      const sendResult = await contactApi.sendVerifyCode(contact.id);
-      setCodeSent(true);
-      setCountdown(60);
-
-      if (sendResult.mockCode) {
-        setVerifyCode(sendResult.mockCode);
-      }
-
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) { clearInterval(timer); return 0; }
-          return prev - 1;
-        });
-      }, 1000);
-    } catch (err: any) {
-      if (canAddContact && await isOfflineDevSession()) {
-        setContactId(`dev-contact-${Date.now()}`);
-        setCodeSent(true);
-        setCountdown(0);
-        setVerifyCode(DEV_MOCK_CODE);
-        return;
-      }
-      const message = err.response?.data?.message || '发送验证码失败';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (!verifyCode || verifyCode.length < 4) { setError('请输入验证码'); return; }
-    if (!contactId) return;
-
-    setError('');
-    setLoading(true);
-
-    try {
-      const result = await contactApi.verify(contactId, verifyCode);
-      const verified = result.contact;
-      addContact({
-        id: verified.id,
-        name: verified.name,
-        phone: verified.phone,
-        relation: verified.relation,
-        priority: verified.priority,
-        verified: verified.verified,
-      });
-
-      setLastAdded(verified.name);
+      addContact(contact);
+      setLastAdded(contact.name);
       setViewMode('list');
       setContactName('');
       setContactPhone('');
       setRelation('');
-      setVerifyCode('');
-      setContactId(null);
-      setCodeSent(false);
-      setCountdown(0);
     } catch (err: any) {
-      if (await isOfflineDevSession() && verifyCode === DEV_MOCK_CODE) {
-        const verified = {
-          id: contactId,
-          name: contactName,
+      if (canAddContact && await isOfflineDevSession()) {
+        const contact = {
+          id: `dev-contact-${Date.now()}`,
+          name: contactName.trim(),
           phone: contactPhone,
-          relation: relation || '家人',
+          relation: relation.trim() || '家人',
           priority: contacts.length + 1,
           verified: true,
         };
-        addContact(verified);
-        setLastAdded(verified.name);
+        addContact(contact);
+        setLastAdded(contact.name);
         setViewMode('list');
         setContactName('');
         setContactPhone('');
         setRelation('');
-        setVerifyCode('');
-        setContactId(null);
-        setCodeSent(false);
         return;
       }
-      const message = err.response?.data?.message || '验证码错误';
-      setError(message);
+      setError(err.response?.data?.message || '联系人保存失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -188,7 +127,7 @@ export default function ContactSetupScreen() {
             {lastAdded && (
               <View style={styles.successBanner}>
                 <Text style={styles.successText}>
-                  [OK] {lastAdded} 已添加，验证短信已发送
+                  [OK] {lastAdded} 已添加
                 </Text>
               </View>
             )}
@@ -208,11 +147,7 @@ export default function ContactSetupScreen() {
                         {c.relation ? ` · ${c.relation}` : ''}
                       </Text>
                     </View>
-                    {c.verified ? (
-                      <Text style={styles.verifiedBadge}>已验证</Text>
-                    ) : (
-                      <Text style={styles.pendingBadge}>待验证</Text>
-                    )}
+                    <Text style={styles.verifiedBadge}>已添加</Text>
                   </View>
                 ))}
               </Card>
@@ -262,7 +197,7 @@ export default function ContactSetupScreen() {
                 value={contactName}
                 onChangeText={(text) => { setContactName(text); setError(''); }}
                 placeholder="如：妈妈"
-                error={!codeSent ? error : undefined}
+                error={error || undefined}
               />
               <Input
                 label="手机号"
@@ -281,35 +216,11 @@ export default function ContactSetupScreen() {
               <Button
                 variant="primary"
                 size="md"
-                onPress={handleSendCode}
-                loading={loading && !codeSent}
-                disabled={countdown > 0}
+                onPress={handleSaveContact}
+                loading={loading}
               >
-                {countdown > 0 ? `重新发送 (${countdown}s)` : '发送验证码'}
+                保存联系人
               </Button>
-
-              {codeSent && (
-                <>
-                  <Input
-                    label="验证码"
-                    value={verifyCode}
-                    onChangeText={(text) => { setVerifyCode(text.replace(/\D/g, '')); setError(''); }}
-                    placeholder="请输入验证码"
-                    keyboardType="numeric"
-                    maxLength={6}
-                    error={codeSent ? error : undefined}
-                  />
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onPress={handleVerify}
-                    loading={loading && codeSent}
-                    disabled={!verifyCode || verifyCode.length < 4}
-                  >
-                    验证并添加
-                  </Button>
-                </>
-              )}
             </Card>
 
             {/* Back to list */}
@@ -317,9 +228,6 @@ export default function ContactSetupScreen() {
               style={styles.backLink}
               onPress={() => {
                 setViewMode('list');
-                setCodeSent(false);
-                setVerifyCode('');
-                setContactId(null);
                 setError('');
               }}
             >
@@ -375,7 +283,6 @@ const styles = StyleSheet.create({
   contactName: { fontSize: FontSizes.base, fontWeight: FontWeights.semibold, color: Colors.gray900 },
   contactPhone: { fontSize: FontSizes.sm, color: Colors.gray500, marginTop: 2 },
   verifiedBadge: { fontSize: FontSizes.xs, color: Colors.primary, fontWeight: FontWeights.semibold },
-  pendingBadge: { fontSize: FontSizes.xs, color: Colors.warmDark, fontWeight: FontWeights.semibold },
   emptyCard: { alignItems: 'center', padding: Spacing.xl, marginBottom: Spacing.md },
   emptyText: { fontSize: FontSizes.base, color: Colors.gray500, textAlign: 'center', lineHeight: 22 },
   addLink: { paddingVertical: Spacing.sm, marginBottom: Spacing.lg },

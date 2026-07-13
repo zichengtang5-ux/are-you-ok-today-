@@ -4,13 +4,19 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SmsService } from '../sms/sms.service';
+import {
+  FREE_MAX_CONTACTS,
+  hasPremiumEntitlement,
+  limitContactsForSubscription,
+  PREMIUM_MAX_CONTACTS,
+} from '../subscription/subscription-entitlement';
 
-const FREE_MAX_CONTACTS = 1;
-const PREMIUM_MAX_CONTACTS = 5;
 const CODE_TTL_MS = 5 * 60 * 1000;
 const COOLDOWN_MS = 60 * 1000;
 
@@ -25,37 +31,59 @@ export class ContactService {
   ) {}
 
   async list(userId: string) {
-    return this.prisma.emergencyContact.findMany({
-      where: { userId },
-      orderBy: { priority: 'asc' },
-    });
+    const [contacts, subscription] = await Promise.all([
+      this.prisma.emergencyContact.findMany({
+        where: { userId },
+        orderBy: { priority: 'asc' },
+      }),
+      this.prisma.subscription.findUnique({ where: { userId } }),
+    ]);
+    return limitContactsForSubscription(contacts, subscription);
   }
 
   async create(userId: string, data: { name: string; phone: string; relation?: string; priority?: number }) {
-    const existing = await this.prisma.emergencyContact.findMany({ where: { userId } });
-    const isPremium = await this.isPremium(userId);
-    const maxContacts = isPremium ? PREMIUM_MAX_CONTACTS : FREE_MAX_CONTACTS;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const [existing, subscription] = await Promise.all([
+              tx.emergencyContact.findMany({ where: { userId } }),
+              tx.subscription.findUnique({ where: { userId } }),
+            ]);
+            const isPremium = hasPremiumEntitlement(subscription);
+            const maxContacts = isPremium ? PREMIUM_MAX_CONTACTS : FREE_MAX_CONTACTS;
 
-    if (existing.length >= maxContacts) {
-      throw new BadRequestException(
-        isPremium
-          ? `最多添加 ${maxContacts} 个联系人`
-          : `免费版最多添加 ${maxContacts} 个联系人，升级守护版可添加更多`,
-      );
+            if (existing.length >= maxContacts) {
+              throw new BadRequestException(
+                isPremium
+                  ? `最多添加 ${maxContacts} 个联系人`
+                  : `免费版最多添加 ${maxContacts} 个联系人，升级守护版可添加更多`,
+              );
+            }
+            if (existing.some((contact) => contact.phone === data.phone)) {
+              throw new BadRequestException('该手机号已是紧急联系人');
+            }
+
+            return tx.emergencyContact.create({
+              data: {
+                userId,
+                name: data.name,
+                phone: data.phone,
+                relation: data.relation ?? '家人',
+                priority: data.priority ?? existing.length + 1,
+                verified: true,
+              },
+            });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      } catch (error: unknown) {
+        if (this.isTransactionConflict(error) && attempt < 2) continue;
+        throw error;
+      }
     }
 
-    const priority = data.priority ?? existing.length + 1;
-
-    return this.prisma.emergencyContact.create({
-      data: {
-        userId,
-        name: data.name,
-	        phone: data.phone,
-	        relation: data.relation ?? '家人',
-	        priority,
-	        verified: true,
-	      },
-	    });
+    throw new BadRequestException('联系人保存失败，请重试');
   }
 
   async update(userId: string, contactId: string, data: { name?: string; phone?: string; relation?: string; priority?: number }) {
@@ -66,6 +94,15 @@ export class ContactService {
     }
     if (contact.userId !== userId) {
       throw new ForbiddenException('无权操作此联系人');
+    }
+
+    if (data.phone !== undefined && data.phone !== contact.phone) {
+      const duplicate = await this.prisma.emergencyContact.findFirst({
+        where: { userId, phone: data.phone, id: { not: contactId } },
+      });
+      if (duplicate) {
+        throw new BadRequestException('该手机号已是紧急联系人');
+      }
     }
 
     const updateData: Record<string, unknown> = {};
@@ -166,11 +203,17 @@ export class ContactService {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
-    await this.prisma.verificationCode.create({
+    const record = await this.prisma.verificationCode.create({
       data: { phone: contact.phone, code, expiresAt },
     });
 
-    await this.sms.sendVerificationCode(contact.phone, code);
+    const sent = await this.sms.sendVerificationCode(contact.phone, code);
+    if (!sent) {
+      await this.prisma.verificationCode
+        .delete({ where: { id: record.id } })
+        .catch(() => undefined);
+      throw new ServiceUnavailableException('验证码发送失败，请稍后重试');
+    }
     this.logger.log(`Contact verification code sent to ${contact.phone.slice(0, 3)}****${contact.phone.slice(-4)}`);
 
     return {
@@ -217,9 +260,8 @@ export class ContactService {
     return { message: '联系人已验证', contact: updated };
   }
 
-  private async isPremium(userId: string): Promise<boolean> {
-    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
-    return sub?.status === 'active' || sub?.status === 'trial';
+  private isTransactionConflict(error: unknown): boolean {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
   }
 
   private isMockMode(): boolean {

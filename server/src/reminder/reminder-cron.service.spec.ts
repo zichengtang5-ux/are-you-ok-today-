@@ -23,12 +23,17 @@ function shanghaiHhmmOffset(deltaMin: number): string {
 
 describe('ReminderCronService', () => {
   let service: ReminderCronService;
-  const mockPrisma = {
+  const mockPrisma: any = {
     reminderConfig: { findMany: jest.fn(), update: jest.fn().mockResolvedValue({}) },
     dailyRecord: { findUnique: jest.fn(), upsert: jest.fn().mockResolvedValue({}) },
     guardStatus: { upsert: jest.fn() },
     alertEvent: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     notificationLog: { create: jest.fn().mockResolvedValue({}) },
+    pauseLog: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    $transaction: jest.fn(async (arg: unknown): Promise<unknown> => {
+      if (typeof arg === 'function') return (arg as (tx: any) => unknown)(mockPrisma);
+      return Promise.all(arg as Promise<unknown>[]);
+    }),
   };
   const mockPush = { sendCareReminder: jest.fn().mockResolvedValue(true) };
   const mockNotificationQueue = { enqueueAlert: jest.fn().mockResolvedValue(undefined) };
@@ -73,6 +78,7 @@ describe('ReminderCronService', () => {
       contacts: [],
       pauseLogs: [],
       guardStatus: { id: 'gs1', status: 'idle', lastReplyAt: null },
+      subscription: null,
       ...overrides,
     };
   }
@@ -167,6 +173,24 @@ describe('ReminderCronService', () => {
     expect(mockPush.sendCareReminder).not.toHaveBeenCalled();
   });
 
+  it('should auto-resume an expired pause and continue reminder processing', async () => {
+    const pastEnd = new Date(Date.now() - 60_000);
+    due(baseConfig(baseUser({
+      pauseLogs: [{ isActive: true, endTime: pastEnd }],
+      guardStatus: { id: 'gs1', status: 'paused', lastReplyAt: null },
+    }), shanghaiHhmmOffset(-5)));
+    mockPrisma.dailyRecord.findUnique.mockResolvedValue(null);
+    mockPrisma.guardStatus.upsert.mockResolvedValue({ status: 'grace' });
+
+    await service.checkDueReminders();
+
+    expect(mockPrisma.pauseLog.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'u1', isActive: true },
+      data: { isActive: false },
+    });
+    expect(mockPush.sendCareReminder).toHaveBeenCalledWith('tok1', '小李');
+  });
+
   it('should send care reminder when window ended and user not replied', async () => {
     due(baseConfig(baseUser(), shanghaiHhmmOffset(-5)));
     mockPrisma.dailyRecord.findUnique.mockResolvedValue(null);
@@ -207,6 +231,67 @@ describe('ReminderCronService', () => {
         alertId: 'ae1',
         nickname: '小李',
         round: 1,
+        includeVoice: false,
+      }),
+    );
+  });
+
+  it('should include voice calls only for an unexpired premium subscription', async () => {
+    due(
+      baseConfig(
+        baseUser({
+          devices: [],
+          contacts: [{ id: 'c1', name: '妈妈', phone: '13800001111' }],
+          guardStatus: { id: 'gs1', status: 'grace', lastReplyAt: null },
+          subscription: {
+            status: 'active',
+            currentPeriodEnd: new Date(Date.now() + 86400000),
+          },
+        }),
+        shanghaiHhmmOffset(-40),
+      ),
+    );
+    mockPrisma.dailyRecord.findUnique.mockResolvedValue({ status: 'grace' });
+    mockPrisma.guardStatus.upsert.mockResolvedValue({ id: 'gs1', status: 'alert' });
+    mockPrisma.alertEvent.findFirst.mockResolvedValue(null);
+    mockPrisma.alertEvent.create.mockResolvedValue({ id: 'ae1', smsRounds: 0 });
+
+    await service.checkDueReminders();
+
+    expect(mockNotificationQueue.enqueueAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ includeVoice: true }),
+    );
+  });
+
+  it('only alerts the primary contact for a free user with retained premium contacts', async () => {
+    due(
+      baseConfig(
+        baseUser({
+          devices: [],
+          contacts: [
+            { id: 'c1', name: '妈妈', phone: '13800001111' },
+            { id: 'c2', name: '爸爸', phone: '13800002222' },
+          ],
+          guardStatus: { id: 'gs1', status: 'grace', lastReplyAt: null },
+          subscription: {
+            status: 'expired',
+            currentPeriodEnd: new Date(Date.now() - 60_000),
+          },
+        }),
+        shanghaiHhmmOffset(-40),
+      ),
+    );
+    mockPrisma.dailyRecord.findUnique.mockResolvedValue({ status: 'grace' });
+    mockPrisma.guardStatus.upsert.mockResolvedValue({ id: 'gs1', status: 'alert' });
+    mockPrisma.alertEvent.findFirst.mockResolvedValue(null);
+    mockPrisma.alertEvent.create.mockResolvedValue({ id: 'ae1', smsRounds: 0 });
+
+    await service.checkDueReminders();
+
+    expect(mockNotificationQueue.enqueueAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contacts: [{ id: 'c1', phone: '13800001111' }],
+        includeVoice: false,
       }),
     );
   });

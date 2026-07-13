@@ -39,6 +39,21 @@ describe('parseDeepLink', () => {
     expect(parseDeepLink('todayok://subscription')).toEqual({ path: '/subscription' });
   });
 
+  it('preserves allowed settings child routes', () => {
+    expect(parseDeepLink('todayok://settings/edit-contact')).toEqual({
+      path: '/settings/edit-contact',
+    });
+    expect(parseDeepLink('todayok://settings/delete-confirm')).toEqual({
+      path: '/settings',
+    });
+  });
+
+  it('routes emergency help links', () => {
+    expect(parseDeepLink('todayok://help/emergency')).toEqual({
+      path: '/help/emergency',
+    });
+  });
+
   it('returns null for unknown / empty links', () => {
     expect(parseDeepLink('todayok://')).toBeNull();
     expect(parseDeepLink('todayok://unknown/thing')).toBeNull();

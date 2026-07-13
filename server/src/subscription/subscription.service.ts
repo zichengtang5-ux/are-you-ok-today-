@@ -1,51 +1,67 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+import {
+  AppStoreServerAPIClient,
+  Environment,
+  SignedDataVerifier,
+  Status,
+} from '@apple/app-store-server-library';
 import * as fs from 'fs';
+import { PrismaService } from '../prisma/prisma.service';
 
-const PLAN_DURATION: Record<string, number> = {
-  monthly: 30,
-  yearly: 365,
-};
+type SubscriptionPlan = 'monthly' | 'yearly';
 
-const STOREKIT_BASE_URL = 'https://api.storekit.apple.com';
-const STOREKIT_SANDBOX_URL = 'https://api.storekit-sandbox.apple.com';
+interface AppleTransactionDetails {
+  plan: SubscriptionPlan;
+  transactionId: string;
+  originalTransactionId: string;
+  currentPeriodEnd: Date;
+}
 
 @Injectable()
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
-  private apiTokenCache: { token: string; expiresAt: number } | null = null;
 
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
   ) {}
 
-  async verify(userId: string, transactionId: string, plan: string) {
-    const isValid = await this.validateAppleTransaction(transactionId);
-    if (!isValid) {
+  async verify(userId: string, transactionId: string, requestedPlan: string) {
+    const plan = requestedPlan as SubscriptionPlan;
+    const transaction = await this.validateAppleTransaction(transactionId, plan);
+    if (!transaction) {
       throw new BadRequestException('交易验证失败');
     }
 
-    const durationDays = PLAN_DURATION[plan] ?? 30;
-    const currentPeriodEnd = new Date();
-    currentPeriodEnd.setDate(currentPeriodEnd.getDate() + durationDays);
+    const existingOwner = await this.prisma.subscription.findFirst({
+      where: {
+        OR: [
+          { appleTransactionId: transaction.transactionId },
+          { appleOriginalTransactionId: transaction.originalTransactionId },
+        ],
+      },
+    });
+    if (existingOwner && existingOwner.userId !== userId) {
+      throw new BadRequestException('该 Apple 订阅已绑定其他账号');
+    }
 
     const subscription = await this.prisma.subscription.upsert({
       where: { userId },
       update: {
-        plan,
+        plan: transaction.plan,
         status: 'active',
-        currentPeriodEnd,
-        appleTransactionId: transactionId,
+        currentPeriodEnd: transaction.currentPeriodEnd,
+        appleTransactionId: transaction.transactionId,
+        appleOriginalTransactionId: transaction.originalTransactionId,
       },
       create: {
         userId,
-        plan,
+        plan: transaction.plan,
         status: 'active',
-        currentPeriodEnd,
-        appleTransactionId: transactionId,
+        currentPeriodEnd: transaction.currentPeriodEnd,
+        appleTransactionId: transaction.transactionId,
+        appleOriginalTransactionId: transaction.originalTransactionId,
       },
     });
 
@@ -54,16 +70,14 @@ export class SubscriptionService {
         plan: subscription.plan,
         status: subscription.status,
         currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
-        originalTransactionId: transactionId,
+        originalTransactionId: transaction.originalTransactionId,
         isTrial: false,
       },
     };
   }
 
   async getStatus(userId: string) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-    });
+    const subscription = await this.prisma.subscription.findUnique({ where: { userId } });
 
     if (!subscription) {
       return {
@@ -75,8 +89,7 @@ export class SubscriptionService {
     }
 
     const isPremium = subscription.status === 'active' || subscription.status === 'trial';
-
-    if (isPremium && subscription.currentPeriodEnd && subscription.currentPeriodEnd < new Date()) {
+    if (isPremium && subscription.currentPeriodEnd && subscription.currentPeriodEnd <= new Date()) {
       await this.prisma.subscription.update({
         where: { userId },
         data: { status: 'expired' },
@@ -97,132 +110,119 @@ export class SubscriptionService {
     };
   }
 
-  private async validateAppleTransaction(transactionId: string): Promise<boolean> {
+  private async validateAppleTransaction(
+    transactionId: string,
+    requestedPlan: SubscriptionPlan,
+  ): Promise<AppleTransactionDetails | null> {
     const nodeEnv = this.config.get('NODE_ENV', 'development');
     if (nodeEnv === 'development') {
+      const currentPeriodEnd = new Date();
+      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + (requestedPlan === 'yearly' ? 365 : 30));
       this.logger.log(`[MOCK IAP] Transaction verified: ${transactionId}`);
-      return true;
+      return {
+        plan: requestedPlan,
+        transactionId,
+        originalTransactionId: transactionId,
+        currentPeriodEnd,
+      };
     }
 
     try {
-      const token = this.getApiToken();
-      const baseUrl = nodeEnv === 'production' ? STOREKIT_BASE_URL : STOREKIT_SANDBOX_URL;
-      const url = `${baseUrl}/inApps/v1/subscriptions/${transactionId}`;
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        this.logger.error(
-          `[Apple IAP] API 请求失败: status=${response.status} transactionId=${transactionId}`,
-        );
-        return false;
+      const { client, verifier, bundleId } = this.createAppleClients();
+      const response = await client.getAllSubscriptionStatuses(transactionId, [Status.ACTIVE]);
+      if (response.bundleId && response.bundleId !== bundleId) {
+        this.logger.error(`[Apple IAP] Bundle mismatch: ${response.bundleId}`);
+        return null;
       }
 
-      const data = (await response.json()) as Record<string, unknown>;
-      const subscriptionData = data as { data?: Array<{ lastTransactions?: Array<{ status?: number; signedTransactionInfo?: string }> }> };
-      const subscriptionGroups = subscriptionData.data ?? [];
-
-      for (const group of subscriptionGroups) {
-        const transactions = group.lastTransactions ?? [];
-        for (const tx of transactions) {
-          if (tx.status === 1) {
-            this.logger.log(`[Apple IAP] 订阅有效: transactionId=${transactionId}`);
-            return true;
+      const expectedProductId = this.getProductIds()[requestedPlan];
+      const candidates: AppleTransactionDetails[] = [];
+      for (const group of response.data ?? []) {
+        for (const item of group.lastTransactions ?? []) {
+          if (item.status !== Status.ACTIVE || !item.signedTransactionInfo) continue;
+          const decoded = await verifier.verifyAndDecodeTransaction(item.signedTransactionInfo);
+          if (
+            decoded.productId !== expectedProductId ||
+            decoded.bundleId !== bundleId ||
+            !decoded.transactionId ||
+            !decoded.originalTransactionId ||
+            !decoded.expiresDate ||
+            decoded.expiresDate <= Date.now() ||
+            decoded.revocationDate
+          ) {
+            continue;
           }
+          candidates.push({
+            plan: requestedPlan,
+            transactionId: decoded.transactionId,
+            originalTransactionId: decoded.originalTransactionId,
+            currentPeriodEnd: new Date(decoded.expiresDate),
+          });
         }
       }
 
-      this.logger.warn(`[Apple IAP] 订阅无效或已过期: transactionId=${transactionId}`);
-      return false;
+      return candidates.sort(
+        (a, b) => b.currentPeriodEnd.getTime() - a.currentPeriodEnd.getTime(),
+      )[0] ?? null;
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`[Apple IAP] 校验异常: ${errMsg}`);
-      return false;
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[Apple IAP] Validation failed: ${message}`);
+      return null;
     }
   }
 
-  private getApiToken(): string {
-    const now = Math.floor(Date.now() / 1000);
-    if (this.apiTokenCache && this.apiTokenCache.expiresAt > now + 60) {
-      return this.apiTokenCache.token;
-    }
-
-    const issuerId = this.config.get('APPLE_IAP_ISSUER_ID', '');
-    const keyId = this.config.get('APPLE_IAP_KEY_ID', '');
-    const keyPath = this.config.get('APPLE_IAP_KEY_PATH', '');
+  private createAppleClients(): {
+    client: AppStoreServerAPIClient;
+    verifier: SignedDataVerifier;
+    bundleId: string;
+  } {
+    const issuerId = this.requiredConfig('APPLE_IAP_ISSUER_ID');
+    const keyId = this.requiredConfig('APPLE_IAP_KEY_ID');
+    const keyPath = this.requiredConfig('APPLE_IAP_KEY_PATH');
+    const rootCaPaths = this.requiredConfig('APPLE_ROOT_CA_PATHS')
+      .split(',')
+      .map((path) => path.trim())
+      .filter(Boolean);
     const bundleId = this.config.get('APNS_BUNDLE_ID', 'com.todayok.app');
-
-    if (!issuerId || !keyId || !keyPath) {
-      throw new Error('Missing APPLE_IAP_ISSUER_ID, APPLE_IAP_KEY_ID, or APPLE_IAP_KEY_PATH');
+    const nodeEnv = this.config.get('NODE_ENV', 'development');
+    const environment = nodeEnv === 'production' ? Environment.PRODUCTION : Environment.SANDBOX;
+    const signingKey = fs.readFileSync(keyPath, 'utf8');
+    const roots = rootCaPaths.map((path) => fs.readFileSync(path));
+    const appAppleIdValue = this.config.get('APPLE_APP_ID', '');
+    const appAppleId = appAppleIdValue ? Number(appAppleIdValue) : undefined;
+    if (environment === Environment.PRODUCTION && !Number.isInteger(appAppleId)) {
+      throw new Error('Missing or invalid APPLE_APP_ID');
     }
 
-    const privateKey = fs.readFileSync(keyPath, 'utf8');
-
-    const header = { alg: 'ES256', kid: keyId, typ: 'JWT' };
-    const payload = {
-      iss: issuerId,
-      iat: now,
-      exp: now + 3600,
-      aud: 'appstoreconnect-v1',
-      bid: bundleId,
+    return {
+      client: new AppStoreServerAPIClient(signingKey, keyId, issuerId, bundleId, environment),
+      verifier: new SignedDataVerifier(
+        roots,
+        true,
+        environment,
+        bundleId,
+        appAppleId,
+      ),
+      bundleId,
     };
-
-    const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
-    const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
-    const signingInput = `${encodedHeader}.${encodedPayload}`;
-
-    const sign = crypto.createSign('SHA256');
-    sign.update(signingInput);
-    const derSignature = sign.sign(privateKey);
-    const joseSignature = this.derToJose(derSignature);
-
-    const token = `${signingInput}.${this.base64UrlEncodeBuffer(joseSignature)}`;
-    this.apiTokenCache = { token, expiresAt: now + 3600 };
-
-    return token;
   }
 
-  private base64UrlEncode(str: string): string {
-    return Buffer.from(str)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+  private getProductIds(): Record<SubscriptionPlan, string> {
+    return {
+      monthly: this.config.get(
+        'APPLE_IAP_MONTHLY_PRODUCT_ID',
+        'com.todayok.subscription.monthly',
+      ),
+      yearly: this.config.get(
+        'APPLE_IAP_YEARLY_PRODUCT_ID',
+        'com.todayok.subscription.yearly',
+      ),
+    };
   }
 
-  private base64UrlEncodeBuffer(buf: Buffer): string {
-    return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  private derToJose(der: Buffer): Buffer {
-    const r = this.extractDerInteger(der, 0);
-    const s = this.extractDerInteger(der, r.offset);
-    return Buffer.concat([
-      this.padTo32Bytes(r.value),
-      this.padTo32Bytes(s.value),
-    ]);
-  }
-
-  private extractDerInteger(der: Buffer, offset: number): { value: Buffer; offset: number } {
-    if (der[offset] !== 0x02) {
-      throw new Error('Invalid DER: expected INTEGER tag');
-    }
-    const length = der[offset + 1];
-    const value = der.subarray(offset + 2, offset + 2 + length);
-    return { value, offset: offset + 2 + length };
-  }
-
-  private padTo32Bytes(buf: Buffer): Buffer {
-    if (buf.length === 32) return buf;
-    if (buf.length > 32) return buf.subarray(buf.length - 32);
-    const padded = Buffer.alloc(32, 0);
-    buf.copy(padded, 32 - buf.length);
-    return padded;
+  private requiredConfig(key: string): string {
+    const value = this.config.get<string>(key, '');
+    if (!value) throw new Error(`Missing ${key}`);
+    return value;
   }
 }

@@ -33,6 +33,9 @@ describe('AlertService', () => {
       dailyRecord: {
         upsert: jest.fn(),
       },
+      reminderConfig: {
+        findUnique: jest.fn(),
+      },
       $transaction: jest.fn(async (arg: unknown): Promise<unknown> => {
         if (typeof arg === 'function') {
           return (arg as (tx: unknown) => unknown)(mockPrisma);
@@ -51,6 +54,10 @@ describe('AlertService', () => {
 
     service = mod.get(AlertService);
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('returns active alert with masked contacts and sms round count', async () => {
@@ -144,6 +151,36 @@ describe('AlertService', () => {
         expect.objectContaining({ type: 'call_120', address: '上海市测试路' }),
         expect.objectContaining({ type: 'call_contact' }),
       ]),
+    );
+  });
+
+  it('records a post-midnight confirmation against the previous guard date', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-11T16:30:00Z'));
+    mockPrisma.alertEvent.findUnique.mockResolvedValue({
+      id: 'a1',
+      userId: 'u1',
+      status: 'active',
+      timeline: '[]',
+    });
+    mockPrisma.user.findUnique.mockResolvedValue({ phone: '13900001111' });
+    mockPrisma.emergencyContact.findUnique.mockResolvedValue({
+      id: 'c1',
+      userId: 'u1',
+      name: '妈妈',
+      phone: '13900001111',
+    });
+    mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+      startTime: '23:00',
+      endTime: '01:00',
+      timezone: 'Asia/Shanghai',
+    });
+
+    await service.confirm('u1', 'a1', 'c1');
+
+    expect(mockPrisma.dailyRecord.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_date: { userId: 'u1', date: '2026-07-11' } },
+      }),
     );
   });
 

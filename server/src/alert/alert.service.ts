@@ -6,12 +6,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { getGuardDateForMoment } from '../reminder/reminder-schedule.util';
 
-function todayString(): string {
-  const now = new Date();
-  const shanghai = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  return shanghai.toISOString().slice(0, 10);
-}
+const DEFAULT_REMINDER = {
+  startTime: '20:00',
+  endTime: '22:00',
+  timezone: 'Asia/Shanghai',
+};
 
 function formatTimelineTime(date: Date): string {
   const shanghai = new Date(date.getTime() + 8 * 60 * 60 * 1000);
@@ -83,6 +84,10 @@ export class AlertService {
     const alert = await this.findActionableAlert(alertId);
     const contact = await this.assertActionContact(userId, alert.userId, contactId);
     const now = new Date();
+    const reminderConfig =
+      await this.prisma.reminderConfig.findUnique({ where: { userId: alert.userId } }) ??
+      DEFAULT_REMINDER;
+    const guardDate = getGuardDateForMoment(now, reminderConfig, 'alert');
     const timeline = parseJsonArray<{ time: string; action: string; isCurrent?: boolean }>(alert.timeline).map(
       (item) => ({ ...item, isCurrent: false }),
     );
@@ -125,11 +130,11 @@ export class AlertService {
       });
 
       await tx.dailyRecord.upsert({
-        where: { userId_date: { userId: alert.userId, date: todayString() } },
+        where: { userId_date: { userId: alert.userId, date: guardDate } },
         update: { status: 'replied', repliedAt: now, replyMethod: 'contact_confirm' },
         create: {
           userId: alert.userId,
-          date: todayString(),
+          date: guardDate,
           status: 'replied',
           repliedAt: now,
           replyMethod: 'contact_confirm',

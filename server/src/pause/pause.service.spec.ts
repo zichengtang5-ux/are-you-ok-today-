@@ -5,7 +5,7 @@ import { BadRequestException } from '@nestjs/common';
 
 describe('PauseService', () => {
   let service: PauseService;
-  const mockPrisma = {
+  const mockPrisma: any = {
     pauseLog: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -15,6 +15,14 @@ describe('PauseService', () => {
     guardStatus: {
       upsert: jest.fn(),
     },
+    reminderConfig: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(async (arg: unknown): Promise<unknown> => {
+      if (typeof arg === 'function') return (arg as (tx: any) => unknown)(mockPrisma);
+      return Promise.all(arg as Promise<unknown>[]);
+    }),
   };
 
   beforeEach(async () => {
@@ -56,6 +64,23 @@ describe('PauseService', () => {
       );
     });
 
+    it('should move the next reminder past the pause period', async () => {
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        endTime: '22:00',
+        timezone: 'Asia/Shanghai',
+      });
+      mockPrisma.pauseLog.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.pauseLog.create.mockResolvedValue({ id: 'pl1' });
+      mockPrisma.guardStatus.upsert.mockResolvedValue({ status: 'paused' });
+
+      await service.pause('u1', 3);
+
+      expect(mockPrisma.reminderConfig.update).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        data: { nextDueAt: expect.any(Date) },
+      });
+    });
+
     it('should deactivate existing active pauses before creating new one', async () => {
       mockPrisma.pauseLog.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.pauseLog.create.mockResolvedValue({ id: 'pl2' });
@@ -95,6 +120,10 @@ describe('PauseService', () => {
       mockPrisma.pauseLog.findFirst.mockResolvedValue({ id: 'pl1', isActive: true });
       mockPrisma.pauseLog.update.mockResolvedValue({});
       mockPrisma.guardStatus.upsert.mockResolvedValue({ status: 'idle' });
+      mockPrisma.reminderConfig.findUnique.mockResolvedValue({
+        endTime: '22:00',
+        timezone: 'Asia/Shanghai',
+      });
 
       const result = await service.resume('u1');
 
@@ -106,6 +135,10 @@ describe('PauseService', () => {
           data: expect.objectContaining({ isActive: false }),
         }),
       );
+      expect(mockPrisma.reminderConfig.update).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        data: { nextDueAt: expect.any(Date) },
+      });
     });
 
     it('should throw when no active pause', async () => {

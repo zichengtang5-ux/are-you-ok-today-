@@ -17,7 +17,7 @@ Authorization: Bearer <accessToken>
 | `POST` | `/api/auth/send-code` | 发送手机号验证码 |
 | `POST` | `/api/auth/verify-code` | 验证验证码并登录/注册 |
 | `POST` | `/api/auth/refresh` | 刷新 token |
-| `GET` | `/api/auth/me` | 当前用户与守护关系 |
+| `GET` | `/api/auth/me` | 当前用户、联系人、提醒和订阅权益 |
 
 开发环境 `SMS_PROVIDER=mock` 时，`send-code` 响应可包含 `mockCode`。
 
@@ -40,9 +40,9 @@ Authorization: Bearer <accessToken>
 | `POST` | `/api/contacts` | 新增紧急联系人 |
 | `PATCH` | `/api/contacts/:id` | 更新联系人 |
 | `DELETE` | `/api/contacts/:id` | 删除联系人 |
-| `POST` | `/api/contacts/:id/send-code` | 发送联系人验证短信 |
-| `POST` | `/api/contacts/:id/verify` | 验证联系人手机号 |
 | `PUT` | `/api/contacts/reorder` | 按联系人 id 数组重排优先级 |
+
+当前产品流程保存联系人后即可使用，不要求联系人验证码。免费版最多 1 位，守护版最多 5 位；后端会检查订阅到期时间、拒绝重复手机号，并以串行化事务防止并发绕过上限。守护版到期后，列表、超时告警和 SOS 统一只使用优先级最高的 1 位联系人；其余联系人保留在账号中，重新订阅后恢复，避免降级时直接丢失用户数据。旧版联系人验证码接口暂为兼容保留，不供当前前端调用。
 
 ## Reminder / Reply
 
@@ -60,6 +60,8 @@ Authorization: Bearer <accessToken>
 ```text
 idle | waiting | replied | grace | alert | paused
 ```
+
+`GET /reply/status` 返回绝对时间 `graceDeadlineAt`，跨午夜倒计时以该字段为准；`monthlyStats.totalDays` 始终是当月总天数。`POST /reply/today` 为幂等接口，重复提交仍返回成功状态。
 
 ## Alert
 
@@ -88,16 +90,6 @@ idle | waiting | replied | grace | alert | paused
 
 用于推送 `status_changed` 等状态事件。前端实现位于 `app/src/services/realtime.ts`。
 
-## Guardian
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| `POST` | `/api/guardian/create` | 创建守护邀请 |
-| `POST` | `/api/guardian/accept-invite` | 接受邀请码 |
-| `GET` | `/api/guardian/wards` | 子女端守护对象列表 |
-| `GET` | `/api/guardian/wards/:id/dashboard` | 被守护人看板 |
-| `POST` | `/api/guardian/wards/:id/proxy-reply` | 子女代确认 |
-
 ## Pause
 
 | 方法 | 路径 | 说明 |
@@ -106,7 +98,7 @@ idle | waiting | replied | grace | alert | paused
 | `POST` | `/api/pause/resume` | 恢复守护 |
 | `GET` | `/api/pause/status` | 暂停状态 |
 
-暂停期间提醒引擎不会触发告警。
+暂停期间提醒引擎不会触发告警；提前恢复和自然到期都会重新计算 `nextDueAt`，恢复后不会漏掉下一次提醒。
 
 ## Help
 
@@ -117,15 +109,18 @@ idle | waiting | replied | grace | alert | paused
 
 前端优先提交定位，经纬度不可用时回退保存地址。
 
+`POST /help/emergency` 接收经纬度、误差半径、采集时间、定位来源、精确位置授权状态、地址来源和用户确认状态。`deliveryStatus` 为 `sent | partial | failed | no_contacts`，并分别返回 `contactsNotified` 与 `contactsFailed`。`sent` 表示短信服务商已接受发送请求，不表示联系人已阅读。
+
+服务端只在当前坐标距离预存住址 100 米以内时自动采用预存的楼栋门牌；否则使用 Apple Maps Server API 补全地址。地址服务不可用时仍发送坐标地图链接，不会将可能错误的家庭住址冒充为当前位置。
+
 ## Subscription
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/api/subscription/verify` | 校验 Apple IAP 交易 |
-| `POST` | `/api/subscription/proxy-subscribe` | 子女代付订阅 |
 | `GET` | `/api/subscription/status` | 当前订阅状态 |
 
-生产联调前需要在 App Store Connect 创建订阅产品，并配置 Apple IAP 私钥环境变量。
+生产校验使用 Apple 官方 App Store Server Library，校验签名、bundle id、产品 id、真实到期时间和原始交易归属。生产联调前需创建订阅产品，并配置 IAP 私钥、Apple Root CA、App Apple ID 与产品 ID 环境变量。
 
 ## 调试建议
 

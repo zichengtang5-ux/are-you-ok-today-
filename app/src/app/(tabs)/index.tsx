@@ -39,6 +39,7 @@ export default function HomeScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [graceCountdown, setGraceCountdown] = useState('--:--');
+  const [graceDeadlineAt, setGraceDeadlineAt] = useState<string | null>(null);
   const [daysInMonth, setDaysInMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -48,20 +49,35 @@ export default function HomeScreen() {
     if (todayStatus !== 'grace') return;
     const calcRemaining = () => {
       const now = new Date();
-      const mins = now.getHours() * 60 + now.getMinutes();
-      const secs = now.getSeconds();
-      const [eh, em] = reminder.endTime.split(':').map(Number);
-      const deadlineMin = eh * 60 + em + reminder.gracePeriodMin;
-      const remainSec = (deadlineMin * 60) - (mins * 60 + secs);
+      let deadline: Date;
+      if (graceDeadlineAt) {
+        deadline = new Date(graceDeadlineAt);
+      } else {
+        deadline = new Date(now);
+        const [sh, sm] = reminder.startTime.split(':').map(Number);
+        const [eh, em] = reminder.endTime.split(':').map(Number);
+        const startMin = sh * 60 + sm;
+        const endMin = eh * 60 + em;
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        deadline.setHours(eh, em, 0, 0);
+        if (endMin < startMin && nowMin >= startMin) {
+          deadline.setDate(deadline.getDate() + 1);
+        }
+        deadline.setMinutes(deadline.getMinutes() + reminder.gracePeriodMin);
+      }
+      const remainSec = Math.ceil((deadline.getTime() - now.getTime()) / 1000);
       if (remainSec <= 0) return '00:00';
       const m = Math.floor(remainSec / 60);
       const s = remainSec % 60;
       return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     };
-    setGraceCountdown(calcRemaining());
+    const initialTimer = setTimeout(() => setGraceCountdown(calcRemaining()), 0);
     const timer = setInterval(() => setGraceCountdown(calcRemaining()), 1000);
-    return () => clearInterval(timer);
-  }, [todayStatus, reminder.endTime, reminder.gracePeriodMin]);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(timer);
+    };
+  }, [todayStatus, graceDeadlineAt, reminder.startTime, reminder.endTime, reminder.gracePeriodMin]);
 
   useFocusEffect(
     useCallback(() => {
@@ -73,6 +89,7 @@ export default function HomeScreen() {
         if (cancelled) return;
         const effectiveStatus = computeEffectiveStatus(data.status, data.reminderConfig ?? undefined);
         setTodayStatus(effectiveStatus);
+        setGraceDeadlineAt(data.graceDeadlineAt ?? null);
         if (data.reminderConfig) {
           setReminder({ startTime: data.reminderConfig.startTime, endTime: data.reminderConfig.endTime, gracePeriodMin: data.reminderConfig.gracePeriodMin });
         }
@@ -87,7 +104,11 @@ export default function HomeScreen() {
             }
           }).catch(() => {});
         } else { setActiveAlert(null); }
-      }).catch(() => {});
+      }).catch(() => {
+        if (!cancelled) {
+          Alert.alert('状态同步失败', '暂时无法获取最新守护状态，请检查网络后重试。');
+        }
+      });
       return () => { cancelled = true; };
     }, [demoCheckIn, setTodayStatus, setReminder, setStreak, setActiveAlert]),
   );
@@ -111,7 +132,8 @@ export default function HomeScreen() {
         ]);
         return;
       }
-      // silently handle other errors
+      const message = err.response?.data?.message;
+      Alert.alert('签到失败', typeof message === 'string' ? message : '请检查网络后重试');
     } finally {
       setActionLoading(false);
     }

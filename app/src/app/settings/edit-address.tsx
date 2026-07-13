@@ -10,6 +10,13 @@ import { getCurrentAddress } from '@/services/location';
 import { isOfflineDevSession } from '@/services/devMock';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
 
+interface AddressLocation {
+  baseAddress: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+}
+
 export default function EditAddressScreen() {
   const router = useRouter();
   const { user, setUser } = useStore();
@@ -19,6 +26,7 @@ export default function EditAddressScreen() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const [locationHint, setLocationHint] = useState('');
+  const [addressLocation, setAddressLocation] = useState<AddressLocation | null>(null);
 
   const handleUseLocation = async () => {
     setLocating(true);
@@ -27,6 +35,12 @@ export default function EditAddressScreen() {
       const result = await getCurrentAddress();
       setAddress(result.address);
       setLocationHint(result.hint);
+      setAddressLocation({
+        baseAddress: result.address,
+        latitude: result.latitude,
+        longitude: result.longitude,
+        accuracyMeters: result.accuracyMeters,
+      });
     } catch (err: any) {
       setError(err?.message || '定位失败，请手动输入地址');
     } finally {
@@ -43,13 +57,35 @@ export default function EditAddressScreen() {
     setError('');
     try {
       const nextAddress = address.trim();
-      const updatedUser = await userApi.updateProfile({ address: nextAddress });
-      setUser({ ...user, ...updatedUser, address: nextAddress } as any);
+      const addressMetadata = addressLocation
+        ? {
+            addressLatitude: addressLocation.latitude,
+            addressLongitude: addressLocation.longitude,
+            addressAccuracyMeters: addressLocation.accuracyMeters,
+          }
+        : {
+            addressLatitude: null,
+            addressLongitude: null,
+            addressAccuracyMeters: null,
+          };
+      const updatedUser = await userApi.updateProfile({ address: nextAddress, ...addressMetadata });
+      setUser({ ...user, ...updatedUser, address: nextAddress, ...addressMetadata } as any);
       router.back();
     } catch (err: any) {
       if (await isOfflineDevSession()) {
         const nextAddress = address.trim();
-        setUser({ ...user, address: nextAddress } as any);
+        const addressMetadata = addressLocation
+          ? {
+              addressLatitude: addressLocation.latitude,
+              addressLongitude: addressLocation.longitude,
+              addressAccuracyMeters: addressLocation.accuracyMeters,
+            }
+          : {
+              addressLatitude: null,
+              addressLongitude: null,
+              addressAccuracyMeters: null,
+            };
+        setUser({ ...user, address: nextAddress, ...addressMetadata } as any);
         router.back();
         return;
       }
@@ -84,7 +120,14 @@ export default function EditAddressScreen() {
         <Input
           label=""
           value={address}
-          onChangeText={(text) => { setAddress(text); setLocationHint(''); setError(''); }}
+          onChangeText={(text) => {
+            setAddress(text);
+            setLocationHint('');
+            setError('');
+            if (addressLocation && !text.trim().startsWith(addressLocation.baseAddress.trim())) {
+              setAddressLocation(null);
+            }
+          }}
           placeholder="如：朝阳区XX路XX号 3号楼502"
           error={error}
         />

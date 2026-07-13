@@ -50,6 +50,14 @@ export async function purchasePlan(plan: SubscriptionPlan): Promise<PurchaseResu
   };
 }
 
+export async function finishPurchase(_transactionId: string): Promise<void> {
+  // Mock 交易无需 StoreKit 确认。
+}
+
+export async function restorePurchases(): Promise<PurchaseResult[]> {
+  return [];
+}
+
 export async function endIap(): Promise<void> {
   // no-op on Expo Go / Web
 }

@@ -26,3 +26,6 @@ _output/
 # Expo
 app/dist/
 app/.expo/
+
+# Local simulator evidence
+artifacts/screenshots/

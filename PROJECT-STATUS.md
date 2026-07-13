@@ -1,6 +1,6 @@
 # 项目状态总览
 
-最后更新：2026-07-12
+最后更新：2026-07-13
 当前主分支：`main`
 最新验证：前端交互全流程模拟器回归 + 前后端单测
 
@@ -33,7 +33,7 @@
 - 用户协议和隐私政策入口已从配置读取 URL
 - 告警联系人页支持 `alertId + contactId` 深链场景，可确认安全或进入求助建议页
 - 地址页支持定位填充地址
-- 紧急求助页采用红色圆形 SOS，进入即定位；定位结果与门牌补充合并在同一地址框中，并通知已验证联系人；不提供 110/120 入口或自动拨号
+- 紧急求助页采用红色圆形 SOS，进入即定位；定位结果与门牌补充合并在同一地址框中，并通知已保存联系人；不提供 110/120 入口或自动拨号
 - 紧急联系人引导不再要求填写联系人验证码
 - 提醒时间使用 `00:00` 至 `23:00` 的 24 小时整点滚动选择，首页按上午/晚上和今天/明天明确展示下一次提醒
 - 引导流程支持逐步返回修改，并保留已填写数据
@@ -55,6 +55,11 @@
 - 通知投递进入 BullMQ，支持重试和死信
 - APNs、阿里云短信、阿里云语音电话服务已接入
 - Apple IAP receipt / transaction 校验服务已接入
+- Apple IAP 改用官方服务端库，校验产品、bundle、真实到期时间和原始交易归属；客户端后端入账后才确认 StoreKit 交易
+- 免费版固定只启用 1 位主联系人且只发送短信，守护版最多 5 位并增加语音告警；到期后端立即降级，额外联系人数据保留但不再暴露或通知
+- SOS 短信按联系人记录 `sent/failed`，前端区分全部成功、部分失败和全部失败
+- 每日签到改为事务内幂等，昨日签到状态不会延续到新的守护日
+- 暂停、恢复与自然到期会同步重排提醒调度时间
 - `GET /alert/:id`、`POST /alert/:id/confirm`、`POST /alert/:id/help` 已补齐
 - `PUT /contacts/reorder` 与 `GET /reply/streak` 已补齐
 - 告警通知短信包含 `todayok://alert/:id?contactId=...` 链接
@@ -78,7 +83,7 @@ npx expo export --platform ios --output-dir /tmp/expo-export
 结果：
 
 - 类型检查通过
-- 10 个 test suites / 88 个 tests 通过
+- 13 个 test suites / 100 个 tests 通过
 - lint 0 errors，仍有少量 warnings
 - Expo 依赖检查通过
 - iOS export 成功
@@ -97,7 +102,8 @@ npm audit --audit-level=moderate
 结果：
 
 - Prisma Client 生成通过
-- 20 个 test suites / 145 个 tests 通过
+- 19 个 test suites / 147 个 tests 通过
+- 真实 PostgreSQL 16 + Redis 集成测试 2 项通过，4 个 migration 在全新数据库部署成功
 - 构建通过
 - audit 0 vulnerabilities
 
@@ -116,6 +122,7 @@ npm audit --audit-level=moderate
 | P0 | 配置阿里云 SMS / Voice 模板并完成审核 | 后端/运营 | 待办 |
 | P0 | 创建 Apple IAP 订阅产品 | 产品/运营 | 待办 |
 | P0 | 用真实 StoreKit / sandbox account 跑订阅联调 | 前后端 | 待办 |
+| P0 | 配置 App Store Server Notifications V2，同步续期、退款和撤销 | 后端/运营 | 待办 |
 | P1 | 准备 App Store 截图、描述、隐私标签、审核说明 | 产品/运营 | 待办 |
 | P1 | 真机回归测试通知、定位、深链、购买 | 前端 | 待办 |
 | P1 | 生产错误上报与日志看板 | 前后端 | 待办 |

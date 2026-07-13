@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeNextEndTimeDueAt } from '../reminder/reminder-schedule.util';
 
 @Injectable()
 export class PauseService {
@@ -12,26 +13,39 @@ export class PauseService {
     const now = new Date();
     const pauseEnd = new Date(now);
     pauseEnd.setDate(pauseEnd.getDate() + days);
+    const reminderConfig = await this.prisma.reminderConfig.findUnique({ where: { userId } });
 
-    await this.prisma.pauseLog.updateMany({
-      where: { userId, isActive: true },
-      data: { isActive: false },
-    });
-
-    await this.prisma.pauseLog.create({
-      data: {
-        userId,
-        startTime: now,
-        endTime: pauseEnd,
-        reason: reason ?? null,
-        isActive: true,
-      },
-    });
-
-    await this.prisma.guardStatus.upsert({
-      where: { userId },
-      update: { status: 'paused' },
-      create: { userId, status: 'paused' },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pauseLog.updateMany({
+        where: { userId, isActive: true },
+        data: { isActive: false },
+      });
+      await tx.pauseLog.create({
+        data: {
+          userId,
+          startTime: now,
+          endTime: pauseEnd,
+          reason: reason ?? null,
+          isActive: true,
+        },
+      });
+      await tx.guardStatus.upsert({
+        where: { userId },
+        update: { status: 'paused' },
+        create: { userId, status: 'paused' },
+      });
+      if (reminderConfig) {
+        await tx.reminderConfig.update({
+          where: { userId },
+          data: {
+            nextDueAt: computeNextEndTimeDueAt(
+              pauseEnd,
+              reminderConfig.endTime,
+              reminderConfig.timezone,
+            ),
+          },
+        });
+      }
     });
 
     return {
@@ -42,23 +56,38 @@ export class PauseService {
   }
 
   async resume(userId: string) {
-    const activePause = await this.prisma.pauseLog.findFirst({
-      where: { userId, isActive: true },
-    });
+    const [activePause, reminderConfig] = await Promise.all([
+      this.prisma.pauseLog.findFirst({ where: { userId, isActive: true } }),
+      this.prisma.reminderConfig.findUnique({ where: { userId } }),
+    ]);
 
     if (!activePause) {
       throw new BadRequestException('当前没有暂停中的守护');
     }
 
-    await this.prisma.pauseLog.update({
-      where: { id: activePause.id },
-      data: { isActive: false, endTime: new Date() },
-    });
-
-    await this.prisma.guardStatus.upsert({
-      where: { userId },
-      update: { status: 'idle' },
-      create: { userId, status: 'idle' },
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pauseLog.update({
+        where: { id: activePause.id },
+        data: { isActive: false, endTime: now },
+      });
+      await tx.guardStatus.upsert({
+        where: { userId },
+        update: { status: 'idle' },
+        create: { userId, status: 'idle' },
+      });
+      if (reminderConfig) {
+        await tx.reminderConfig.update({
+          where: { userId },
+          data: {
+            nextDueAt: computeNextEndTimeDueAt(
+              now,
+              reminderConfig.endTime,
+              reminderConfig.timezone,
+            ),
+          },
+        });
+      }
     });
 
     return {
@@ -79,15 +108,29 @@ export class PauseService {
 
     const now = new Date();
     if (activePause.endTime <= now) {
-      await this.prisma.pauseLog.update({
-        where: { id: activePause.id },
-        data: { isActive: false },
-      });
-
-      await this.prisma.guardStatus.upsert({
-        where: { userId },
-        update: { status: 'idle' },
-        create: { userId, status: 'idle' },
+      const reminderConfig = await this.prisma.reminderConfig.findUnique({ where: { userId } });
+      await this.prisma.$transaction(async (tx) => {
+        await tx.pauseLog.update({
+          where: { id: activePause.id },
+          data: { isActive: false },
+        });
+        await tx.guardStatus.upsert({
+          where: { userId },
+          update: { status: 'idle' },
+          create: { userId, status: 'idle' },
+        });
+        if (reminderConfig) {
+          await tx.reminderConfig.update({
+            where: { userId },
+            data: {
+              nextDueAt: computeNextEndTimeDueAt(
+                now,
+                reminderConfig.endTime,
+                reminderConfig.timezone,
+              ),
+            },
+          });
+        }
       });
 
       return { isPaused: false };

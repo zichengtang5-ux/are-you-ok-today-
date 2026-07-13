@@ -7,9 +7,10 @@ import { BadRequestException, NotFoundException, ForbiddenException } from '@nes
 
 describe('ContactService', () => {
   let service: ContactService;
-  const mockPrisma = {
+  const mockPrisma: any = {
     emergencyContact: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -19,11 +20,17 @@ describe('ContactService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     subscription: {
       findUnique: jest.fn(),
     },
-    $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
+    $transaction: jest.fn(async (arg: unknown): Promise<unknown> => {
+      if (typeof arg === 'function') {
+        return (arg as (tx: any) => unknown)(mockPrisma);
+      }
+      return Promise.all(arg as Promise<unknown>[]);
+    }),
   };
 
   const mockSms = { sendVerificationCode: jest.fn().mockResolvedValue(true) };
@@ -41,6 +48,33 @@ describe('ContactService', () => {
 
     service = mod.get(ContactService);
     jest.clearAllMocks();
+  });
+
+  describe('list', () => {
+    const contacts = [
+      { id: 'c1', priority: 1 },
+      { id: 'c2', priority: 2 },
+    ];
+
+    it('only exposes the primary contact to free or expired users', async () => {
+      mockPrisma.emergencyContact.findMany.mockResolvedValue(contacts);
+      mockPrisma.subscription.findUnique.mockResolvedValue({
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+      });
+
+      await expect(service.list('u1')).resolves.toEqual([contacts[0]]);
+    });
+
+    it('exposes up to five contacts to premium users', async () => {
+      mockPrisma.emergencyContact.findMany.mockResolvedValue(contacts);
+      mockPrisma.subscription.findUnique.mockResolvedValue({
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() + 60_000),
+      });
+
+      await expect(service.list('u1')).resolves.toEqual(contacts);
+    });
   });
 
   describe('create', () => {
@@ -70,6 +104,44 @@ describe('ContactService', () => {
 
       const result = await service.create('u1', { name: '爸爸', phone: '13800002222' });
       expect(result).toEqual({ id: 'c2' });
+    });
+
+    it('should treat an expired active subscription as free', async () => {
+      mockPrisma.emergencyContact.findMany.mockResolvedValue([{ id: 'c1' }]);
+      mockPrisma.subscription.findUnique.mockResolvedValue({
+        status: 'active',
+        currentPeriodEnd: new Date(Date.now() - 1000),
+      });
+
+      await expect(
+        service.create('u1', { name: '爸爸', phone: '13800002222' }),
+      ).rejects.toThrow('免费版最多添加 1 个联系人');
+    });
+
+    it('should reject a duplicated contact phone', async () => {
+      mockPrisma.emergencyContact.findMany.mockResolvedValue([
+        { id: 'c1', phone: '13800001111' },
+      ]);
+      mockPrisma.subscription.findUnique.mockResolvedValue({ status: 'active' });
+
+      await expect(
+        service.create('u1', { name: '妈妈', phone: '13800001111' }),
+      ).rejects.toThrow('该手机号已是紧急联系人');
+    });
+  });
+
+  describe('update', () => {
+    it('should reject changing a contact to a duplicated phone', async () => {
+      mockPrisma.emergencyContact.findUnique.mockResolvedValue({
+        id: 'c2',
+        userId: 'u1',
+        phone: '13800002222',
+      });
+      mockPrisma.emergencyContact.findFirst.mockResolvedValue({ id: 'c1' });
+
+      await expect(
+        service.update('u1', 'c2', { phone: '13800001111' }),
+      ).rejects.toThrow('该手机号已是紧急联系人');
     });
   });
 
@@ -116,6 +188,23 @@ describe('ContactService', () => {
     });
   });
 
+  describe('sendVerificationCode', () => {
+    it('should report an SMS provider failure', async () => {
+      mockPrisma.emergencyContact.findUnique.mockResolvedValue({
+        id: 'c1',
+        userId: 'u1',
+        phone: '13800001111',
+      });
+      mockPrisma.verificationCode.findFirst.mockResolvedValue(null);
+      mockPrisma.verificationCode.create.mockResolvedValue({ id: 'vc1' });
+      mockPrisma.verificationCode.delete.mockResolvedValue({});
+      mockSms.sendVerificationCode.mockResolvedValueOnce(false);
+
+      await expect(service.sendVerificationCode('u1', 'c1')).rejects.toThrow('验证码发送失败');
+      expect(mockPrisma.verificationCode.delete).toHaveBeenCalledWith({ where: { id: 'vc1' } });
+    });
+  });
+
   describe('reorder', () => {
     it('updates priorities in the requested order', async () => {
       mockPrisma.emergencyContact.findMany
@@ -125,6 +214,7 @@ describe('ContactService', () => {
           { id: 'c1', priority: 2 },
         ]);
       mockPrisma.emergencyContact.update.mockResolvedValue({});
+      mockPrisma.subscription.findUnique.mockResolvedValue({ status: 'active' });
 
       const result = await service.reorder('u1', ['c2', 'c1']);
 

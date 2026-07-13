@@ -29,7 +29,19 @@ export function parseDeepLink(url: string): DeepLinkRoute | null {
   }
 
   if (segments[0] === 'settings') {
-    return { path: '/settings' as Href };
+    const allowedChild = new Set([
+      'edit-address',
+      'edit-contact',
+      'edit-reminder',
+      'pause-settings',
+    ]).has(segments[1]);
+    return {
+      path: (allowedChild ? `/settings/${segments[1]}` : '/settings') as Href,
+    };
+  }
+
+  if (segments[0] === 'help' && segments[1] === 'emergency') {
+    return { path: '/help/emergency' as Href };
   }
 
   if (segments[0] === 'subscription') {

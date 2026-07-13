@@ -16,6 +16,10 @@ import {
   localDateTimeToUtc,
   parseHhmmToMinutes,
 } from './reminder-schedule.util';
+import {
+  hasPremiumEntitlement,
+  limitContactsForSubscription,
+} from '../subscription/subscription-entitlement';
 
 /** 单批处理的最大记录数，避免一次性把整张表拉进内存 */
 const BATCH_SIZE = 500;
@@ -96,6 +100,7 @@ export class ReminderCronService {
               devices: true,
               pauseLogs: { where: { isActive: true } },
               contacts: { where: { verified: true }, orderBy: { priority: 'asc' } },
+              subscription: true,
             },
           },
         },
@@ -142,6 +147,7 @@ export class ReminderCronService {
         devices: { token: string }[];
         pauseLogs: { endTime: Date }[];
         contacts: { id: string; name: string; phone: string }[];
+        subscription: { status: string; currentPeriodEnd: Date | null } | null;
       };
     },
     now: Date,
@@ -154,19 +160,29 @@ export class ReminderCronService {
     }
 
     // 暂停中：推进到暂停结束后的下一个 endTime
-    if (user.pauseLogs.length > 0 && user.pauseLogs[0].endTime > now) {
+    const activePause = user.pauseLogs[0];
+    if (activePause && activePause.endTime > now) {
       await this.prisma.reminderConfig.update({
         where: { userId: user.id },
-        data: { nextDueAt: computeNextEndTimeDueAt(user.pauseLogs[0].endTime, config.endTime, config.timezone) },
+        data: { nextDueAt: computeNextEndTimeDueAt(activePause.endTime, config.endTime, config.timezone) },
       });
       return;
     }
-    if (user.guardStatus?.status === 'paused') {
-      await this.advanceNextDueAt(config, now);
-      return;
+    let guardStatus = user.guardStatus?.status ?? 'idle';
+    if (activePause || guardStatus === 'paused') {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.pauseLog.updateMany({
+          where: { userId: user.id, isActive: true },
+          data: { isActive: false },
+        });
+        await tx.guardStatus.upsert({
+          where: { userId: user.id },
+          update: { status: 'idle' },
+          create: { userId: user.id, status: 'idle' },
+        });
+      });
+      guardStatus = 'idle';
     }
-
-    const guardStatus = user.guardStatus?.status ?? 'idle';
     const guardDate = getGuardDateForMoment(now, config, guardStatus);
     const windowEndDate = getWindowEndDate(guardDate, config.startTime, config.endTime);
     const endMin = parseHhmmToMinutes(config.endTime);
@@ -257,6 +273,7 @@ export class ReminderCronService {
       nickname: string | null;
       devices: { token: string }[];
       contacts: { id: string; name: string; phone: string }[];
+      subscription?: { status: string; currentPeriodEnd: Date | null } | null;
       guardStatus?: { id: string; lastReplyAt: Date | null } | null;
     },
     date: string,
@@ -278,6 +295,8 @@ export class ReminderCronService {
 
     const lastReplyAt = user.guardStatus?.lastReplyAt?.toISOString() ?? '从未回复';
     const nickname = user.nickname ?? '用户';
+    const premium = hasPremiumEntitlement(user.subscription, now);
+    const eligibleContacts = limitContactsForSubscription(user.contacts, user.subscription, now);
 
     let activeAlert = await this.prisma.alertEvent.findFirst({
       where: { userId: user.id, status: 'active' },
@@ -285,7 +304,7 @@ export class ReminderCronService {
     });
 
     if (!activeAlert) {
-      const contactIds = JSON.stringify(user.contacts.map((c) => c.id));
+      const contactIds = JSON.stringify(eligibleContacts.map((c) => c.id));
       const timeline = JSON.stringify([
         { time: `${date} ${endTime}`, action: '发送了每日提醒' },
         { time: formatLocalHhmm(now, timezone), action: '通知了紧急联系人', isCurrent: true },
@@ -310,15 +329,16 @@ export class ReminderCronService {
       data: { smsRounds: round },
     });
     await this.notificationQueue.enqueueAlert({
-      contacts: user.contacts.map((c) => ({ id: c.id, phone: c.phone })),
+      contacts: eligibleContacts.map((c) => ({ id: c.id, phone: c.phone })),
       alertId: activeAlert.id,
       nickname,
       lastReplyAt,
       round,
+      includeVoice: premium,
     });
 
     this.logger.log(
-      `Alert triggered for user ${user.id}, enqueued notifications for ${user.contacts.length} contacts (round ${round})`,
+      `Alert triggered for user ${user.id}, enqueued notifications for ${eligibleContacts.length} contacts (round ${round})`,
     );
     this.observability.metric('alert.triggered', 1, { round: String(round) });
     // 实时推送告警，本人设备立即感知

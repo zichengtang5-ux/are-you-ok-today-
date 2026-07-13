@@ -9,8 +9,9 @@
 - 实时能力：SSE + Redis pub/sub，状态变化不再依赖 30 秒轮询
 - 通知能力：APNs、阿里云短信、阿里云语音电话，开发环境可用 mock provider
 - 订阅能力：Apple IAP / StoreKit 2，支持本人订阅
+- 商业权益：免费版 1 位联系人且仅短信；守护版最多 5 位联系人并增加语音告警
 - 发布配置：已提供 `app/eas.json`、`app/.env.example`、`server/.env.example`
-- 当前前后端契约已覆盖告警处理、联系人排序、连续确认天数、暂停恢复等前端调用
+- 当前前后端契约已覆盖短信投递结果、联系人商业上限、跨日签到、暂停调度、订阅归属等核心调用
 
 ## 目录结构
 
@@ -104,10 +105,10 @@ npm run test:integration
 
 GitHub Actions 的 Backend CI 会在真实 PostgreSQL + Redis service 容器中跑迁移、单测、集成测试和构建。
 
-最近一次本地回归覆盖：
+最近一次本地回归覆盖（2026-07-13）：
 
 - `app`: `npx tsc --noEmit`、`npm test -- --runInBand`、模拟器全流程交互
-- `server`: `npm run prisma:generate`、`npm test -- --runInBand`、`npm run build`
+- `server`: `npm run prisma:generate`、147 项单测、真实 PostgreSQL/Redis 集成测试、`npm run build`
 - 模拟器流程：登录引导、地址定位入口、联系人免验证码、整点滚动提醒时间、每日签到/撤销、告警确认/求助、SOS、mock 订阅、暂停/恢复、电话兜底
 
 ## 发布入口

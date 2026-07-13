@@ -15,6 +15,7 @@ interface EnqueueAlertParams {
   nickname: string;
   lastReplyAt: string;
   round: number;
+  includeVoice: boolean;
 }
 
 /**
@@ -37,7 +38,7 @@ export class NotificationQueueService {
   ) {}
 
   async enqueueAlert(params: EnqueueAlertParams): Promise<void> {
-    const { contacts, alertId, nickname, lastReplyAt, round } = params;
+    const { contacts, alertId, nickname, lastReplyAt, round, includeVoice } = params;
     const message = `【今天还好】${nickname}今天没有回复平安，最后回复时间：${lastReplyAt}，请及时联系确认。`;
 
     for (const contact of contacts) {
@@ -48,18 +49,20 @@ export class NotificationQueueService {
         phone: contact.phone,
         message: `${message} 打开处理：todayok://alert/${alertId}?contactId=${contact.id}`,
       });
-      await this.enqueueOne({
-        contactId: contact.id,
-        channel: 'voice_call',
-        round,
-        phone: contact.phone,
-        nickname,
-        lastReplyAt,
-      });
+      if (includeVoice) {
+        await this.enqueueOne({
+          contactId: contact.id,
+          channel: 'voice_call',
+          round,
+          phone: contact.phone,
+          nickname,
+          lastReplyAt,
+        });
+      }
     }
 
     this.logger.log(
-      `Enqueued alert notifications: ${contacts.length} contacts × 2 channels (round ${round})`,
+      `Enqueued alert notifications: ${contacts.length} contacts, voice=${includeVoice} (round ${round})`,
     );
   }
 

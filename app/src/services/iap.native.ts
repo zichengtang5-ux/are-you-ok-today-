@@ -41,6 +41,7 @@ export interface ProductPrice {
 }
 
 let initialized = false;
+const pendingPurchases = new Map<string, unknown>();
 
 export async function initIap(): Promise<void> {
   if (initialized) return;
@@ -89,8 +90,32 @@ export async function purchasePlan(plan: SubscriptionPlan): Promise<PurchaseResu
   const purchase = await RNIap.requestSubscription({ sku: productId });
   const transactionId = purchase.transactionId;
   if (!transactionId) throw new Error('StoreKit 未返回 transactionId，请重试');
-  await RNIap.finishTransaction({ purchase, isConsumable: false });
+  pendingPurchases.set(transactionId, purchase);
   return { transactionId, productId, provider: 'apple' };
+}
+
+export async function finishPurchase(transactionId: string): Promise<void> {
+  if (USE_IAP_MOCK) return;
+  const purchase = pendingPurchases.get(transactionId);
+  if (!purchase) throw new Error('未找到待确认的 StoreKit 交易');
+  await getRNIap().finishTransaction({ purchase, isConsumable: false });
+  pendingPurchases.delete(transactionId);
+}
+
+export async function restorePurchases(): Promise<PurchaseResult[]> {
+  if (USE_IAP_MOCK) return [];
+  const purchases = await getRNIap().getAvailablePurchases();
+  const productIds = new Set(Object.values(PRODUCT_IDS));
+  return purchases
+    .filter((purchase: any) => purchase.transactionId && productIds.has(purchase.productId))
+    .map((purchase: any) => {
+      pendingPurchases.set(purchase.transactionId, purchase);
+      return {
+        transactionId: purchase.transactionId,
+        productId: purchase.productId,
+        provider: 'apple' as const,
+      };
+    });
 }
 
 export async function endIap(): Promise<void> {
@@ -98,4 +123,5 @@ export async function endIap(): Promise<void> {
   await getRNIap().endConnection();
   _RNIap = null;
   initialized = false;
+  pendingPurchases.clear();
 }

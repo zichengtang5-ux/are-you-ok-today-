@@ -101,16 +101,17 @@ npx eas submit --platform ios --profile production
 - 紧急联系人告警处理：确认安全、需要帮助、行动建议
 - 设置：跨日提醒时间、地址、联系人（免费 1 位/守护版最多 5 位）、暂停/恢复提醒、删除账号
 - 订阅：本人购买、订阅成功页
-- 紧急求助：红色圆形 SOS、进入即定位、单一完整地址编辑框与已验证联系人通知；不提供公共急救电话快捷入口
+- 紧急求助：红色圆形 SOS、进入即定位、单一完整地址编辑框，并明确展示短信全部成功、部分失败或全部失败；不提供公共急救电话快捷入口
+- 订阅：后端验证成功后才确认 StoreKit 交易，并提供恢复购买入口
 - 外部链接：电话、App Store、协议、隐私政策失败兜底
 - SSE 实时状态同步
 
 ## 验证记录
 
-最近一次完整验证（2026-07-03）：
+最近一次完整验证（2026-07-13）：
 
 - `npx tsc --noEmit` 通过
-- `npm test -- --runInBand` 通过，10 个 suites / 88 个 tests
+- `npm test -- --runInBand` 通过，13 个 suites / 100 个 tests
 - `npm run lint` 0 errors，仍有少量 warnings
 - `npx expo install --check` 通过
 - `npx expo-doctor` 通过

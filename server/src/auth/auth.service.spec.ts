@@ -17,6 +17,7 @@ describe('AuthService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
@@ -95,6 +96,16 @@ describe('AuthService', () => {
       expect(result.cooldownSeconds).toBeGreaterThan(0);
       expect(result.cooldownSeconds).toBeLessThanOrEqual(30);
       expect(mockPrisma.verificationCode.create).not.toHaveBeenCalled();
+    });
+
+    it('should report SMS failure and remove the unusable code', async () => {
+      mockPrisma.verificationCode.findFirst.mockResolvedValue(null);
+      mockPrisma.verificationCode.create.mockResolvedValue({ id: 'vc1' });
+      mockPrisma.verificationCode.delete.mockResolvedValue({});
+      mockSms.sendVerificationCode.mockResolvedValueOnce(false);
+
+      await expect(service.sendCode('13812345678')).rejects.toThrow('验证码发送失败');
+      expect(mockPrisma.verificationCode.delete).toHaveBeenCalledWith({ where: { id: 'vc1' } });
     });
   });
 
@@ -229,6 +240,26 @@ describe('AuthService', () => {
 
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
+    });
+  });
+
+  describe('getMe', () => {
+    it('only returns the primary contact when premium has expired', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user1',
+        contacts: [{ id: 'c1' }, { id: 'c2' }],
+        reminderConfig: null,
+        guardStatus: null,
+        subscription: {
+          status: 'active',
+          currentPeriodEnd: new Date(Date.now() - 60_000),
+        },
+      });
+
+      const result = await service.getMe('user1');
+
+      expect(result.isPremium).toBe(false);
+      expect(result.contacts).toEqual([{ id: 'c1' }]);
     });
   });
 });

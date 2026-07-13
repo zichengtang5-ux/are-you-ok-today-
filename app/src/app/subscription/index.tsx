@@ -10,10 +10,13 @@ import {
   initIap,
   getProducts,
   purchasePlan,
+  finishPurchase,
+  restorePurchases,
   type ProductPrice,
 } from '@/services/iap';
 import { subscriptionApi } from '@/services/api.types';
 import type { SubscriptionPlan } from '@/services/api.types';
+import { PRODUCT_IDS } from '@/services/iap.config';
 
 const BENEFIT_ROWS = [
   { label: '每日提醒与报平安', free: '包含', premium: '包含' },
@@ -24,7 +27,7 @@ const BENEFIT_ROWS = [
 
 export default function SubscriptionScreen() {
   const router = useRouter();
-  const { refreshSubscription } = useStore();
+  const { refreshSubscription, setSubscription } = useStore();
 
   const [selected, setSelected] = useState<SubscriptionPlan>('yearly');
   const [prices, setPrices] = useState<Record<SubscriptionPlan, string>>({
@@ -60,18 +63,29 @@ export default function SubscriptionScreen() {
     };
   }, []);
 
-  const handlePurchase = async () => {
-    setError(null);
-    setPurchasing(true);
-    try {
-      const result = await purchasePlan(selected);
-      // 校验 transactionId
+  const activatePurchase = async (result: {
+    transactionId: string;
+    productId: string;
+    provider: 'apple';
+  }) => {
+      const plan = (Object.entries(PRODUCT_IDS).find(
+        ([, productId]) => productId === result.productId,
+      )?.[0] ?? selected) as SubscriptionPlan;
       const res = await subscriptionApi.verify({
         transactionId: result.transactionId,
-        plan: selected,
+        plan,
         provider: result.provider,
       });
-      // 刷新订阅态
+      // 只有后端确认权益入账后，才结束 StoreKit 交易。
+      await finishPurchase(result.transactionId);
+      setSubscription({
+        plan: res.subscription.plan,
+        status: res.subscription.status,
+        currentPeriodEnd: res.subscription.currentPeriodEnd,
+        originalTransactionId: res.subscription.originalTransactionId,
+        isTrial: res.subscription.isTrial,
+        isPremium: true,
+      });
       await refreshSubscription();
       router.replace({
         pathname: '/subscription/success',
@@ -82,9 +96,43 @@ export default function SubscriptionScreen() {
           isTrial: String(!!res.subscription.isTrial),
         },
       });
+  };
+
+  const handlePurchase = async () => {
+    setError(null);
+    setPurchasing(true);
+    try {
+      await activatePurchase(await purchasePlan(selected));
     } catch (e) {
       const msg = (e as any)?.response?.data?.message || (e as Error).message;
       setError(msg || '购买失败，请重试');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setError(null);
+    setPurchasing(true);
+    try {
+      const purchases = await restorePurchases();
+      if (purchases.length === 0) {
+        setError('没有找到可恢复的守护版订阅');
+        return;
+      }
+      let lastError: unknown;
+      for (const purchase of purchases) {
+        try {
+          await activatePurchase(purchase);
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError ?? new Error('订阅恢复失败');
+    } catch (e) {
+      const msg = (e as any)?.response?.data?.message || (e as Error).message;
+      setError(msg || '订阅恢复失败，请重试');
     } finally {
       setPurchasing(false);
     }
@@ -153,6 +201,13 @@ export default function SubscriptionScreen() {
               disabled={purchasing}
             >
               {purchasing ? '正在购买…' : '立即开通'}
+            </Button>
+            <Button
+              variant="ghost"
+              onPress={handleRestore}
+              disabled={purchasing}
+            >
+              恢复购买
             </Button>
           </View>
 
@@ -289,6 +344,7 @@ const styles = StyleSheet.create({
   premiumValue: { width: 82, textAlign: 'center', fontSize: FontSizes.sm, color: Colors.primaryDark, fontWeight: FontWeights.semibold },
   cta: {
     marginTop: Spacing.sm,
+    gap: Spacing.xs,
   },
   errorBox: {
     backgroundColor: Colors.dangerLight,

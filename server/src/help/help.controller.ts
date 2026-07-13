@@ -13,7 +13,7 @@ export class HelpController {
   @Post('emergency')
   @ApiOperation({ summary: '触发紧急求助' })
   async emergency(@CurrentUser('id') userId: string, @Body() dto: CreateEmergencyDto) {
-    return this.helpService.emergency(userId, dto.latitude, dto.longitude, dto.addressText);
+    return this.helpService.emergency(userId, dto);
   }
 
   @Get('address')

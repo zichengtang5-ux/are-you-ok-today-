@@ -2,8 +2,11 @@
 export interface User {
   id: string;
   phone: string;
-  nickname: string;
-  address?: string;
+  nickname: string | null;
+  address?: string | null;
+  addressLatitude?: number | null;
+  addressLongitude?: number | null;
+  addressAccuracyMeters?: number | null;
   createdAt: string;
   isPremium: boolean;
   trialEndsAt?: string;
@@ -65,6 +68,7 @@ export type PlanType = 'free' | 'monthly' | 'yearly';
 
 export type SubscriptionStatus =
   | 'none'
+  | 'inactive'
   | 'active'
   | 'trial'
   | 'expired'
