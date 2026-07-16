@@ -80,10 +80,22 @@ final class WatchNotificationCoordinator: NSObject, ObservableObject {
     try await add(request)
   }
 
-  func cancelPendingSafetyNotifications() {
-    center.removePendingNotificationRequests(
-      withIdentifiers: Self.notificationStates.map(Identifier.request(for:))
-    )
+  func clearGuardNotifications() {
+    let identifiers = Self.notificationStates.map(Identifier.request(for:))
+    center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    center.getDeliveredNotifications { [center] notifications in
+      let delivered = notifications.compactMap { notification -> String? in
+        let state = notification.request.content.userInfo["guardState"] as? String
+        let isGuardState = state.flatMap(GuardState.init(rawValue:)).map {
+          Self.notificationStates.contains($0)
+        } ?? false
+        let isGuardCategory = Self.notificationStates
+          .map(Identifier.category(for:))
+          .contains(notification.request.content.categoryIdentifier)
+        return isGuardState || isGuardCategory ? notification.request.identifier : nil
+      }
+      center.removeDeliveredNotifications(withIdentifiers: delivered)
+    }
   }
 
   private func registerCategories() {

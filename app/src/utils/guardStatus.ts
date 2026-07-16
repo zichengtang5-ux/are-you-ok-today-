@@ -3,6 +3,19 @@ import { isOvernightReminderWindow, timeToMinutes } from '@/utils/reminderWindow
 
 type ReminderWindowStatus = Extract<ReplyStatus, 'idle' | 'waiting'>;
 
+const GUARD_HEADER_TITLES: Record<ReplyStatus, string> = {
+  idle: '今天还好',
+  waiting: '等待报平安',
+  replied: '已报平安',
+  grace: '宽限期提醒',
+  alert: '已联系紧急联系人',
+  paused: '守护已暂停',
+};
+
+export function getGuardHeaderTitle(status: ReplyStatus): string {
+  return GUARD_HEADER_TITLES[status];
+}
+
 export function getPauseDaysRemaining(
   pauseEndAt?: string | null,
   now = new Date(),

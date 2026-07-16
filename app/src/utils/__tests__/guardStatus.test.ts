@@ -1,6 +1,7 @@
 import {
   computeEffectiveStatus,
   getPauseDaysRemaining,
+  getGuardHeaderTitle,
   getReminderWindowStatus,
 } from '../guardStatus';
 
@@ -11,6 +12,11 @@ const reminder = {
 };
 
 describe('guardStatus', () => {
+  it('changes the top reminder component from grace to replied', () => {
+    expect(getGuardHeaderTitle('grace')).toBe('宽限期提醒');
+    expect(getGuardHeaderTitle('replied')).toBe('已报平安');
+  });
+
   it('rounds a partial pause day up and never returns a negative day count', () => {
     const now = new Date('2026-07-12T10:00:00+08:00');
 

@@ -10,6 +10,8 @@ const ACTION_REPLY_OK = 'reply_ok';
 const ACTION_OPEN_APP = 'open_app';
 const DEFAULT_ACTION_IDENTIFIER = 'expo.modules.notifications.actions.DEFAULT';
 const DAILY_REMINDER_BODY = '一键点击，让我知道你今天还好';
+const GUARD_NOTIFICATION_TYPES = new Set(['daily_reminder', 'grace_reminder', 'guard_alert']);
+const GUARD_NOTIFICATION_CATEGORIES = new Set([CATEGORY_ID, GRACE_CATEGORY_ID, ALERT_CATEGORY_ID]);
 
 let Notifications: typeof import('expo-notifications') | null = null;
 let Device: typeof import('expo-device') | null = null;
@@ -175,6 +177,31 @@ export async function cancelDailyReminder(notificationId: string): Promise<void>
     await Notifications!.cancelScheduledNotificationAsync(notificationId);
   } catch (error) {
     console.error('Failed to cancel reminder:', error);
+  }
+}
+
+/**
+ * Remove already-presented guard notifications after either device confirms safety.
+ * This does not cancel the repeating daily schedule, so tomorrow's reminder remains intact.
+ */
+export async function dismissPresentedGuardNotifications(): Promise<void> {
+  if (!isNative || !(await loadNativeModules())) return;
+  try {
+    const presented = await Notifications!.getPresentedNotificationsAsync();
+    const staleGuardNotifications = presented.filter((notification) => {
+      const content = notification.request.content;
+      const data = content.data as Record<string, unknown> | undefined;
+      return GUARD_NOTIFICATION_TYPES.has(String(data?.type ?? ''))
+        || GUARD_NOTIFICATION_CATEGORIES.has(content.categoryIdentifier ?? '');
+    });
+
+    await Promise.all(
+      staleGuardNotifications.map((notification) =>
+        Notifications!.dismissNotificationAsync(notification.request.identifier),
+      ),
+    );
+  } catch (error) {
+    console.error('Failed to dismiss presented guard notifications:', error);
   }
 }
 

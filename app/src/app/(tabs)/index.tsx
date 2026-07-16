@@ -8,8 +8,10 @@ import { MascotLogo } from '@/components/ui/MascotLogo';
 import { useStore } from '@/store/useStore';
 import { replyApi, alertApi, pauseApi } from '@/services/api.types';
 import { syncWatchContext } from '@/services/watchSync';
+import { dismissPresentedGuardNotifications } from '@/services/notifications';
+import { refreshGuardState } from '@/services/guardSync';
 import { isOfflineDevSession } from '@/services/devMock';
-import { computeEffectiveStatus } from '@/utils/guardStatus';
+import { computeEffectiveStatus, getGuardHeaderTitle } from '@/utils/guardStatus';
 import { formatNextReminderOccurrence, formatReminderWindow } from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import type { ReplyStatus } from '@/types';
@@ -34,7 +36,7 @@ const statusBarVariant: Record<ReplyStatus, 'primary' | 'warn' | 'danger' | 'whi
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, demoCheckIn, reply, setTodayStatus, setReminder, setStreak, setActiveAlert, clearPauseStatus } = useStore();
+  const { todayStatus, streak, reminder, activeAlert, user, notificationAuthorized, demoCheckIn, setTodayStatus, setReminder, setStreak, setActiveAlert, clearPauseStatus } = useStore();
   const config = statusConfig[todayStatus];
 
   const [actionLoading, setActionLoading] = useState(false);
@@ -90,6 +92,9 @@ export default function HomeScreen() {
         if (cancelled) return;
         const effectiveStatus = computeEffectiveStatus(data.status, data.reminderConfig ?? undefined);
         setTodayStatus(effectiveStatus);
+        if (effectiveStatus === 'replied') {
+          void dismissPresentedGuardNotifications();
+        }
         setGraceDeadlineAt(data.graceDeadlineAt ?? null);
         if (data.reminderConfig) {
           setReminder({ startTime: data.reminderConfig.startTime, endTime: data.reminderConfig.endTime, gracePeriodMin: data.reminderConfig.gracePeriodMin });
@@ -117,15 +122,18 @@ export default function HomeScreen() {
 
   const handleReply = async () => {
     if (__DEV__ && demoCheckIn) {
-      reply();
       setTodayStatus('replied');
+      setActiveAlert(null);
       return;
     }
     setActionLoading(true);
     try {
       const result = await replyApi.reply();
-      reply();
       setTodayStatus(result.guardStatus as ReplyStatus);
+      setActiveAlert(null);
+      await dismissPresentedGuardNotifications();
+      void syncWatchContext({ isOnboarded: true }).catch(() => {});
+      void refreshGuardState().catch(() => {});
     } catch (err: any) {
       if (err.response?.status === 409) {
         Alert.alert('守护已暂停', err.response?.data?.message || '请先恢复守护再签到', [
@@ -147,6 +155,8 @@ export default function HomeScreen() {
     try {
       await pauseApi.resume();
       clearPauseStatus();
+      void syncWatchContext({ isOnboarded: true }).catch(() => {});
+      void refreshGuardState().catch(() => {});
     } catch (error: any) {
       if (await isOfflineDevSession()) {
         clearPauseStatus();
@@ -180,7 +190,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GreenStatusBar variant={statusBarVariant[todayStatus]} title="今天还好" showMascot />
+      <GreenStatusBar variant={statusBarVariant[todayStatus]} title={getGuardHeaderTitle(todayStatus)} showMascot />
       <View style={styles.content}>
         <Text style={styles.greeting}>
           hello{nickname ? `，${nickname}` : ''}

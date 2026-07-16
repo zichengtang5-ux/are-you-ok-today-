@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { Button, Card } from '@/components/ui';
 import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { pauseApi } from '@/services/api.types';
+import { syncWatchContext } from '@/services/watchSync';
+import { refreshGuardState } from '@/services/guardSync';
 import { isOfflineDevSession } from '@/services/devMock';
 import { useStore } from '@/store/useStore';
 import { getPauseDaysRemaining } from '@/utils/guardStatus';
@@ -87,6 +89,8 @@ export default function PauseSettingsScreen() {
         pauseEndAt: result.pauseEndAt,
         daysRemaining: result.days,
       });
+      void syncWatchContext({ isOnboarded: true }).catch(() => {});
+      void refreshGuardState().catch(() => {});
       Alert.alert('守护已暂停', `将在 ${formatDate(result.pauseEndAt)} 自动恢复`);
       router.back();
     } catch (error: any) {
@@ -111,6 +115,8 @@ export default function PauseSettingsScreen() {
     try {
       await pauseApi.resume();
       clearPauseStatus();
+      void syncWatchContext({ isOnboarded: true }).catch(() => {});
+      void refreshGuardState().catch(() => {});
       Alert.alert('守护已恢复', '今晚将正常收到提醒');
       router.back();
     } catch (error: any) {

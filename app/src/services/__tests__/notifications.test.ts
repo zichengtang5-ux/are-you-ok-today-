@@ -13,6 +13,7 @@ import {
   setupNotificationCategories,
   scheduleDailyReminder,
   cancelAllScheduledReminders,
+  dismissPresentedGuardNotifications,
   registerDeviceToken,
   getNotificationStatus,
 } from '../notifications';
@@ -25,6 +26,8 @@ jest.mock('expo-notifications', () => ({
   getAllScheduledNotificationsAsync: jest.fn(),
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
   cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+  getPresentedNotificationsAsync: jest.fn().mockResolvedValue([]),
+  dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   setNotificationHandler: jest.fn(),
   getExpoPushTokenAsync: jest.fn(),
@@ -48,6 +51,8 @@ const mockNotifications = jest.requireMock('expo-notifications') as {
   scheduleNotificationAsync: jest.Mock;
   getAllScheduledNotificationsAsync: jest.Mock;
   cancelScheduledNotificationAsync: jest.Mock;
+  getPresentedNotificationsAsync: jest.Mock;
+  dismissNotificationAsync: jest.Mock;
   getExpoPushTokenAsync: jest.Mock;
 };
 const mockDevice = jest.requireMock('expo-device') as { isDevice: boolean };
@@ -164,6 +169,25 @@ describe('notifications', () => {
       await cancelAllScheduledReminders();
       expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
       expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('a');
+    });
+  });
+
+  describe('dismissPresentedGuardNotifications', () => {
+    it('dismisses daily, grace, and alert notifications but keeps unrelated ones', async () => {
+      mockNotifications.getPresentedNotificationsAsync.mockResolvedValue([
+        { request: { identifier: 'daily', content: { data: { type: 'daily_reminder' }, categoryIdentifier: 'daily_reminder' } } },
+        { request: { identifier: 'grace', content: { data: { type: 'grace_reminder' }, categoryIdentifier: 'safety_grace' } } },
+        { request: { identifier: 'alert', content: { data: { type: 'other' }, categoryIdentifier: 'safety_alert' } } },
+        { request: { identifier: 'other', content: { data: { type: 'marketing' }, categoryIdentifier: 'other' } } },
+      ]);
+
+      await dismissPresentedGuardNotifications();
+
+      expect(mockNotifications.dismissNotificationAsync.mock.calls.map(([id]) => id)).toEqual([
+        'daily',
+        'grace',
+        'alert',
+      ]);
     });
   });
 

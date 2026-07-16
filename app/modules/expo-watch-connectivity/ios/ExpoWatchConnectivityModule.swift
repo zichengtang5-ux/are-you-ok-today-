@@ -120,6 +120,10 @@ private final class PhoneWatchSession: NSObject, WCSessionDelegate {
     do {
       try session.updateApplicationContext(["payload": payload])
       pendingPayload = nil
+      if session.isReachable {
+        // applicationContext is the durable fallback; sendMessage invalidates a visible Watch now.
+        session.sendMessage(["payload": payload], replyHandler: nil, errorHandler: nil)
+      }
     } catch {
       pendingPayload = payload
     }

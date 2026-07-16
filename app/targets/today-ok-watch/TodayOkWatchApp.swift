@@ -16,6 +16,10 @@ struct TodayOkWatchApp: App {
   var body: some Scene {
     WindowGroup {
       WatchHomeView(viewModel: viewModel)
+        .task {
+          // Opening the Watch app always reconciles its cached screen with the server.
+          await viewModel.refresh()
+        }
         .onChange(of: scenePhase) { phase in
           if phase == .active {
             Task { await viewModel.refresh() }

@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
+import { AppState } from 'react-native';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { useStore } from '@/store/useStore';
 import { authApi, replyApi } from '@/services/api.types';
 import { reportError } from '@/services/errorReporter';
 import { realtime } from '@/services/realtime';
+import { applyRealtimeGuardEvent, refreshGuardState } from '@/services/guardSync';
 import { syncTimezoneIfChanged } from '@/services/timezone';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoadingState } from '@/components/ui/States';
@@ -16,6 +18,7 @@ import {
   isReplyOkAction,
   isOpenAppAction,
   isDefaultNotificationAction,
+  dismissPresentedGuardNotifications,
 } from '@/services/notifications';
 import {
   getInitialURL,
@@ -40,7 +43,8 @@ export default function RootLayout() {
   const setContacts = useStore((s) => s.setContacts);
   const setReminder = useStore((s) => s.setReminder);
   const setNotificationAuthorized = useStore((s) => s.setNotificationAuthorized);
-  const reply = useStore((s) => s.reply);
+  const setActiveAlert = useStore((s) => s.setActiveAlert);
+  const isOnboarded = useStore((s) => s.isOnboarded);
 
   useEffect(() => {
     const init = async () => {
@@ -67,18 +71,22 @@ export default function RootLayout() {
           void syncWatchContext({ isOnboarded: userData.isOnboarded }).catch(() => {});
 
           void registerDeviceToken();
-          isReady.current = true;
+          isReady.current = userData.isOnboarded;
+          if (userData.isOnboarded) {
+            void refreshGuardState().catch((error) => {
+              reportError(error, { scope: 'appLaunch.guardSync' });
+            });
+          }
 
           // 建立实时通道（SSE），守护状态/告警变化实时到达，替代 30 秒轮询
           realtime.on((event) => {
-            if (event.type === 'alert_triggered') {
-              setTodayStatus('alert' as any);
-            } else if (event.type === 'status_changed') {
-              const status = (event.payload?.status as string) ?? undefined;
-              if (status) setTodayStatus(status as any);
-            } else if (event.type === 'alert_resolved' || event.type === 'reply_confirmed') {
-              setTodayStatus('replied' as any);
-            }
+            // First switch the visible component immediately, then reconcile counters/metadata.
+            applyRealtimeGuardEvent(event);
+            void refreshGuardState().catch((error) => {
+              reportError(error, { scope: 'realtime.guardSync' });
+            });
+            // A reachable foreground Watch receives this immediately and refreshes from the server.
+            void syncWatchContext({ isOnboarded: true }).catch(() => {});
           });
           void realtime.connect();
 
@@ -111,13 +119,40 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active' || !isReady.current) return;
+      void refreshGuardState().catch((error) => {
+        reportError(error, { scope: 'appForeground.guardSync' });
+      });
+      void syncWatchContext({ isOnboarded: true }).catch(() => {});
+    });
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!isOnboarded) return;
+    void AsyncStorage.getItem('access_token').then((token) => {
+      if (!token) return;
+      isReady.current = true;
+      void refreshGuardState().catch((error) => {
+        reportError(error, { scope: 'onboardingComplete.guardSync' });
+      });
+    });
+  }, [isOnboarded]);
+
+  useEffect(() => {
     const unsubscribeNotification = registerNotificationResponseHandler(
       async (actionId) => {
         if (isReplyOkAction(actionId)) {
           try {
             const result = await replyApi.reply('notification_action');
-            reply();
             setTodayStatus(result.guardStatus as any);
+            setActiveAlert(null);
+            await dismissPresentedGuardNotifications();
+            void syncWatchContext({ isOnboarded: true }).catch(() => {});
+            void refreshGuardState().catch((error) => {
+              reportError(error, { scope: 'notificationAction.guardSync' });
+            });
           } catch (e) {
             // 快捷回复“今天还好”失败：用户可在 App 内重试，但必须上报（关键签到动作）
             reportError(e, { scope: 'notificationAction.reply' });
@@ -136,6 +171,7 @@ export default function RootLayout() {
     });
 
     const unsubscribeLogout = authEvents.onLogout(() => {
+      isReady.current = false;
       setUser(null);
       realtime.close();
       router.replace('/onboarding/login');
@@ -149,7 +185,7 @@ export default function RootLayout() {
       unsubscribeLogout();
       unsubscribePushToken();
     };
-  }, [reply, router, setTodayStatus, setUser]);
+  }, [router, setActiveAlert, setTodayStatus, setUser]);
 
   if (isLoading) {
     return <LoadingState message="正在加载..." />;

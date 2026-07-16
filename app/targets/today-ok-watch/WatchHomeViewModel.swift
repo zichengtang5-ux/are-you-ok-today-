@@ -68,6 +68,9 @@ final class WatchHomeViewModel: ObservableObject {
       let latest = try await api.getStatus()
       status = latest
       statusCache.save(latest)
+      if latest.status == .replied {
+        WatchNotificationCoordinator.shared.clearGuardNotifications()
+      }
       errorMessage = nil
     } catch {
       errorMessage = userMessage(for: error)
@@ -92,6 +95,7 @@ final class WatchHomeViewModel: ObservableObject {
       let latest = try await api.getStatus()
       status = latest
       statusCache.save(latest)
+      WatchNotificationCoordinator.shared.clearGuardNotifications()
       WKInterfaceDevice.current().play(.success)
     } catch {
       errorMessage = userMessage(for: error)
@@ -128,6 +132,7 @@ final class WatchHomeViewModel: ObservableObject {
         let latest = try await api.getStatus()
         status = latest
         statusCache.save(latest)
+        WatchNotificationCoordinator.shared.clearGuardNotifications()
       } catch {
         errorMessage = "守护已恢复，最新状态稍后同步"
       }
