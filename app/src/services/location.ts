@@ -62,19 +62,26 @@ export async function getCurrentAddress(): Promise<CurrentAddressResult> {
     throw new Error('暂时无法获取当前位置');
   }
 
-  const [geo] = await Location.reverseGeocodeAsync({
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
-  });
-
-  const address = geo ? formatAddress(geo) : '';
-  if (!address) {
-    throw new Error('暂时无法解析当前位置');
+  let geo: Location.LocationGeocodedAddress | undefined;
+  try {
+    [geo] = await Location.reverseGeocodeAsync({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    });
+  } catch {
+    // A simulator (or a temporarily unavailable geocoder) may still provide a
+    // valid GPS fix. Keep the coordinates instead of rejecting the location.
   }
+
+  const resolvedAddress = geo ? formatAddress(geo) : '';
+  const coordinateAddress = `当前位置（${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}）`;
+  const address = resolvedAddress || coordinateAddress;
 
   return {
     address,
-    hint: '请补充具体门牌号（如 3 号楼 502），方便紧急联系人和救援准确找到你',
+    hint: resolvedAddress
+      ? '请补充具体门牌号（如 3 号楼 502），方便紧急联系人和救援准确找到你'
+      : '已获取定位坐标，但暂时无法解析地址，请手动改成具体住址和门牌号',
     latitude: position.coords.latitude,
     longitude: position.coords.longitude,
     accuracyMeters:

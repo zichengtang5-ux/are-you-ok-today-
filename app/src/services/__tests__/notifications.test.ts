@@ -196,6 +196,7 @@ describe('notifications', () => {
       mockDevice.isDevice = false;
       await expect(registerDeviceToken()).resolves.toBe(false);
       expect(mockDeviceApi.register).not.toHaveBeenCalled();
+      expect(console.warn).not.toHaveBeenCalled();
     });
     // 注：registerDeviceToken 的成功路径依赖 getExpoPushTokenAsync 的返回值，
     // 但 jest-expo 对 expo-notifications 的 manual mock 与本测试的 jest.mock 工厂

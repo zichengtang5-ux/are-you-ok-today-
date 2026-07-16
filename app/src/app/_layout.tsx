@@ -27,6 +27,7 @@ import {
 } from '@/services/deepLink';
 import { authEvents } from '@/services/authEvents';
 import { syncWatchContext } from '@/services/watchSync';
+import { DEV_MOCK_ACCESS_TOKEN, isOfflineDevSession } from '@/services/devMock';
 
 function normalizeOnboardingStep(step: string): string {
   return step === 'agreement' ? 'basic-info' : step;
@@ -54,6 +55,17 @@ export default function RootLayout() {
         const accessToken = await AsyncStorage.getItem('access_token');
 
         if (accessToken) {
+          if (__DEV__ && accessToken === DEV_MOCK_ACCESS_TOKEN) {
+            const localState = useStore.getState();
+            const localStep = localState.onboardingStep || 'basic-info';
+            isReady.current = localState.isOnboarded;
+            void syncWatchContext({ isOnboarded: localState.isOnboarded }).catch(() => {});
+            if (localState.isOnboarded) {
+              router.replace('/(tabs)');
+            } else {
+              router.replace(`/onboarding/${localStep}` as Href);
+            }
+          } else {
           const userData = await authApi.getMe();
           const onboardingStep = normalizeOnboardingStep(userData.onboardingStep);
           setUser(userData);
@@ -99,6 +111,7 @@ export default function RootLayout() {
           } else {
             router.replace(`/onboarding/${onboardingStep}` as Href);
           }
+          }
         } else {
           router.replace('/onboarding/login');
         }
@@ -121,8 +134,11 @@ export default function RootLayout() {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState !== 'active' || !isReady.current) return;
-      void refreshGuardState().catch((error) => {
-        reportError(error, { scope: 'appForeground.guardSync' });
+      void isOfflineDevSession().then((offline) => {
+        if (offline) return;
+        void refreshGuardState().catch((error) => {
+          reportError(error, { scope: 'appForeground.guardSync' });
+        });
       });
       void syncWatchContext({ isOnboarded: true }).catch(() => {});
     });
@@ -134,6 +150,10 @@ export default function RootLayout() {
     void AsyncStorage.getItem('access_token').then((token) => {
       if (!token) return;
       isReady.current = true;
+      if (__DEV__ && token === DEV_MOCK_ACCESS_TOKEN) {
+        void syncWatchContext({ isOnboarded: true }).catch(() => {});
+        return;
+      }
       void refreshGuardState().catch((error) => {
         reportError(error, { scope: 'onboardingComplete.guardSync' });
       });
@@ -144,6 +164,13 @@ export default function RootLayout() {
     const unsubscribeNotification = registerNotificationResponseHandler(
       async (actionId) => {
         if (isReplyOkAction(actionId)) {
+          if (await isOfflineDevSession()) {
+            setTodayStatus('replied');
+            setActiveAlert(null);
+            await dismissPresentedGuardNotifications();
+            void syncWatchContext({ isOnboarded: true }).catch(() => {});
+            return;
+          }
           try {
             const result = await replyApi.reply('notification_action');
             setTodayStatus(result.guardStatus as any);

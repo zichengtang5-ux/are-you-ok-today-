@@ -257,7 +257,8 @@ export async function getPushToken(): Promise<string | null> {
   if (!isNative || !(await loadNativeModules())) return null;
   try {
     if (!Device!.isDevice) {
-      console.warn('Push notifications require a physical device');
+      // APNs push tokens are unavailable in Simulator. Local notification
+      // permission and scheduling still work, so this is not a warning.
       return null;
     }
 

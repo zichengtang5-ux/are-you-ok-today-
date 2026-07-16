@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './config';
 import { authEvents } from './authEvents';
 import { clearWatchContext } from './watchSync';
+import { DEV_MOCK_ACCESS_TOKEN } from './devMock';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -41,6 +42,10 @@ class ApiClient {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         if (error.response?.status === 401 && !originalRequest._retry) {
+          const currentToken = await AsyncStorage.getItem('access_token');
+          if (__DEV__ && currentToken === DEV_MOCK_ACCESS_TOKEN) {
+            return Promise.reject(error);
+          }
           originalRequest._retry = true;
 
           try {

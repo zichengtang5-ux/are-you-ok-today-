@@ -111,8 +111,11 @@ export default function HomeScreen() {
           }).catch(() => {});
         } else { setActiveAlert(null); }
         void syncWatchContext({ isOnboarded: true }).catch(() => {});
-      }).catch(() => {
-        if (!cancelled) {
+      }).catch(async () => {
+        if (cancelled) return;
+        if (await isOfflineDevSession()) {
+          void syncWatchContext({ isOnboarded: true }).catch(() => {});
+        } else {
           Alert.alert('状态同步失败', '暂时无法获取最新守护状态，请检查网络后重试。');
         }
       });
@@ -124,6 +127,13 @@ export default function HomeScreen() {
     if (__DEV__ && demoCheckIn) {
       setTodayStatus('replied');
       setActiveAlert(null);
+      return;
+    }
+    if (await isOfflineDevSession()) {
+      setTodayStatus('replied');
+      setActiveAlert(null);
+      await dismissPresentedGuardNotifications();
+      void syncWatchContext({ isOnboarded: true }).catch(() => {});
       return;
     }
     setActionLoading(true);

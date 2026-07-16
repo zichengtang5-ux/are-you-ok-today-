@@ -64,6 +64,13 @@ final class WatchHomeViewModel: ObservableObject {
     isConfigured = true
     isLoading = status == nil
     defer { isLoading = false }
+    if isOfflineDevelopmentSession {
+      let latest = status ?? WatchReplyStatus.demo(.idle)
+      status = latest
+      statusCache.save(latest)
+      errorMessage = nil
+      return
+    }
     do {
       let latest = try await api.getStatus()
       status = latest
@@ -86,6 +93,16 @@ final class WatchHomeViewModel: ObservableObject {
     if demoState != nil {
       try? await Task.sleep(nanoseconds: 450_000_000)
       status = WatchReplyStatus.demo(.replied)
+      WatchNotificationCoordinator.shared.clearGuardNotifications()
+      WKInterfaceDevice.current().play(.success)
+      return
+    }
+
+    if isOfflineDevelopmentSession {
+      try? await Task.sleep(nanoseconds: 250_000_000)
+      let latest = WatchReplyStatus.demo(.replied)
+      status = latest
+      statusCache.save(latest)
       WatchNotificationCoordinator.shared.clearGuardNotifications()
       WKInterfaceDevice.current().play(.success)
       return
@@ -116,6 +133,16 @@ final class WatchHomeViewModel: ObservableObject {
     if demoState != nil {
       try? await Task.sleep(nanoseconds: 450_000_000)
       status = status?.updating(status: .idle) ?? WatchReplyStatus.demo(.idle)
+      WatchNotificationCoordinator.shared.clearGuardNotifications()
+      WKInterfaceDevice.current().play(.success)
+      return
+    }
+
+    if isOfflineDevelopmentSession {
+      try? await Task.sleep(nanoseconds: 250_000_000)
+      let latest = WatchReplyStatus.demo(.idle)
+      status = latest
+      statusCache.save(latest)
       WatchNotificationCoordinator.shared.clearGuardNotifications()
       WKInterfaceDevice.current().play(.success)
       return
@@ -164,6 +191,10 @@ final class WatchHomeViewModel: ObservableObject {
       return "网络不可用，稍后重试"
     }
     return "操作失败，请稍后重试"
+  }
+
+  private var isOfflineDevelopmentSession: Bool {
+    credentialStore.load()?.accessToken == "dev-access-token"
   }
 
   private static func readDemoState() -> GuardState? {
