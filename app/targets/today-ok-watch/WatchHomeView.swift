@@ -8,6 +8,13 @@ private enum WatchPalette {
   static let redSoft = Color(red: 253 / 255, green: 232 / 255, blue: 233 / 255)
 }
 
+private enum WatchLayout {
+  static let stateLogoSize: CGFloat = 24
+  static let mainCircleSize: CGFloat = 88
+  static let checkmarkSize: CGFloat = 28
+  static let stateTitleSize: CGFloat = 17
+}
+
 struct WatchHomeView: View {
   @ObservedObject var viewModel: WatchHomeViewModel
 
@@ -85,7 +92,7 @@ struct WatchHomeView: View {
       stateTitle("今天还不用签到", symbol: "moon.stars.fill", color: .secondary)
       disabledTimeCircle(time: value.reminderConfig.startTime)
     case .waiting:
-      stateTitle("该报平安了", symbol: "hand.wave.fill", color: WatchPalette.green, assetName: "doubleBar")
+      stateTitle("该报平安了", symbol: "hand.wave.fill", color: WatchPalette.green, assetName: "mascot")
       checkInButton(label: "今天还好", color: WatchPalette.green)
     case .replied:
       stateTitle("今天已报平安", symbol: "checkmark.circle.fill", color: WatchPalette.green, assetName: "mascot")
@@ -144,7 +151,7 @@ struct WatchHomeView: View {
         Image(assetName)
           .resizable()
           .scaledToFill()
-          .frame(width: 24, height: 24)
+          .frame(width: WatchLayout.stateLogoSize, height: WatchLayout.stateLogoSize)
           .clipShape(Circle())
       } else {
         Image(systemName: symbol)
@@ -152,7 +159,8 @@ struct WatchHomeView: View {
           .foregroundStyle(color)
       }
       Text(title)
-        .font(.system(.subheadline, design: .rounded, weight: .bold))
+        .font(.system(size: WatchLayout.stateTitleSize, weight: .bold, design: .rounded))
+        .lineLimit(1)
         .multilineTextAlignment(.center)
     }
     .padding(.top, 1)
@@ -172,7 +180,7 @@ struct WatchHomeView: View {
         } else {
           VStack(spacing: 2) {
             Image(systemName: "checkmark")
-              .font(.title3.bold())
+              .font(.system(size: WatchLayout.checkmarkSize, weight: .bold))
             Text(label)
               .font(compact ? .caption : .body)
               .fontWeight(.bold)
@@ -180,7 +188,10 @@ struct WatchHomeView: View {
           .foregroundStyle(.white)
         }
       }
-      .frame(width: compact ? 68 : 88, height: compact ? 68 : 88)
+      .frame(
+        width: compact ? 68 : WatchLayout.mainCircleSize,
+        height: compact ? 68 : WatchLayout.mainCircleSize
+      )
     }
     .buttonStyle(.plain)
     .disabled(viewModel.isCheckingIn)
@@ -193,10 +204,10 @@ struct WatchHomeView: View {
       Circle()
         .fill(WatchPalette.greenSoft.opacity(0.25))
       Image(systemName: "checkmark")
-        .font(.system(size: 34, weight: .bold))
+        .font(.system(size: WatchLayout.checkmarkSize, weight: .bold))
         .foregroundStyle(WatchPalette.green)
     }
-    .frame(width: 68, height: 68)
+    .frame(width: WatchLayout.mainCircleSize, height: WatchLayout.mainCircleSize)
     .accessibilityLabel("今日签到成功")
   }
 
