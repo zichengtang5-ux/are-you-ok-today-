@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ReplyService } from './reply.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import { EventsService } from '../events/events.service';
 
 describe('ReplyService', () => {
   let service: ReplyService;
@@ -34,13 +35,14 @@ describe('ReplyService', () => {
       return Promise.all(arg as Promise<unknown>[]);
     }),
   };
+  const mockEvents = { publish: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
         ReplyService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: require('../events/events.service').EventsService, useValue: { publish: jest.fn().mockResolvedValue(undefined) } },
+        { provide: EventsService, useValue: mockEvents },
       ],
     }).compile();
 
@@ -97,6 +99,10 @@ describe('ReplyService', () => {
           create: expect.objectContaining({ replyMethod: 'apple_watch' }),
         }),
       );
+      expect(mockEvents.publish).toHaveBeenCalledWith({
+        userId: 'u1',
+        type: 'reply_confirmed',
+      });
     });
 
     it('should return an idempotent success if already replied today', async () => {

@@ -89,7 +89,12 @@ struct WatchHomeView: View {
   private func statusView(_ value: WatchReplyStatus) -> some View {
     switch value.status {
     case .idle:
-      stateTitle("今天还不用签到", symbol: "moon.stars.fill", color: .secondary)
+      stateTitle(
+        "等待下次提醒",
+        symbol: "circle.fill",
+        color: WatchPalette.green,
+        assetName: "doubleBar"
+      )
       disabledTimeCircle(time: value.reminderConfig.startTime)
     case .waiting:
       stateTitle("该报平安了", symbol: "hand.wave.fill", color: WatchPalette.green, assetName: "mascot")
@@ -215,7 +220,7 @@ struct WatchHomeView: View {
     .disabled(viewModel.isCheckingIn)
     .accessibilityLabel(label)
     .accessibilityValue(detail.map { "距离联系紧急联系人还有 \($0)" } ?? "")
-    .accessibilityHint("完成今天的报平安签到")
+    .accessibilityHint("完成今天的报平安")
   }
 
   private var resumeGuardButton: some View {
@@ -257,7 +262,7 @@ struct WatchHomeView: View {
         .foregroundStyle(WatchPalette.green)
     }
     .frame(width: WatchLayout.mainCircleSize, height: WatchLayout.mainCircleSize)
-    .accessibilityLabel("今日签到成功")
+    .accessibilityLabel("今日已报平安")
   }
 
   private func disabledTimeCircle(time: String) -> some View {

@@ -86,6 +86,7 @@ final class WatchHomeViewModel: ObservableObject {
     if demoState != nil {
       try? await Task.sleep(nanoseconds: 450_000_000)
       status = WatchReplyStatus.demo(.replied)
+      WatchNotificationCoordinator.shared.clearGuardNotifications()
       WKInterfaceDevice.current().play(.success)
       return
     }
@@ -115,6 +116,7 @@ final class WatchHomeViewModel: ObservableObject {
     if demoState != nil {
       try? await Task.sleep(nanoseconds: 450_000_000)
       status = status?.updating(status: .idle) ?? WatchReplyStatus.demo(.idle)
+      WatchNotificationCoordinator.shared.clearGuardNotifications()
       WKInterfaceDevice.current().play(.success)
       return
     }
