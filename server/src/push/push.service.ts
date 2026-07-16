@@ -11,7 +11,7 @@ export class PushService implements OnModuleDestroy {
 
   constructor(private config: ConfigService) {
     this.provider = this.config.get('APNS_PROVIDER', 'mock');
-    this.bundleId = this.config.get('APNS_BUNDLE_ID', 'com.todayok.app');
+    this.bundleId = this.config.get('APNS_BUNDLE_ID', 'com.zichengtang.todayok');
 
     if (this.provider === 'apns') {
       this.apnProvider = this.createProvider();

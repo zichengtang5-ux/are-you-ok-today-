@@ -183,7 +183,7 @@ export class SubscriptionService {
       .split(',')
       .map((path) => path.trim())
       .filter(Boolean);
-    const bundleId = this.config.get('APNS_BUNDLE_ID', 'com.todayok.app');
+    const bundleId = this.config.get('APNS_BUNDLE_ID', 'com.zichengtang.todayok');
     const nodeEnv = this.config.get('NODE_ENV', 'development');
     const environment = nodeEnv === 'production' ? Environment.PRODUCTION : Environment.SANDBOX;
     const signingKey = fs.readFileSync(keyPath, 'utf8');

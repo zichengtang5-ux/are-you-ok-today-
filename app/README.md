@@ -93,7 +93,7 @@ npx eas submit --platform ios --profile production
 
 - Apple Developer Program 已开通
 - App Store Connect 已创建 App
-- bundle id 与 `app.json` 中的 `com.todayok.app` 一致
+- bundle id 与 `app.json` 中的 `com.zichengtang.todayok` 一致
 - `app.json` 的 `ios.appleTeamId` 已填写 Apple Developer Team ID
 - `EXPO_PUBLIC_API_URL` 指向 HTTPS 生产 API
 - `EXPO_PUBLIC_TERMS_URL` 和 `EXPO_PUBLIC_PRIVACY_URL` 可公开访问

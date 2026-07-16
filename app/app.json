@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.todayok.app",
+      "appleTeamId": "PBHR84H6GW",
+      "bundleIdentifier": "com.zichengtang.todayok",
       "supportsTablet": false,
       "infoPlist": {
         "NSContactsUsageDescription": "用于导入紧急联系人",
