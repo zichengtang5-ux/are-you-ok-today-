@@ -119,7 +119,12 @@ struct WatchHomeView: View {
         .multilineTextAlignment(.center)
         .padding(.horizontal, 4)
     case .alert:
-      stateTitle("已自动联系紧急联系人", symbol: "person.2.badge.gearshape.fill", color: WatchPalette.red, assetName: "doubleBar")
+      stateTitle(
+        "已自动联系紧急联系人",
+        symbol: "person.2.badge.gearshape.fill",
+        color: WatchPalette.red,
+        usesAlertMark: true
+      )
       checkInButton(label: "我没事", color: WatchPalette.red)
       Text("联系人正在确认你的安全")
         .font(.caption)
@@ -143,10 +148,21 @@ struct WatchHomeView: View {
     _ title: String,
     symbol: String,
     color: Color,
-    assetName: String? = nil
+    assetName: String? = nil,
+    usesAlertMark: Bool = false
   ) -> some View {
     VStack(spacing: 3) {
-      if let assetName {
+      if usesAlertMark {
+        ZStack {
+          Circle()
+            .fill(WatchPalette.red.gradient)
+          Image(systemName: "person.2.fill")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.white)
+        }
+        .frame(width: WatchLayout.stateLogoSize, height: WatchLayout.stateLogoSize)
+        .accessibilityHidden(true)
+      } else if let assetName {
         Image(assetName)
           .resizable()
           .scaledToFill()
