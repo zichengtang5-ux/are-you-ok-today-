@@ -8,6 +8,7 @@ module.exports = {
   icon: '../../assets/images/icon.png',
   frameworks: ['WatchConnectivity', 'Security'],
   images: {
+    mascot: '../../assets/images/logo-white-bg.png',
     doubleBar: '../../assets/images/logo-double-bar-white-bg.png',
   },
   colors: {

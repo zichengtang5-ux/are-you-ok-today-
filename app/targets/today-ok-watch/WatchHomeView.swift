@@ -85,10 +85,10 @@ struct WatchHomeView: View {
       stateTitle("今天还不用签到", symbol: "moon.stars.fill", color: .secondary)
       disabledTimeCircle(time: value.reminderConfig.startTime)
     case .waiting:
-      stateTitle("该报平安了", symbol: "hand.wave.fill", color: WatchPalette.green, usesMascot: true)
+      stateTitle("该报平安了", symbol: "hand.wave.fill", color: WatchPalette.green, assetName: "doubleBar")
       checkInButton(label: "今天还好", color: WatchPalette.green)
     case .replied:
-      stateTitle("今天已报平安", symbol: "checkmark.circle.fill", color: WatchPalette.green)
+      stateTitle("今天已报平安", symbol: "checkmark.circle.fill", color: WatchPalette.green, assetName: "mascot")
       successCircle
       Text("下次提醒 \(value.reminderConfig.startTime)")
         .font(.caption)
@@ -111,7 +111,7 @@ struct WatchHomeView: View {
         .padding(.horizontal, 4)
       checkInButton(label: "报平安", color: WatchPalette.orange, compact: true)
     case .alert:
-      stateTitle("已自动联系紧急联系人", symbol: "person.2.badge.gearshape.fill", color: WatchPalette.red, usesMascot: true)
+      stateTitle("已自动联系紧急联系人", symbol: "person.2.badge.gearshape.fill", color: WatchPalette.red, assetName: "doubleBar")
       Text("联系人正在确认你的安全")
         .font(.caption)
         .foregroundStyle(WatchPalette.red)
@@ -137,11 +137,11 @@ struct WatchHomeView: View {
     _ title: String,
     symbol: String,
     color: Color,
-    usesMascot: Bool = false
+    assetName: String? = nil
   ) -> some View {
     VStack(spacing: 3) {
-      if usesMascot {
-        Image("doubleBar")
+      if let assetName {
+        Image(assetName)
           .resizable()
           .scaledToFill()
           .frame(width: 24, height: 24)
