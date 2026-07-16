@@ -35,7 +35,10 @@ describe('ReminderCronService', () => {
       return Promise.all(arg as Promise<unknown>[]);
     }),
   };
-  const mockPush = { sendCareReminder: jest.fn().mockResolvedValue(true) };
+  const mockPush = {
+    sendCareReminder: jest.fn().mockResolvedValue(true),
+    sendGuardAlertNotification: jest.fn().mockResolvedValue(true),
+  };
   const mockNotificationQueue = { enqueueAlert: jest.fn().mockResolvedValue(undefined) };
   const mockObservability = { metric: jest.fn(), captureException: jest.fn() };
   const mockEvents = { publish: jest.fn().mockResolvedValue(undefined) };
@@ -208,7 +211,7 @@ describe('ReminderCronService', () => {
     due(
       baseConfig(
         baseUser({
-          devices: [],
+          devices: [{ token: 'tok1' }],
           contacts: [{ id: 'c1', name: '妈妈', phone: '13800001111' }],
           guardStatus: { id: 'gs1', status: 'grace', lastReplyAt: null },
         }),
@@ -234,6 +237,7 @@ describe('ReminderCronService', () => {
         includeVoice: false,
       }),
     );
+    expect(mockPush.sendGuardAlertNotification).toHaveBeenCalledWith('tok1');
   });
 
   it('should include voice calls only for an unexpired premium subscription', async () => {

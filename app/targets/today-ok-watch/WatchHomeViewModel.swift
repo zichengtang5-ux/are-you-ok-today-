@@ -7,6 +7,7 @@ final class WatchHomeViewModel: ObservableObject {
   @Published private(set) var isConfigured = false
   @Published private(set) var isLoading = false
   @Published private(set) var isCheckingIn = false
+  @Published private(set) var isResumingGuard = false
   @Published var errorMessage: String?
 
   private let api: TodayOkWatchAPI
@@ -53,7 +54,7 @@ final class WatchHomeViewModel: ObservableObject {
   }
 
   func refresh() async {
-    if demoState != nil || isLoading || isCheckingIn { return }
+    if demoState != nil || isLoading || isCheckingIn || isResumingGuard { return }
     guard credentialStore.load()?.isOnboarded == true else {
       isConfigured = false
       phoneLink.requestConfiguration()
@@ -74,7 +75,7 @@ final class WatchHomeViewModel: ObservableObject {
   }
 
   func checkIn() async {
-    guard !isCheckingIn else { return }
+    guard !isCheckingIn, !isResumingGuard else { return }
     isCheckingIn = true
     errorMessage = nil
     defer { isCheckingIn = false }
@@ -98,6 +99,52 @@ final class WatchHomeViewModel: ObservableObject {
       if case WatchAPIError.server(status: 409, _) = error {
         await refresh()
       }
+    }
+  }
+
+  func resumeGuard() async {
+    guard !isResumingGuard, !isCheckingIn else { return }
+    isResumingGuard = true
+    errorMessage = nil
+    defer { isResumingGuard = false }
+
+    if demoState != nil {
+      try? await Task.sleep(nanoseconds: 450_000_000)
+      status = status?.updating(status: .idle) ?? WatchReplyStatus.demo(.idle)
+      WKInterfaceDevice.current().play(.success)
+      return
+    }
+
+    do {
+      let result = try await api.resumeGuard()
+
+      if let current = status {
+        let resumed = current.updating(status: result.guardStatus)
+        status = resumed
+        statusCache.save(resumed)
+      }
+
+      do {
+        let latest = try await api.getStatus()
+        status = latest
+        statusCache.save(latest)
+      } catch {
+        errorMessage = "守护已恢复，最新状态稍后同步"
+      }
+
+      WKInterfaceDevice.current().play(.success)
+    } catch {
+      if case WatchAPIError.server(status: 400, _) = error {
+        if let latest = try? await api.getStatus(), latest.status != .paused {
+          status = latest
+          statusCache.save(latest)
+          errorMessage = nil
+          WKInterfaceDevice.current().play(.success)
+          return
+        }
+      }
+      errorMessage = userMessage(for: error)
+      WKInterfaceDevice.current().play(.failure)
     }
   }
 

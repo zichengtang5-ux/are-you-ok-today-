@@ -336,6 +336,9 @@ export class ReminderCronService {
       round,
       includeVoice: premium,
     });
+    for (const device of user.devices) {
+      await this.pushService.sendGuardAlertNotification(device.token);
+    }
 
     this.logger.log(
       `Alert triggered for user ${user.id}, enqueued notifications for ${eligibleContacts.length} contacts (round ${round})`,

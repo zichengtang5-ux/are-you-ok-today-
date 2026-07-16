@@ -21,6 +21,10 @@ final class TodayOkWatchAPI {
     return try await authorizedRequest(path: "/reply/today", method: "POST", body: body)
   }
 
+  func resumeGuard() async throws -> WatchResumeResult {
+    try await authorizedRequest(path: "/pause/resume", method: "POST", body: nil)
+  }
+
   private func authorizedRequest<Response: Decodable>(
     path: String,
     method: String,

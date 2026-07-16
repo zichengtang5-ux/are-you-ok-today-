@@ -54,24 +54,24 @@ struct WatchHomeView: View {
   }
 
   private var setupRequiredView: some View {
-    VStack(spacing: 10) {
+    VStack(spacing: 7) {
       Image(systemName: "iphone.and.arrow.forward")
-        .font(.system(size: 34, weight: .semibold))
+        .font(.system(size: 30, weight: .semibold))
         .foregroundStyle(WatchPalette.green)
-      Text("请先在 iPhone 完成设置")
-        .font(.headline)
+      Text("请在 iPhone App 配置")
+        .font(.system(size: WatchLayout.stateTitleSize, weight: .bold, design: .rounded))
         .multilineTextAlignment(.center)
-      Text("联系人和提醒时间只在 iPhone 管理，完成后会自动同步到手表。")
+      Text("添加紧急联系人并设置提醒时间\n完成后会自动同步到手表")
         .font(.caption2)
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
-      Button("重新连接") {
+      Button("我已完成，重新同步") {
         Task { await viewModel.refresh() }
       }
       .buttonStyle(.bordered)
       .tint(WatchPalette.green)
     }
-    .padding(.top, 15)
+    .padding(.top, 10)
   }
 
   private var loadingView: some View {
@@ -104,21 +104,23 @@ struct WatchHomeView: View {
       stateTitle("还没收到你的回复", symbol: "clock.badge.exclamationmark.fill", color: WatchPalette.orange)
       if let deadline = parseDate(value.graceDeadlineAt) {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-          Text(countdown(to: deadline, from: context.date))
-            .font(.system(.title2, design: .rounded, weight: .bold))
-            .monospacedDigit()
-            .foregroundStyle(WatchPalette.orange)
-            .accessibilityLabel("距离联系紧急联系人还有 \(countdown(to: deadline, from: context.date))")
+          checkInButton(
+            label: "报平安",
+            color: WatchPalette.orange,
+            detail: countdown(to: deadline, from: context.date)
+          )
         }
+      } else {
+        checkInButton(label: "报平安", color: WatchPalette.orange)
       }
       Text("超时后自动联系紧急联系人")
         .font(.caption2)
         .foregroundStyle(WatchPalette.orange)
         .multilineTextAlignment(.center)
         .padding(.horizontal, 4)
-      checkInButton(label: "报平安", color: WatchPalette.orange, compact: true)
     case .alert:
       stateTitle("已自动联系紧急联系人", symbol: "person.2.badge.gearshape.fill", color: WatchPalette.red, assetName: "doubleBar")
+      checkInButton(label: "我没事", color: WatchPalette.red)
       Text("联系人正在确认你的安全")
         .font(.caption)
         .foregroundStyle(WatchPalette.red)
@@ -126,17 +128,14 @@ struct WatchHomeView: View {
         .padding(.vertical, 5)
         .padding(.horizontal, 8)
         .background(WatchPalette.redSoft.opacity(0.25), in: Capsule())
-      checkInButton(label: "我没事", color: WatchPalette.red, compact: true)
     case .paused:
       stateTitle("守护已暂停", symbol: "pause.circle.fill", color: .secondary)
-      Image(systemName: "iphone")
-        .font(.system(size: 38))
-        .foregroundStyle(.secondary)
-      Text("请在 iPhone App 的设置中恢复守护")
-        .font(.caption)
+      Text("恢复后将继续按原设置提醒")
+        .font(.caption2)
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
         .padding(.horizontal, 8)
+      resumeGuardButton
     }
   }
 
@@ -157,6 +156,7 @@ struct WatchHomeView: View {
         Image(systemName: symbol)
           .font(.system(size: 20, weight: .semibold))
           .foregroundStyle(color)
+          .frame(width: WatchLayout.stateLogoSize, height: WatchLayout.stateLogoSize)
       }
       Text(title)
         .font(.system(size: WatchLayout.stateTitleSize, weight: .bold, design: .rounded))
@@ -166,7 +166,7 @@ struct WatchHomeView: View {
     .padding(.top, 1)
   }
 
-  private func checkInButton(label: String, color: Color, compact: Bool = false) -> some View {
+  private func checkInButton(label: String, color: Color, detail: String? = nil) -> some View {
     Button {
       Task { await viewModel.checkIn() }
     } label: {
@@ -178,25 +178,58 @@ struct WatchHomeView: View {
           ProgressView()
             .tint(.white)
         } else {
-          VStack(spacing: 2) {
+          VStack(spacing: detail == nil ? 2 : 0) {
+            if let detail {
+              Text(detail)
+                .font(.system(.caption, design: .rounded, weight: .bold))
+                .monospacedDigit()
+            }
             Image(systemName: "checkmark")
               .font(.system(size: WatchLayout.checkmarkSize, weight: .bold))
             Text(label)
-              .font(compact ? .caption : .body)
+              .font(.body)
               .fontWeight(.bold)
           }
           .foregroundStyle(.white)
         }
       }
-      .frame(
-        width: compact ? 68 : WatchLayout.mainCircleSize,
-        height: compact ? 68 : WatchLayout.mainCircleSize
-      )
+      .frame(width: WatchLayout.mainCircleSize, height: WatchLayout.mainCircleSize)
     }
     .buttonStyle(.plain)
     .disabled(viewModel.isCheckingIn)
     .accessibilityLabel(label)
+    .accessibilityValue(detail.map { "距离联系紧急联系人还有 \($0)" } ?? "")
     .accessibilityHint("完成今天的报平安签到")
+  }
+
+  private var resumeGuardButton: some View {
+    Button {
+      Task { await viewModel.resumeGuard() }
+    } label: {
+      ZStack {
+        Circle()
+          .fill(WatchPalette.green.gradient)
+          .shadow(color: WatchPalette.green.opacity(0.35), radius: 7, y: 3)
+        if viewModel.isResumingGuard {
+          ProgressView()
+            .tint(.white)
+        } else {
+          VStack(spacing: 2) {
+            Image(systemName: "play.fill")
+              .font(.system(size: WatchLayout.checkmarkSize, weight: .bold))
+            Text("恢复守护")
+              .font(.body)
+              .fontWeight(.bold)
+          }
+          .foregroundStyle(.white)
+        }
+      }
+      .frame(width: WatchLayout.mainCircleSize, height: WatchLayout.mainCircleSize)
+    }
+    .buttonStyle(.plain)
+    .disabled(viewModel.isResumingGuard)
+    .accessibilityLabel("恢复守护")
+    .accessibilityHint("继续按 iPhone App 中的设置守护")
   }
 
   private var successCircle: some View {
@@ -223,7 +256,7 @@ struct WatchHomeView: View {
       }
       .foregroundStyle(.secondary)
     }
-    .frame(width: 78, height: 78)
+    .frame(width: WatchLayout.mainCircleSize, height: WatchLayout.mainCircleSize)
   }
 
   private func retryView(message: String) -> some View {

@@ -10,6 +10,7 @@ import {
   isDefaultNotificationAction,
   getDailyReminderTitle,
   requestNotificationPermission,
+  setupNotificationCategories,
   scheduleDailyReminder,
   cancelAllScheduledReminders,
   registerDeviceToken,
@@ -43,6 +44,7 @@ jest.mock('../api.types', () => ({ deviceApi: mockDeviceApi }));
 const mockNotifications = jest.requireMock('expo-notifications') as {
   getPermissionsAsync: jest.Mock;
   requestPermissionsAsync: jest.Mock;
+  setNotificationCategoryAsync: jest.Mock;
   scheduleNotificationAsync: jest.Mock;
   getAllScheduledNotificationsAsync: jest.Mock;
   cancelScheduledNotificationAsync: jest.Mock;
@@ -97,6 +99,25 @@ describe('notifications', () => {
       mockNotifications.getPermissionsAsync.mockResolvedValue({ status: 'undetermined' });
       mockNotifications.requestPermissionsAsync.mockResolvedValue({ status: 'denied' });
       await expect(requestNotificationPermission()).resolves.toBe(false);
+    });
+  });
+
+  describe('notification categories', () => {
+    it('registers matching daily, grace, and alert categories for iPhone and Watch', async () => {
+      await setupNotificationCategories();
+
+      expect(mockNotifications.setNotificationCategoryAsync).toHaveBeenCalledWith(
+        'daily_reminder',
+        expect.any(Array),
+      );
+      expect(mockNotifications.setNotificationCategoryAsync).toHaveBeenCalledWith(
+        'safety_grace',
+        expect.arrayContaining([expect.objectContaining({ identifier: 'open_app' })]),
+      );
+      expect(mockNotifications.setNotificationCategoryAsync).toHaveBeenCalledWith(
+        'safety_alert',
+        expect.arrayContaining([expect.objectContaining({ identifier: 'open_app' })]),
+      );
     });
   });
 

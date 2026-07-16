@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PauseService } from './pause.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException } from '@nestjs/common';
+import { EventsService } from '../events/events.service';
 
 describe('PauseService', () => {
   let service: PauseService;
@@ -24,12 +25,14 @@ describe('PauseService', () => {
       return Promise.all(arg as Promise<unknown>[]);
     }),
   };
+  const mockEvents = { publish: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
         PauseService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: EventsService, useValue: mockEvents },
       ],
     }).compile();
 
@@ -62,6 +65,11 @@ describe('PauseService', () => {
           update: { status: 'paused' },
         }),
       );
+      expect(mockEvents.publish).toHaveBeenCalledWith({
+        userId: 'u1',
+        type: 'status_changed',
+        payload: expect.objectContaining({ status: 'paused' }),
+      });
     });
 
     it('should move the next reminder past the pause period', async () => {
@@ -78,6 +86,11 @@ describe('PauseService', () => {
       expect(mockPrisma.reminderConfig.update).toHaveBeenCalledWith({
         where: { userId: 'u1' },
         data: { nextDueAt: expect.any(Date) },
+      });
+      expect(mockEvents.publish).toHaveBeenCalledWith({
+        userId: 'u1',
+        type: 'status_changed',
+        payload: expect.objectContaining({ status: 'paused' }),
       });
     });
 
@@ -139,6 +152,11 @@ describe('PauseService', () => {
         where: { userId: 'u1' },
         data: { nextDueAt: expect.any(Date) },
       });
+      expect(mockEvents.publish).toHaveBeenCalledWith({
+        userId: 'u1',
+        type: 'status_changed',
+        payload: { status: 'idle' },
+      });
     });
 
     it('should throw when no active pause', async () => {
@@ -195,6 +213,11 @@ describe('PauseService', () => {
       expect(mockPrisma.guardStatus.upsert).toHaveBeenCalledWith(
         expect.objectContaining({ update: { status: 'idle' } }),
       );
+      expect(mockEvents.publish).toHaveBeenCalledWith({
+        userId: 'u1',
+        type: 'status_changed',
+        payload: { status: 'idle' },
+      });
     });
   });
 });

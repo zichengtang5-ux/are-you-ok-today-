@@ -49,6 +49,11 @@ struct WatchReplyResult: Codable {
   let alertResolved: Bool
 }
 
+struct WatchResumeResult: Codable {
+  let message: String
+  let guardStatus: GuardState
+}
+
 struct WatchRefreshResult: Codable {
   let accessToken: String
   let refreshToken: String
@@ -82,6 +87,18 @@ enum WatchAPIError: LocalizedError {
 }
 
 extension WatchReplyStatus {
+  func updating(status: GuardState) -> WatchReplyStatus {
+    WatchReplyStatus(
+      status: status,
+      lastReplyAt: lastReplyAt,
+      todayReplied: todayReplied,
+      todayRepliedAt: todayRepliedAt,
+      reminderConfig: reminderConfig,
+      graceDeadlineAt: status == .grace ? graceDeadlineAt : nil,
+      monthlyStats: monthlyStats
+    )
+  }
+
   static func demo(_ state: GuardState) -> WatchReplyStatus {
     let now = Date()
     let deadline = ISO8601DateFormatter().string(from: now.addingTimeInterval(12 * 60))

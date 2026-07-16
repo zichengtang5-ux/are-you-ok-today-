@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeNextEndTimeDueAt } from '../reminder/reminder-schedule.util';
+import { EventsService } from '../events/events.service';
 
 @Injectable()
 export class PauseService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsService,
+  ) {}
 
   async pause(userId: string, days: number, reason?: string) {
     if (!Number.isInteger(days) || days < 1 || days > 14) {
@@ -46,6 +50,11 @@ export class PauseService {
           },
         });
       }
+    });
+    await this.events.publish({
+      userId,
+      type: 'status_changed',
+      payload: { status: 'paused', pauseEndAt: pauseEnd.toISOString() },
     });
 
     return {
@@ -89,6 +98,11 @@ export class PauseService {
         });
       }
     });
+    await this.events.publish({
+      userId,
+      type: 'status_changed',
+      payload: { status: 'idle' },
+    });
 
     return {
       message: '守护已恢复',
@@ -131,6 +145,11 @@ export class PauseService {
             },
           });
         }
+      });
+      await this.events.publish({
+        userId,
+        type: 'status_changed',
+        payload: { status: 'idle' },
       });
 
       return { isPaused: false };

@@ -4,6 +4,8 @@ import { deviceApi } from './api.types';
 const isNative = Platform.OS !== 'web';
 
 const CATEGORY_ID = 'daily_reminder';
+const GRACE_CATEGORY_ID = 'safety_grace';
+const ALERT_CATEGORY_ID = 'safety_alert';
 const ACTION_REPLY_OK = 'reply_ok';
 const ACTION_OPEN_APP = 'open_app';
 const DEFAULT_ACTION_IDENTIFIER = 'expo.modules.notifications.actions.DEFAULT';
@@ -98,6 +100,17 @@ export async function setupNotificationCategories(): Promise<void> {
           opensAppToForeground: true,
         },
       },
+    ]);
+    const openCheckInAction = [
+      {
+        identifier: ACTION_OPEN_APP,
+        buttonTitle: '打开报平安',
+        options: { opensAppToForeground: true },
+      },
+    ];
+    await Promise.all([
+      Notifications!.setNotificationCategoryAsync(GRACE_CATEGORY_ID, openCheckInAction),
+      Notifications!.setNotificationCategoryAsync(ALERT_CATEGORY_ID, openCheckInAction),
     ]);
   } catch (e) {
     console.warn('[notifications] setupNotificationCategories failed:', e);

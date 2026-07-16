@@ -53,6 +53,11 @@ describe('PushService', () => {
       const result = await service.sendAlertNotification('device-token-1', '妈妈', '20:30');
       expect(result).toBe(true);
     });
+
+    it('should log the guard alert notification in mock mode', async () => {
+      const result = await service.sendGuardAlertNotification('device-token-1');
+      expect(result).toBe(true);
+    });
   });
 
   describe('apns mode', () => {
@@ -91,11 +96,36 @@ describe('PushService', () => {
       expect(mockSend).toHaveBeenCalled();
       const note = mockSend.mock.calls[0][0];
       expect(note.alert).toEqual({
-        title: '「妈妈」今天还好吗？',
-        body: '一键点击，让我知道你今天还好',
+        title: '还没收到你的回复',
+        body: '妈妈，超时后将自动联系紧急联系人，点击立即报平安。',
       });
-      expect(note.payload).toEqual({ type: 'daily_reminder', action: 'reply_ok', route: 'home' });
-      expect(note.aps.category).toBe('daily_reminder');
+      expect(note.payload).toEqual({
+        type: 'grace_reminder',
+        guardState: 'grace',
+        action: 'open_app',
+        route: 'home',
+      });
+      expect(note.aps.category).toBe('safety_grace');
+    });
+
+    it('should send the guard alert notification via APNs', async () => {
+      mockSend.mockResolvedValue({ sent: ['token1'], failed: [] });
+
+      const result = await service.sendGuardAlertNotification('token1');
+
+      expect(result).toBe(true);
+      const note = mockSend.mock.calls[0][0];
+      expect(note.alert).toEqual({
+        title: '已自动联系紧急联系人',
+        body: '联系人正在确认你的安全，点击告诉他们你没事。',
+      });
+      expect(note.payload).toEqual({
+        type: 'guard_alert',
+        guardState: 'alert',
+        action: 'open_app',
+        route: 'home',
+      });
+      expect(note.aps.category).toBe('safety_alert');
     });
 
     it('should send alert notification via APNs', async () => {

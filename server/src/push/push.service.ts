@@ -27,8 +27,8 @@ export class PushService implements OnModuleDestroy {
 
   async sendCareReminder(token: string, userNickname?: string | null): Promise<boolean> {
     const displayName = userNickname?.trim() || '你';
-    const title = `「${displayName}」今天还好吗？`;
-    const body = '一键点击，让我知道你今天还好';
+    const title = '还没收到你的回复';
+    const body = `${displayName}，超时后将自动联系紧急联系人，点击立即报平安。`;
 
     if (this.provider === 'mock') {
       this.logger.log(`[MOCK APNs] 关心提醒 -> ${token}: ${title} - ${body}`);
@@ -39,8 +39,26 @@ export class PushService implements OnModuleDestroy {
       token,
       title,
       body,
-      { type: 'daily_reminder', action: 'reply_ok', route: 'home' },
-      'daily_reminder',
+      { type: 'grace_reminder', guardState: 'grace', action: 'open_app', route: 'home' },
+      'safety_grace',
+    );
+  }
+
+  async sendGuardAlertNotification(token: string): Promise<boolean> {
+    const title = '已自动联系紧急联系人';
+    const body = '联系人正在确认你的安全，点击告诉他们你没事。';
+
+    if (this.provider === 'mock') {
+      this.logger.log(`[MOCK APNs] 本人告警提醒 -> ${token}: ${title} - ${body}`);
+      return true;
+    }
+
+    return this.sendApns(
+      token,
+      title,
+      body,
+      { type: 'guard_alert', guardState: 'alert', action: 'open_app', route: 'home' },
+      'safety_alert',
     );
   }
 

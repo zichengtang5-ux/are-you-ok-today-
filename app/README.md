@@ -112,9 +112,9 @@ npx eas submit --platform ios --profile production
 - 订阅：后端验证成功后才确认 StoreKit 交易，并提供恢复购买入口
 - 外部链接：电话、App Store、协议、隐私政策失败兜底
 - SSE 实时状态同步
-- Apple Watch 每日报平安：与 iPhone 共用后端状态，一端签到即完成当天签到；展示等待、已签到、宽限倒计时、已联系紧急联系人和暂停状态
+- Apple Watch 每日报平安：与 iPhone 共用后端状态，一端签到即完成当天签到；展示等待、已签到、宽限倒计时、已联系紧急联系人和暂停状态，并可在手表上恢复守护
 
-Apple Watch 仅作为 iPhone 的补充：联系人、提醒时间和暂停状态都在 iPhone 设置。超时联系紧急联系人由服务器执行，不依赖手表是否佩戴或充电。
+Apple Watch 仅作为 iPhone 的补充：联系人、提醒时间和暂停时长都在 iPhone 设置；已暂停时可从手表恢复。每日、宽限期和联系人已通知提醒由 iPhone/APNs 转发到 Watch，点击后进入手表报平安页。超时联系紧急联系人由服务器执行，不依赖手表是否佩戴或充电。
 
 ## 验证记录
 
@@ -132,8 +132,8 @@ Apple Watch 仅作为 iPhone 的补充：联系人、提醒时间和暂停状态
 Apple Watch Companion 验证（2026-07-16）：
 
 - `TodayOkWatch` target 在 Apple Watch Series 10 46mm / watchOS 11.5 模拟器构建成功
-- 覆盖待签到、已签到、宽限倒计时、已联系紧急联系人四个主页面状态
-- 前端 15 个 suites / 111 个 tests、服务端 20 个 suites / 158 个 tests 全部通过
+- 覆盖待签到、已签到、宽限倒计时、已联系紧急联系人、暂停恢复和 iPhone 未配置引导状态，以及三类 watchOS 系统提醒
+- 前端 15 个 suites / 112 个 tests、服务端 20 个 suites / 160 个 tests 全部通过
 - `npx expo-doctor` 21/21 通过，生产依赖审计 0 vulnerabilities
 
 ## 注意
