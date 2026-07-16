@@ -79,7 +79,7 @@ model DailyRecord {
   date        String
   status      String    @default("waiting") // idle | waiting | replied | grace | alert
   repliedAt   DateTime?
-  replyMethod String? // notification_action | in_app
+  replyMethod String? // notification_action | in_app | apple_watch | contact_confirm
   createdAt   DateTime  @default(now())
 
   @@unique([userId, date])

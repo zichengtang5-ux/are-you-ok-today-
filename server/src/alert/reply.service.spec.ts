@@ -82,6 +82,23 @@ describe('ReplyService', () => {
       );
     });
 
+    it('should record Apple Watch replies', async () => {
+      mockPrisma.guardStatus.findUnique.mockResolvedValue({ status: 'waiting' });
+      mockPrisma.dailyRecord.findUnique.mockResolvedValue(null);
+      mockPrisma.dailyRecord.upsert.mockResolvedValue({ status: 'replied' });
+      mockPrisma.guardStatus.upsert.mockResolvedValue({ status: 'replied' });
+      mockPrisma.alertEvent.findFirst.mockResolvedValue(null);
+
+      await service.replyToday('u1', 'apple_watch');
+
+      expect(mockPrisma.dailyRecord.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ replyMethod: 'apple_watch' }),
+          create: expect.objectContaining({ replyMethod: 'apple_watch' }),
+        }),
+      );
+    });
+
     it('should return an idempotent success if already replied today', async () => {
       mockPrisma.guardStatus.findUnique.mockResolvedValue({ status: 'replied' });
       mockPrisma.dailyRecord.findUnique.mockResolvedValue({

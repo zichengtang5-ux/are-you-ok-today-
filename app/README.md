@@ -1,6 +1,6 @@
 # 今天还好 · 前端
 
-Expo / React Native iOS App，负责独居用户每日确认、告警处理、订阅和紧急求助流程。
+Expo / React Native iOS App，负责独居用户每日确认、告警处理、订阅和紧急求助流程；附带一个只负责报平安的 watchOS Companion App。
 
 ## 技术栈
 
@@ -30,6 +30,10 @@ src/
 ├── store/            # Zustand 状态
 ├── theme/            # 设计 token
 └── types/            # 领域类型
+modules/
+└── expo-watch-connectivity/ # iPhone 与 Apple Watch 的安全配置同步
+targets/
+└── today-ok-watch/          # SwiftUI watchOS Companion App
 ```
 
 ## 本地开发
@@ -49,6 +53,8 @@ npx tsc --noEmit
 npm run lint
 npx expo-doctor
 ```
+
+`npm run ios` 会生成并运行原生 iOS 工程，同时包含 `TodayOkWatch` target；Watch 功能不能在 Expo Go 中运行。
 
 ## 环境变量
 
@@ -88,6 +94,7 @@ npx eas submit --platform ios --profile production
 - Apple Developer Program 已开通
 - App Store Connect 已创建 App
 - bundle id 与 `app.json` 中的 `com.todayok.app` 一致
+- `app.json` 的 `ios.appleTeamId` 已填写 Apple Developer Team ID
 - `EXPO_PUBLIC_API_URL` 指向 HTTPS 生产 API
 - `EXPO_PUBLIC_TERMS_URL` 和 `EXPO_PUBLIC_PRIVACY_URL` 可公开访问
 - App Store Connect 已创建 IAP 订阅产品
@@ -105,6 +112,9 @@ npx eas submit --platform ios --profile production
 - 订阅：后端验证成功后才确认 StoreKit 交易，并提供恢复购买入口
 - 外部链接：电话、App Store、协议、隐私政策失败兜底
 - SSE 实时状态同步
+- Apple Watch 每日报平安：与 iPhone 共用后端状态，一端签到即完成当天签到；展示等待、已签到、宽限倒计时、已联系紧急联系人和暂停状态
+
+Apple Watch 仅作为 iPhone 的补充：联系人、提醒时间和暂停状态都在 iPhone 设置。超时联系紧急联系人由服务器执行，不依赖手表是否佩戴或充电。
 
 ## 验证记录
 
@@ -118,6 +128,13 @@ npx eas submit --platform ios --profile production
 - `npm audit --audit-level=moderate` 0 vulnerabilities
 - `npx expo export --platform ios` 成功
 - iPhone 16 Pro / iOS 18.6 模拟器覆盖登录引导、每日签到/撤销、告警确认/求助、SOS、mock 订阅、暂停/恢复、电话兜底
+
+Apple Watch Companion 验证（2026-07-16）：
+
+- `TodayOkWatch` target 在 Apple Watch Series 10 46mm / watchOS 11.5 模拟器构建成功
+- 覆盖待签到、已签到、宽限倒计时、已联系紧急联系人四个主页面状态
+- 前端 15 个 suites / 111 个 tests、服务端 20 个 suites / 158 个 tests 全部通过
+- `npx expo-doctor` 21/21 通过，生产依赖审计 0 vulnerabilities
 
 ## 注意
 

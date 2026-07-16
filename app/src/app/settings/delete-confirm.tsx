@@ -9,6 +9,7 @@ import { userApi } from '@/services/api.types';
 import { isOfflineDevSession } from '@/services/devMock';
 import { useStore } from '@/store/useStore';
 import { Colors, FontSizes, FontWeights, Spacing } from '@/theme';
+import { clearWatchContext } from '@/services/watchSync';
 
 export default function DeleteConfirmScreen() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function DeleteConfirmScreen() {
       'refresh_token',
       'today-ok-storage',
     ]);
+    await clearWatchContext();
     router.replace('/onboarding/login');
   };
 

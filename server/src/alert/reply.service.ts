@@ -11,7 +11,7 @@ import {
   parseHhmmToMinutes,
 } from '../reminder/reminder-schedule.util';
 
-type ReplyMethod = 'in_app' | 'notification_action';
+type ReplyMethod = 'in_app' | 'notification_action' | 'apple_watch';
 
 function monthRange(date: string): { start: string; end: string; daysInMonth: number } {
   const start = date.slice(0, 8) + '01';

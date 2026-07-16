@@ -11,6 +11,7 @@ import { userApi } from '@/services/api.types';
 import { requestNotificationPermission, scheduleDailyReminder, registerDeviceToken } from '@/services/notifications';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { isOfflineDevSession } from '@/services/devMock';
+import { syncWatchContext } from '@/services/watchSync';
 
 export default function NotificationAuthScreen() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function NotificationAuthScreen() {
         registerDeviceToken().catch(() => {});
         await userApi.updateOnboarding({ step: 'complete', isOnboarded: true });
         completeOnboarding();
+        void syncWatchContext({ isOnboarded: true }).catch(() => {});
         setOnboardingStep('complete');
         router.replace('/onboarding/complete');
       } else {
@@ -46,6 +48,7 @@ export default function NotificationAuthScreen() {
     } catch (error) {
       if (await isOfflineDevSession()) {
         completeOnboarding();
+        void syncWatchContext({ isOnboarded: true }).catch(() => {});
         setOnboardingStep('complete');
         router.replace('/onboarding/complete');
       } else {
@@ -65,11 +68,13 @@ export default function NotificationAuthScreen() {
       setShowDeniedDialog(false);
       await userApi.updateOnboarding({ step: 'complete', isOnboarded: true });
       completeOnboarding();
+      void syncWatchContext({ isOnboarded: true }).catch(() => {});
       setOnboardingStep('complete');
       router.replace('/onboarding/complete');
     } catch (error) {
       if (await isOfflineDevSession()) {
         completeOnboarding();
+        void syncWatchContext({ isOnboarded: true }).catch(() => {});
         setOnboardingStep('complete');
         router.replace('/onboarding/complete');
       } else {

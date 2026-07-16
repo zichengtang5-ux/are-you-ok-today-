@@ -2,6 +2,7 @@ import axios, { type AxiosInstance, type AxiosRequestConfig, type InternalAxiosR
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './config';
 import { authEvents } from './authEvents';
+import { clearWatchContext } from './watchSync';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -94,6 +95,7 @@ class ApiClient {
 
   private async clearTokens(): Promise<void> {
     await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+    await clearWatchContext();
   }
 
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {

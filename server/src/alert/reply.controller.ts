@@ -14,9 +14,11 @@ export class ReplyController {
   @ApiOperation({ summary: '今日回复' })
   async replyToday(
     @CurrentUser('id') userId: string,
-    @Body() body?: { replyMethod?: 'in_app' | 'notification_action' },
+    @Body() body?: { replyMethod?: 'in_app' | 'notification_action' | 'apple_watch' },
   ) {
-    const replyMethod = body?.replyMethod === 'notification_action' ? 'notification_action' : 'in_app';
+    const replyMethod = body?.replyMethod === 'notification_action' || body?.replyMethod === 'apple_watch'
+      ? body.replyMethod
+      : 'in_app';
     return this.replyService.replyToday(userId, replyMethod);
   }
 

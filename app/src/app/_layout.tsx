@@ -23,6 +23,7 @@ import {
   navigateDeepLink,
 } from '@/services/deepLink';
 import { authEvents } from '@/services/authEvents';
+import { syncWatchContext } from '@/services/watchSync';
 
 function normalizeOnboardingStep(step: string): string {
   return step === 'agreement' ? 'basic-info' : step;
@@ -63,6 +64,7 @@ export default function RootLayout() {
             setTodayStatus((userData as any).guardStatus.status);
           }
           setNotificationAuthorized(!!(userData as any).notificationAuth);
+          void syncWatchContext({ isOnboarded: userData.isOnboarded }).catch(() => {});
 
           void registerDeviceToken();
           isReady.current = true;

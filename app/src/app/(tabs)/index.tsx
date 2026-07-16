@@ -7,6 +7,7 @@ import { GreenStatusBar } from '@/components/ui/GreenStatusBar';
 import { MascotLogo } from '@/components/ui/MascotLogo';
 import { useStore } from '@/store/useStore';
 import { replyApi, alertApi, pauseApi } from '@/services/api.types';
+import { syncWatchContext } from '@/services/watchSync';
 import { isOfflineDevSession } from '@/services/devMock';
 import { computeEffectiveStatus } from '@/utils/guardStatus';
 import { formatNextReminderOccurrence, formatReminderWindow } from '@/utils/reminderWindow';
@@ -104,6 +105,7 @@ export default function HomeScreen() {
             }
           }).catch(() => {});
         } else { setActiveAlert(null); }
+        void syncWatchContext({ isOnboarded: true }).catch(() => {});
       }).catch(() => {
         if (!cancelled) {
           Alert.alert('状态同步失败', '暂时无法获取最新守护状态，请检查网络后重试。');

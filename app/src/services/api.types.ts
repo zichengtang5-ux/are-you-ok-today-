@@ -172,7 +172,7 @@ export interface ReplyTodayResponse {
   alertResolved: boolean;
 }
 
-export type ReplyMethod = 'in_app' | 'notification_action';
+export type ReplyMethod = 'in_app' | 'notification_action' | 'apple_watch';
 
 export interface UndoReplyResponse {
   message: string;

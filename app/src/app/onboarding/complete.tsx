@@ -7,6 +7,7 @@ import { useStore } from '@/store/useStore';
 import { formatReminderTimeOfDay, formatReminderWindow } from '@/utils/reminderWindow';
 import { Colors, FontSizes, FontWeights, Spacing, Radius } from '@/theme';
 import { useRouter } from 'expo-router';
+import { syncWatchContext } from '@/services/watchSync';
 
 export default function CompleteScreen() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function CompleteScreen() {
 
   const handleEnter = () => {
     useStore.getState().completeOnboarding();
+    void syncWatchContext({ isOnboarded: true }).catch(() => {});
     router.replace('/(tabs)');
   };
 

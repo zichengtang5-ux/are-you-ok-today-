@@ -11,6 +11,10 @@
 // 触发 ApiClient 构造（注册拦截器）
 import '../api';
 
+jest.mock('../watchSync', () => ({
+  clearWatchContext: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock('axios', () => {
   const requestInterceptors: ((c: unknown) => unknown)[] = [];
   const responseHandlers: { ok: (r: unknown) => unknown; err: (e: unknown) => unknown }[] = [];
